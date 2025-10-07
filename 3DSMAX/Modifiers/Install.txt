@@ -1,0 +1,1 @@
+Install by placing the content of "Custom Modifiers" C:\Program Files\Autodesk\Max_Root\Plugins

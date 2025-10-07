@@ -1,0 +1,2 @@
+Install by placing ST3E and Startup folders in Program files/maxroot/scripts
+Warning: next to some useful stuff there is also lots of experimental / broken / started never finished work. Some script might not work (any longer) and do not get any support.
