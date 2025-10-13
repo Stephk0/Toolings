@@ -1,3 +1,6 @@
+-- Viewport overlay showing you some states and stats, mostly evolving around the object you are currently editing
+-- shows constrains and if you are in show end result mode or if you have a modifier active and selected
+-- useful if you manage several objects with long stacks and want to quickly jump between them and understand what "state" they are in
 unregisterRedrawViewsCallback GW_displayObjectNames
 fn createBorder posX posY winSizeX winSizeY width borderColor=
 (

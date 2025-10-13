@@ -1,7 +1,6 @@
---
 --iconless LayerManager
--- TODO: Figure out if we can just do something to brin the layer manager always infront of other ui when clicked
---
+-- TODO: Figure out if we can just do something to bring the layer manager always infront of other ui when clicked
+-- custom button to bring back the old layer explorer behaviour. 
 
 macroScript OpenLayerManager
 	category:"ST3E_Management"

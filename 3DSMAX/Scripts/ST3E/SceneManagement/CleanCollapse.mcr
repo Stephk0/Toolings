@@ -7,7 +7,8 @@ macroScript CleanCollapse
 	-----------------------------------------------------------------------
 	-- Clean Collapse
 	-----------------------------------------------------------------------
-	-- duplicates your seletion, and attachs it to one mesh that is based on a clean cube on pivot 0 0 0
+	-- duplicates your selection, and attachs it to one mesh that is based on a clean plane on pivot 0 0 0, free of Xforms and any other attributes
+	-- supports mirrored objects to be cleanly collapsed
 	-----------------------------------------------------------------------
 	-- TODO add material
 	-- TODO filter only geometry class
@@ -43,7 +44,7 @@ macroScript CleanCollapse
 			--filter only geometry class
 			geoclassFilteredSelection = for obj in selection where superclassof obj == GeometryClass collect obj
 				
-			-- store selection to add to box mesh
+			-- store selection to add to plane mesh
 			clonedNodes = #()
 			maxOps.cloneNodes geoclassFilteredSelection clonetype:#copy actualNodeList:geoclassFilteredSelection newNodes:&clonedNodes
 			-- instantiate the plane and convert it to a poly
@@ -68,13 +69,7 @@ macroScript CleanCollapse
 			convertToMesh(combined_Mesh)
 			convertToPoly(combined_Mesh)
 
-			--combined_Mesh.EditablePoly.SetSelection #Face #{}
-
-			-- for some shitty reason editablepoly has no attach list but edit poly mod does. lets add one and collapse back to an editable poly
-			--addmodifier combined_Mesh (Edit_Poly())
-			--combined_Mesh.Edit_Poly.AttachList &clonedNodes editPolyNode:combined_Mesh
-			--convertToPoly(combined_Mesh)
-		)
+					)
 	)
 	
 )

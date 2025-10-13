@@ -8,8 +8,10 @@ macroScript JumpToEditableAndExit
 		-----------------------------------------------------------------------
 		-- jumps to the next plausible editable content within the stack
 		-- either Edit_Poly / Edit_Spline Modifier that is active
-		-- or jump to base
-		-- if in any subobjectLevel, may it be editable or other modifiers exit out
+		-- or jump to base Editable Poly / Editable Spline / Primitive
+		-- if we have a group it ungroups it
+		-- if we are in any subobjectLevel, may it be editable or other modifiers exit out
+		-- credit to Joao Sapiro Josue and Arthur Rosario for orignal concept and script
 		-----------------------------------------------------------------------
 		-- desired subobject level to jump to in category
 		local subObjModeEP = 4 -- in edit poly jump to face

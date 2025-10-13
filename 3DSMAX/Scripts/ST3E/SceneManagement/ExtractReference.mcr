@@ -1,3 +1,4 @@
+-- not sure if these work, getting the original base refernce was very tricky for some reason...
 macroScript ExtractRefernece
 	category:"ST3E_Management"
 	toolTip:"Extract Reference"

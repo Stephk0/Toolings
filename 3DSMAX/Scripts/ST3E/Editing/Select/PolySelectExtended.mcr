@@ -1,5 +1,5 @@
 macroScript PolySelectNgons
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly Select Ngons"	
 	ButtonText:"Select Ngons"
 	(
@@ -14,7 +14,7 @@ macroScript PolySelectNgons
 	)
 
 macroScript PolySelectTris
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly Select Triangles"	
 	ButtonText:"Select Tris"
 	(
@@ -29,7 +29,7 @@ macroScript PolySelectTris
 
 
 macroScript PolySelectHalfX
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly Select Half X"	
 	ButtonText:"Select Half X"
 	(
@@ -43,7 +43,7 @@ macroScript PolySelectHalfX
 	)
 	
 macroScript PolySelectHalfY
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly Select Half Y"
 	ButtonText:"Select Half Y"
 	(
@@ -57,7 +57,7 @@ macroScript PolySelectHalfY
 	)
 
 macroScript PolySelectHalfZ
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly Select Half Z"
 	ButtonText:"Select Half Z"
 	(
@@ -71,7 +71,7 @@ macroScript PolySelectHalfZ
 	)
 
 macroScript PolySelectByAngle
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly/UV Select By Angle"	
 	ButtonText:"Select °"
 	(
@@ -83,7 +83,7 @@ macroScript PolySelectByAngle
 	)
 
 macroScript PolySelectByAngle45
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly/UV Select By Angle 45"	
 	ButtonText:"Select °45"
 	(
@@ -97,7 +97,7 @@ macroScript PolySelectByAngle45
 	)
 
 macroScript PolySelectByAngle25
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly/UV Select By Angle 25"
 	ButtonText:"Select °25"
 	(
@@ -113,7 +113,7 @@ macroScript PolySelectByAngle25
 	)
 
 	macroScript PolySelectByAngle10
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly/UV Select By Angle 10"
 	ButtonText:"Select °10"
 	(
@@ -128,7 +128,7 @@ macroScript PolySelectByAngle25
 	)
 	
 	macroScript PolySelectByAngle5
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Poly/UV Select By Angle 5"
 	ButtonText:"Select °5"
 	(

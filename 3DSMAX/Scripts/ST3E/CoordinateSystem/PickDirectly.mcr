@@ -1,5 +1,5 @@
 macroScript PickCoordsysDirectly
-	category:"StephkoCustom"
+	category:"ST3E_CoordinateSystem"
 	toolTip:"PickCoordsysDirectly "
 	ButtonText:"PickCoordsysDirectly"
 	--------------------------------------------------------------------
@@ -29,7 +29,7 @@ macroScript PickCoordsysDirectly
 )
 
 macroScript PickCoordsysDirectlyAndCenterPivot
-	category:"StephkoCustom"
+	category:"ST3E_CoordinateSystem"
 	toolTip:"Pick Coordsys Directly And center Pivot "
 	ButtonText:"PickCoordsysDirectlyAndCenterPivot"
 	--------------------------------------------------------------------

@@ -3,7 +3,7 @@ TODO: fix button text, EpolySpecifcy level could be used
 */
 
 macroScript QuickSelectDotRing2
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Ring 2nds"
 buttontext: "|.|.|.|.|.|"
 autoUndoEnabled:false
@@ -13,7 +13,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotRing3
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Ring 3rds"
 buttontext: "|..|..|..|."
 autoUndoEnabled:false
@@ -23,7 +23,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotRing4
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Ring 4ths"
 buttontext: "|...|...|.."
 autoUndoEnabled:false
@@ -33,7 +33,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotRing5
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Ring 5ths"
 buttontext: "|....|....|"
 autoUndoEnabled:false
@@ -43,7 +43,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotRing5
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Ring 6ths"
 buttontext: "|.....|...."
 autoUndoEnabled:false
@@ -53,7 +53,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotLoop2
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Loop 2nds"
 buttontext: "- - - - - -"
 autoUndoEnabled:false
@@ -63,7 +63,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotLoop3
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Loop 3rds"
 buttontext: "-  -  -  - "
 autoUndoEnabled:false
@@ -73,7 +73,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotLoop4
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Loop 4ths"
 buttontext: "-   -   -   "
 autoUndoEnabled:false
@@ -83,7 +83,7 @@ autoUndoEnabled:false
 )
 
 macroScript QuickSelectDotLoop5
-category:"StephkoCustom"
+category:"ST3E_Select"
 toolTip:"Dot Loop 5ths"
 buttontext: "-    -    - "
 autoUndoEnabled:false

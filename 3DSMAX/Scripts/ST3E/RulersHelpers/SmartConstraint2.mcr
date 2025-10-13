@@ -1,7 +1,7 @@
 ---------------------------------------------------------------------
 -- Pie menu style constrain selector in the viewport
 -- Constrains without undo for uninterupted modelling flow
--- Requires ViewportFunctions.ms from /Lib . Place ViewportFunctions.ms in maxroot/scripts/startup
+-- Requires ViewportFunctions.ms from /Lib . Place Lib in maxroot/scripts/startup
 ---------------------------------------------------------------------
 	
 macroScript SmartConstraint2

@@ -151,6 +151,7 @@ plugin simpleMeshMod RelaxBySG
 /*
 		fn relaxMesh mesh iter =
 		(
+			-- early ChatGPT stuff, more theory than working
 			-- Declare local variables
 			local vangles = #()  -- Array to hold vertex angles for each vertex
 			local hold = #()  -- Array to hold original vertex positions

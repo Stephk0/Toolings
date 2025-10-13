@@ -4,7 +4,6 @@ ST3E Startup Scripts load. MUST be in startup to make sure libraries are loaded 
 	
 	function loadLibs  = 
 	(	
-		fileIn ((getDir #scripts) + "\\ST3E\\Lib\\LibTest.ms")
 		fileIn ((getDir #scripts) + "\\ST3E\\Lib\\PolySelectExtended.ms")
 		fileIn ((getDir #scripts) + "\\ST3E\\Lib\\PolySnapToLocalCenter.ms")
 		fileIn ((getDir #scripts) + "\\ST3E\\Lib\\ViewportFunctions.ms")
@@ -20,8 +19,6 @@ ST3E Startup Scripts load. MUST be in startup to make sure libraries are loaded 
 
 	function start = 
 	(
-		print "welcome to max bullshit,but this time with symlinks!"
-		print "and its synced also"
 		loadLibs()
 		loadScripts()
 	)

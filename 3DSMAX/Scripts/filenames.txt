@@ -1,0 +1,141 @@
+-----------------------------------------------------------
+--
+-- Stephkos 3ds max Vanilla extensions
+--
+-----------------------------------------------------------
+
+Description:
+These scripts help you with some annoyances vanilla max has to offer. 
+some scripts try to consolidate function in some meaningful way or offer alternatives to the hotkey options presented in vanilla max
+some scripts save you clicks by doing multiple actions at once (mergeBorders for example)
+Some scripts serve to elimanate the need of using the graphite / ribbon ui. this allows for hotkeys previously hidden aswell as floating persitent windows for example
+some scripts are meant to replace your common hotkeys, like smartWeld, smartCreate
+some scripts, as far as logically feasible, mirror their functions with edit_spline, editable splines as well (SmartConnects connects edges in EP, in spline it divides selection)
+
+Nothing fancy going on here really but you can shave off a lot of time by saving precious clicks and hotkey sequences that might 
+even require your to be activly involved in modes or context where its not needed (smartAttach doenst require an active edit poly selection, 
+tries to intercept first edit poly mod or goes to the base editable poly and starts attach mode)
+
+upcoming:
+smartCollapse , edit spline support weld with high value ( weldSpline $ 100000.0)
+smartCut, edit spline support refine
+
+
+AutoSmoothHelpers.mcr
+	-----------------------------------------------------------------------
+	-- Autosmooth helpers
+	-----------------------------------------------------------------------
+	-- set smoothing groups quickly by choosing from 15,30,45 etc degrees instead of going thru the commandpanel. retains your custom value in the commandpanel
+	-----------------------------------------------------------------------
+
+ChamferNoSmoothing.mcr
+	-----------------------------------------------------------------------
+	-- Workaround for the annoyance of the new chamfer window / algorythm defaulting to shitty mittering type and resmoothing your model if you miss unticking the smooth box
+	-----------------------------------------------------------------------
+
+DotRingDotGapQuickSelect.mcr
+	-----------------------------------------------------------------------
+	-- dot and gap select presets that dont require graphite ui
+	-----------------------------------------------------------------------
+
+InverseSeeThrough.mcr
+	-----------------------------------------------------------------------
+	-- Inverse See Through
+	-----------------------------------------------------------------------
+	-- same as see-trough but inverted to all visible geo in the viewport
+	-- helps with aligning geometry to other geometry that is tucked in oder under some other geometry making it hard to see / snap geo to
+	-- similar to Ghost Mode in Zbrush
+	-----------------------------------------------------------------------
+	-- Usage:
+	-- select object(s) to ghost and hit hotkey / button
+	-- if the same object(s) is selected and you hit hotkey /button again and you exit out of ghostmode
+	-- selecting a different object or going into isolate mode, thus changing the inverted selction will cause the script to run again
+	-----------------------------------------------------------------------
+
+
+MergeBorders.mcr
+	-----------------------------------------------------------------------
+	-- MergeBorders
+	-----------------------------------------------------------------------
+	-- find first incoming edit poly go into modfy mode if not active, select open edges, convert to verts, open vert weld window
+	-----------------------------------------------------------------------
+
+OpenLayerManager.mcr
+	-----------------------------------------------------------------------
+	-- Replace the small icon with a textbutton
+	-----------------------------------------------------------------------
+
+PickDirectly.mcr
+	--------------------------------------------------------------------
+	-- PickCoordsysDirectly
+	--------------------------------------------------------------------
+	-- pick a foreign reference coordinate system directly from a toolbar or hotkey instead of going thrugh the reference coordinate system dropdown
+	--------------------------------------------------------------------
+
+	--------------------------------------------------------------------
+	-- PickCoordsysDirectlyAndCenter
+	--------------------------------------------------------------------
+	-- pick a foreign reference coordinate system directly from a toolbar or hotkey instead of going thrugh the reference coordinate system dropdown and set the transform center
+	--------------------------------------------------------------------
+	
+PolyFlowTools.mcr
+	-----------------------------------------------------------------------
+	-- hotkeyable SetFlow that doesnt require graphite ui
+	-- set flow on edge or vertex automatically, apply flow without constrain so you dont have to disable/enable it after your op
+	-----------------------------------------------------------------------
+
+PolyLoopTools.mcr
+	-----------------------------------------------------------------------
+	-- Center Loop
+	-----------------------------------------------------------------------
+	-- vanilla hotkeyable center loop from loop tools except it doesnt autoLoop but only applies to selection 
+	-----------------------------------------------------------------------
+
+	-----------------------------------------------------------------------
+	-- Center Loop unconstrained
+	-----------------------------------------------------------------------
+	-- center loop from loop tools except it doesnt autoLoop but only applies to selection
+	-- store edit poly constraint, disable contstraint apply center, reset constrain to previously active one
+	-----------------------------------------------------------------------
+
+PolyOpHardEdges.mcr
+	----------------------------------------------
+	-- hard and smooth edge from commandpanel, hotkeyable and toolbar button
+	----------------------------------------------
+
+
+SelectFacesWithMultiSG.mcr
+	----------------------------------------------------
+	-- select faces that have multiple smoothing groups assigned
+	-- based on https://forums.cgsociety.org/t/how-to-get-some-face-which-have-two-smoothing-groups-at-least/1344376/5
+	-- extended to work with edit poly modifer
+	-- TODO extende to work with edit poly modifer
+	----------------------------------------------------
+
+SetAllToolsToCoord.mcr
+	----------------------------------------------
+	-- simple extension that sets the transform coordinate pivot for all transform modes (move, rotate, scale). in vanilla its only set to the currently active one
+	---------------------------------------------
+
+ResetPositionRotationScale.mcr
+	-----------------------------------------
+	-- reset position to zero in one click
+	-- reset rotation in one click
+	-- reset scale in one click
+	-----------------------------------------
+
+SetCenterPivot.ms
+	-----------------------------------------------------------------------
+	-- set the pivot via hotkey/toolbar button instead of the dropdown
+	-----------------------------------------------------------------------
+
+SmartTargetWeld.mcr
+	---------------------------------------------------------------------
+	--jump to vertex level automatically when target welding
+	---------------------------------------------------------------------
+
+WireframeEdgeFaceOff.mcr
+	---------------------------------------------------------------------------------
+	-- automatically disable the "Display Selected with Edged Faces" Mode when exiting Wireframe Mode
+	-- assuming edged faces is level 1 inspection on topology, wireframe mode is level 2 to get the surrounding topology context it made sense to me to auto disable level 1 if level 2 is disabled
+	---------------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 ---------------------------------------------------------------------------------
--- Toggle Wireframe and Display Edged Faces so that they make sense 
+-- Toggle Wireframe and Display Edged Faces in one uniform way 
 -- assuming edged faces is level 1 inspection on topology, wireframe mode is level 2 to get the surrounding topology context it made sense to me to auto disable level 1 if level 2 is disabled and vice versa
--- TODO add support for old viewport from >max 2017
 ---------------------------------------------------------------------------------
 
 

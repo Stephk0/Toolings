@@ -29,7 +29,7 @@ macroScript SmartIsolate
 	(
 		-- only available max 2013+
 		if ((maxVersion())[1] < 15000) then (messageBox ("This feature is only available Max 2013+ :(") title:"Max 2013+ Feature")
-		--pesky autodesk hiding useful options. this essentially enables the isolate view to not change pers/zoom level in all views
+		--autodesk hiding useful options :). this essentially enables the isolate view to not change pers/zoom level in all views
 		if IsolateSelection.ZoomExtents then IsolateSelection.ZoomExtents = false
 
 		fn IsolateMode mode pSelection =

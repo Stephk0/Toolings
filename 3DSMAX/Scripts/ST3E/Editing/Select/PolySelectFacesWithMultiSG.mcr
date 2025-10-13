@@ -6,7 +6,7 @@
 
 
 macroScript SelectFacesWithMultipleSGs
-	category:"ST3E_Modelling"
+	category:"ST3E_Select"
 	toolTip:"Select Faces With Multiple SGs "
 	ButtonText:"SelectFacesWithMultipleSGs"
 	

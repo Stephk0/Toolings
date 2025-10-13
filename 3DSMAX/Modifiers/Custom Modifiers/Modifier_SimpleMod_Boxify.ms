@@ -1,5 +1,5 @@
 /*
-Simple Cylindrify Modifier
+Simple Boxify Modifier
 Works on any type of object. if you dont pass a selection you might have to set the pivot to the center
 by Stephan Viranyi https://www.artstation.com/stephko
 original by Garp http://www.scriptspot.com/3ds-max/scripts/cylindrify-modifier

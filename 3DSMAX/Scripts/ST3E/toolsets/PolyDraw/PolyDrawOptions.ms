@@ -1,3 +1,5 @@
+-- test to use polydraw features in a reduced smaller toolbox, didnt yield any good results. abandoned
+
 macroScript PolyDrawToolsetOptions
 	category:"StephkoCustom"
 	toolTip:"PolyDrawOptions"

@@ -3,7 +3,7 @@
 */
 
 macroScript SelectbyMaterialID
-	category:"StephkoCustom"
+	category:"ST3E_Select"
 	toolTip:"Select by Material ID"
 	ButtonText:"SelectByMaterialID"
 	(
