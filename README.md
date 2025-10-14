@@ -50,7 +50,7 @@ Program Files\[MaxRoot]\Plugins
 
 
 ## License & Support
-**Author:** Stephan Viranyi (https://www.artstation.com/stephko)  
+**Author:** Stephan Viranyi
 **Contact:** stephko@viranyi.de 
 **Portfolio:** https://www.artstation.com/stephko  
 **LinkedIn:** https://www.linkedin.com/in/stephanviranyi/  
