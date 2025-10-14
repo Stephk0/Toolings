@@ -23,12 +23,6 @@ plugin modifier PolyConnectVerts
 					notifyDependents obj partIDmsg:#display
 	)
 
-	parameters main rollout:params
-	(
-		smoothAngle type:#float default:45 ui:spnSmoothAngle
-		
-	)
-
 	
 	on create do
 	(		
@@ -44,10 +38,7 @@ plugin modifier PolyConnectVerts
 		if isValidNode node then initUpdate node
 		else if this.updateHandler != undefined do deleteChangeHandler this.updateHandler
 
-	rollout params "Parameters"
-	(
-		spinner spnSmoothAngle "SmoothAngle" type:#float range:[1,180,1]
-	)
+
 	
 	rollout header "How to use"
 	(
