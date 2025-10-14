@@ -7,6 +7,14 @@ Smart Crease
 
 Mass Exporter
 
+Edit Mode Overlay
+
+Toggle Modifiers in Edit Mode
+
+Smart Orientation 
+
+Center Loops
+
 ## Geonodes:
 Set Attribute
 
