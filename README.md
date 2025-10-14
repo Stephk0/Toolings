@@ -51,9 +51,13 @@ Program Files\[MaxRoot]\Plugins
 
 ## License & Support
 **Author:** Stephan Viranyi
+
 **Contact:** stephko@viranyi.de 
+
 **Portfolio:** https://www.artstation.com/stephko  
+
 **LinkedIn:** https://www.linkedin.com/in/stephanviranyi/  
+
 **License:** Free to share and extend 
 
 **Feel free to modify and extend these tools for your own workflows. Feedback and questions are welcome!**
