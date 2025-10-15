@@ -2,6 +2,9 @@
 Collection of Tools for Blender, Unity and 3DS Max free to use for everyone.
 
 ## Blender Tools:
+
+Tested on Blender 4.5
+
 ## Addons:
 
 Vibe Code Experiments using Claude Desktop + Blender MCP. 
@@ -29,8 +32,6 @@ Transfer Attribute
 Curve from Surface
 
 Delete Selection
-
-## Geonodes:
 
 ---
 
