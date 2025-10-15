@@ -10,13 +10,14 @@ Features:
 - Vertex mode: edits vertex crease on selected vertices
 - Edge mode: edits edge crease on selected edges
 - Face mode: edits edge crease on boundary edges of selected faces
+  (or all edges if no boundaries exist - e.g., entire mesh selected)
 - Modal mouse drag with precision/snap modifiers
 - Quick preset keys: 1-9 set crease to 0.1-0.9, 0 sets to 1.0 (full crease)
 - Alt key toggles between 0 and 1
 - Live HUD display at drag position
 
 Author: Stephan Viranyi + Claude
-Version: 1.4.0
+Version: 1.5.1
 Blender: 4.0+
 Link: https://github.com/Stephk0/Toolings
 """
@@ -24,7 +25,7 @@ Link: https://github.com/Stephk0/Toolings
 bl_info = {
     "name": "Smart Crease",
     "author": "Stephan Viranyi + Claude",
-    "version": (1, 4, 0),
+    "version": (1, 5, 1),
     "blender": (4, 0, 0),
     "location": "Edit Mode > Mesh > Shift+E",
     "description": "Context-sensitive crease tool with modal control, quick presets (1-9, 0), and Alt toggle (0/1)",
@@ -48,7 +49,8 @@ _hud_data = {
     'position': (0, 0),
     'value': 0.0,
     'domain': 'Edge',
-    'font_id': 0
+    'font_id': 0,
+    'font_size': 16  # Will be updated from preferences
 }
 
 
@@ -61,9 +63,10 @@ def draw_hud():
     x, y = _hud_data['position']
     value = _hud_data['value']
     domain = _hud_data['domain']
+    font_size = _hud_data['font_size']
     
     # Set font properties
-    blf.size(font_id, 16)
+    blf.size(font_id, font_size)
     blf.color(font_id, 1.0, 1.0, 1.0, 1.0)
     
     # Draw text
@@ -104,7 +107,7 @@ class MESH_OT_smart_crease(bpy.types.Operator):
     - Alt: Toggle between 0 and 1
     - Shift+Numbers or Numpad: Enter decimal values (e.g., 0.75)
     - Shift: Precision mode (fine control)
-    - Ctrl: Snap mode (0.1 increments)
+    - Ctrl: Snap mode (custom increments from preferences)
     - Mouse: Drag to adjust value
     - Enter/Space/LMB: Confirm
     - Esc/RMB: Cancel
@@ -134,8 +137,10 @@ class MESH_OT_smart_crease(bpy.types.Operator):
         self.has_numeric = False
         self.toggle_state = None  # For alternating 0/1
         self.sensitivity = 0.005
+        self.snap_increment = 0.1  # Will be updated from preferences
         self.precision_mode = False
         self.snap_mode = False
+        self.domain_name_override = None  # For custom domain display name
         
         self.obj = context.active_object
         
@@ -162,7 +167,7 @@ class MESH_OT_smart_crease(bpy.types.Operator):
             self.domain = 'EDGE'
             domain_name = 'Edge'
         elif select_mode[2]:  # Face mode
-            self.domain = 'EDGE'  # Boundary edges
+            self.domain = 'EDGE'  # Boundary edges or all edges
             domain_name = 'Face→Boundary'
         else:
             self.domain = 'EDGE'
@@ -174,6 +179,10 @@ class MESH_OT_smart_crease(bpy.types.Operator):
             self.report({'WARNING'}, "No selected elements")
             return {'CANCELLED'}
         
+        # Override domain name if set by build_target_set
+        if hasattr(self, 'domain_name_override') and self.domain_name_override:
+            domain_name = self.domain_name_override
+        
         # Store initial mouse position
         self.initial_mouse_x = event.mouse_x
         self.initial_mouse_y = event.mouse_y
@@ -182,10 +191,13 @@ class MESH_OT_smart_crease(bpy.types.Operator):
         self.base_value = self.get_median_value()
         self.display_value = self.base_value
         
-        # Get addon preferences
+        # Get addon preferences and apply them
         prefs = context.preferences.addons.get(__name__)
-        if prefs:
+        if prefs and prefs.preferences:
             self.sensitivity = prefs.preferences.sensitivity
+            self.snap_increment = prefs.preferences.snap_increment
+            # Update HUD font size in global data
+            _hud_data['font_size'] = prefs.preferences.hud_font_size
         
         # Setup HUD
         _hud_data['position'] = (event.mouse_region_x, event.mouse_region_y)
@@ -238,7 +250,7 @@ class MESH_OT_smart_crease(bpy.types.Operator):
             for e in self.target_elements:
                 self.initial_values[e.index] = e[self.crease_layer]
         
-        elif select_mode[2]:  # Face mode - boundary edges
+        elif select_mode[2]:  # Face mode - boundary edges or all edges
             # Get or create edge crease layer FIRST
             crease_layer = self.bm.edges.layers.float.get('crease_edge')
             if crease_layer is None:
@@ -262,9 +274,22 @@ class MESH_OT_smart_crease(bpy.types.Operator):
                 if selected_count == 1:
                     boundary_edges.add(edge)
             
-            self.target_elements = list(boundary_edges)
+            # If no boundary edges found, use ALL edges from selected faces
+            if not boundary_edges:
+                all_edges = set()
+                for face in selected_faces:
+                    for edge in face.edges:
+                        if not edge.hide:
+                            all_edges.add(edge)
+                self.target_elements = list(all_edges)
+                # Update domain name for HUD display
+                self.domain_name_override = 'Face→All Edges'
+            else:
+                self.target_elements = list(boundary_edges)
+                self.domain_name_override = None
+            
             if not self.target_elements:
-                self.report({'WARNING'}, "No boundary edges found (entire mesh selected?)")
+                self.report({'WARNING'}, "No edges found in selection")
                 return False
             
             # Store initial values
@@ -347,9 +372,10 @@ class MESH_OT_smart_crease(bpy.types.Operator):
                 # Calculate new value
                 new_value = self.base_value + delta
                 
-                # Apply snap modifier
+                # Apply snap modifier using preference value
                 if self.snap_mode:
-                    new_value = round(new_value * 10) / 10
+                    if self.snap_increment > 0:
+                        new_value = round(new_value / self.snap_increment) * self.snap_increment
                 
                 self.display_value = max(0.0, min(1.0, new_value))
                 self.apply_value(self.display_value)
@@ -500,6 +526,13 @@ class SmartCreasePreferences(bpy.types.AddonPreferences):
         col.label(text="• Shift: Precision mode")
         col.label(text="• Ctrl: Snap mode")
         col.label(text="• Mouse drag: Adjust value")
+        
+        layout.separator()
+        info_box2 = layout.box()
+        info_box2.label(text="Face Mode Behavior:", icon='FACE_MAPS')
+        col2 = info_box2.column(align=True)
+        col2.label(text="• Boundary edges: When faces have unselected neighbors")
+        col2.label(text="• All edges: When entire mesh/island is selected")
         
         # Links
         layout.separator()
