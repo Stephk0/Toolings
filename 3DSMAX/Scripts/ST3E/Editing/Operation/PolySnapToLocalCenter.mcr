@@ -1,5 +1,6 @@
 -------------------------------------
 -- Snap selected vertes / edges to its local center
+-- requires scripts\ST3E\lib\PolySnapToLocalCenter.ms
 -------------------------------------
 -------------------------
 -- todo: support for splines

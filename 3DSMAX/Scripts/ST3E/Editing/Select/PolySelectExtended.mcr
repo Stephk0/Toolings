@@ -1,3 +1,5 @@
+-- requires scripts\ST3E\lib\PolySelectExtended.ms
+
 macroScript PolySelectNgons
 	category:"ST3E_Select"
 	toolTip:"Poly Select Ngons"	
