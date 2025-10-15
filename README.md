@@ -33,6 +33,12 @@ Curve from Surface
 
 Delete Selection
 
+## Installation of Blender Addons and Geonodes
+
+Download Blender folder or desired addon / geonodes . 
+Addons:  In Blender > Preferences > Addons > Install from disc > select Addon
+Geonodes in Asset Library : In Blender > Preferences > Filepaths set Geonodes folder as AssetLibrary path with "Link" as import method. All geo nodes are now available in your asset browser and can be drag dropped onto your models
+
 ---
 
 ## Unity Tools:
@@ -40,8 +46,8 @@ Delete Selection
 ---
 ## 3DS Max Tools:
 
-A collection of MaxScript tools and custom modifiers designed to enhance 3ds Max modeling workflows. The suite focuses on Edit Poly operations, viewport feedback, stack management, and procedural workflows. 
-Development on these tools have been abandoned in 2023 in favor of developing toolings in Blender. 
+ST3E (Stephkos 3ds max extensions) is a collection of MaxScript scripts, tools and custom modifiers designed to enhance 3ds Max modeling workflows. The suite focuses on little QOL improvements over vanilla implementations in max on Edit Poly operations, viewport feedback, stack management, and procedural workflows. 
+Development on these toolings have been abandoned in 2023 in favor of developing toolings in Blender. 
 
 **3DS Max Tools Documentation:** https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing
 ---
