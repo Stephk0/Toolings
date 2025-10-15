@@ -1,8 +1,11 @@
 ## Overview
-Collection of Tools for Blender, Unity and 3DS Max.
+Collection of Tools for Blender, Unity and 3DS Max free to use for everyone.
 
 ## Blender Tools:
 ## Addons:
+
+Vibe Code Experiments using Claude Desktop + Blender MCP. 
+
 Smart Crease
 
 Mass Exporter
@@ -16,6 +19,9 @@ Smart Orientation
 Center Loops
 
 ## Geonodes:
+
+Useful nodes for procedual workflow. might require some third party geonodes to work.
+
 Set Attribute
 
 Transfer Attribute
@@ -23,6 +29,8 @@ Transfer Attribute
 Curve from Surface
 
 Delete Selection
+
+## Geonodes:
 
 ---
 
