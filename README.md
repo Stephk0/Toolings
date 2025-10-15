@@ -35,8 +35,10 @@ Delete Selection
 
 ## Installation of Blender Addons and Geonodes
 
-Download Blender folder or desired addon / geonodes . 
-Addons:  In Blender > Preferences > Addons > Install from disc > select Addon
+Download or Clone Blender folder or desired addon / geonodes to desired location. 
+
+Addons:  In Blender > Preferences > Addons > Install from disk > select Addon
+
 Geonodes in Asset Library : In Blender > Preferences > Filepaths set Geonodes folder as AssetLibrary path with "Link" as import method. All geo nodes are now available in your asset browser and can be drag dropped onto your models
 
 ---
