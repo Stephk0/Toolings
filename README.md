@@ -21,16 +21,16 @@
 ### 🔷 Blender Tools (Active Development)
 
 **Addons** - Production-ready modeling helpers:
-- **Mass Collection Exporter** - Batch export with empty handling
-- **Smart Crease** - Intelligent edge / vertex crease management
-- **Smart Collapse** - 3ds max style Collapse Geometry
-- **Smart Orientation** - Auto transform orientation
-- **Center Edges/Loops** - Edge loop centering
-- **Edit Mode Overlay** - Enhanced viewport feedback
-- **Toggle Modifier Display** - Quick modifier visibility
+- **Mass Collection Exporter** - Batch export with multiple collections
+- **Smart Crease** - Fast edge / vertex crease setting tool
+- **Smart Collapse** - 3ds max style Collapse Geometry (combines collapse and merge at center)
+- **Smart Set Orientation** - Quickly set transform orientation based on selection (simlar to "D" working pivot in Maya)
+- **Center Edges/Loops** - Simple Edge loop centering
+- **Edit Mode Overlay** - Edit Mode Viewport feedback
+- **Toggle Modifier Display** - Quick modifier visibility toggle . Like 3ds max "Show end result" toggle
 
 **Geometry Nodes** - Procedural helpers:
-- Attribute manipulation, instancing, selection tools, and more
+- Procedual Attribute setting and manipulation, procedual modelling, selection tools, and more
 - [See full list](DOCUMENTATION_INDEX.md#geometry-nodes)
 
 ### 🔶 Unity Tools (Planned)
@@ -217,6 +217,7 @@ Watch this repository or star it to be notified of updates!
 ## 🙏 Acknowledgments
 
 Thanks to:
+- Blender Community
 - Blender Foundation for amazing software
 - Anthropic for Claude AI assistance
 - 3D community for feedback and testing

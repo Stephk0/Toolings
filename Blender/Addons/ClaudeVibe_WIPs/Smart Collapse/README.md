@@ -126,7 +126,7 @@ You can also find it in:
    b. If yes → Use collapse
    c. If no → Use merge at center
 5. Handle any collapse failures → Fallback to merge
-
+```
 ---
 
 ## 🐛 Troubleshooting
