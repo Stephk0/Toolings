@@ -4,13 +4,13 @@ A Blender addon that provides quick keyboard shortcuts to toggle modifier visibi
 
 ## Overview
 
-This addon adds intelligent modifier display toggling specifically designed for Edit Mode workflow. Instead of manually enabling/disabling modifiers in the modifier panel, you can quickly sync or disable modifier display with simple keyboard shortcuts.
+Instead of manually enabling/disabling modifiers in the modifier panel, you can quickly sync or disable modifier display with simple keyboard shortcuts.
 
 ## Features
 
 - **Edit Mode Display Toggle (D key)**: Smart toggle that syncs edit mode display with viewport visibility
 - **On Cage Display Toggle (Shift+D)**: Toggle the "on cage" display for modifiers that support it
-- **Intelligent Parity System**: First press syncs edit mode with viewport, second press disables all
+- **Parity System**: First press syncs edit mode with viewport, second press disables all
 - **Edit Mode Only**: Prevents accidental toggling in Object Mode
 - **Multi-Object Support**: Works with Mesh, Curve, Surface, Font, and Lattice objects
 

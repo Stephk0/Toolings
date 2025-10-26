@@ -1,6 +1,6 @@
 # Center Loops - Blender Addon
 
-A Blender addon for centering edge and vertex loops in mesh editing. This tool helps maintain even topology by centering edge loops between perpendicular edges, working seamlessly with triangles, quads, and n-gons.
+A Blender addon for centering edge and vertex loops in mesh editing. This tool helps maintain even topology by centering edge loops between perpendicular edges, working seamlessly with triangles, quads, and n-gons. Inspired by 3ds max center loops
 
 ## Features
 
