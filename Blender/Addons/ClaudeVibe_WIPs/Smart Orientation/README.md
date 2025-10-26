@@ -7,7 +7,7 @@
 
 ## Overview
 
-Smart Set Orientation is a Blender addon that intelligently manages transform orientations based on your current context and selection. It eliminates the need to manually switch between orientation modes by automatically detecting what you're working on and setting the most appropriate orientation.
+Smart Set Orientation is a Blender addon that intelligently manages transform orientations based on your current context and selection. It eliminates the need to manually switch between orientation modes by automatically detecting what you're working on and setting the most appropriate orientation. Very similar to Maya 
 
 ## Features
 
