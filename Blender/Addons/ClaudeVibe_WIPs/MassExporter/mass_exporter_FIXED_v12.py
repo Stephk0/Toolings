@@ -128,13 +128,13 @@ def move_empties_to_origin_core_logic(context, report_func=None):
     return {'FINISHED'}
 
 # FIXED: Join ALL empties from ALL enabled collections
-def join_empty_children_core_logic(context, report_func=None, apply_modifiers=False, keep_joined_copy=True):
+def join_empty_children_core_logic(context, report_func=None, apply_modifiers=False, apply_only_visible=False, keep_joined_copy=True):
     """Core logic for joining empty children - creates duplicates and joins those instead of originals
     FIXED: Processes ALL empties from ALL enabled collections"""
     # Force OBJECT mode
     if bpy.ops.object.mode_set.poll():
         bpy.ops.object.mode_set(mode='OBJECT')
-    
+
     props = context.scene.mass_exporter_props
     joined_empties = []
     
@@ -246,7 +246,22 @@ def join_empty_children_core_logic(context, report_func=None, apply_modifiers=Fa
                         bpy.ops.object.select_all(action='DESELECT')
                         dup.select_set(True)
                         context.view_layer.objects.active = dup
-                        
+
+                        # Remove disabled modifiers first if apply_only_visible is enabled
+                        if apply_only_visible:
+                            print(f"    Checking for disabled modifiers on {dup.name}...")
+                            modifiers_to_remove = []
+                            for modifier in dup.modifiers:
+                                if not modifier.show_viewport:
+                                    modifiers_to_remove.append(modifier.name)
+                                    print(f"      Marking disabled modifier '{modifier.name}' for removal")
+
+                            # Remove disabled modifiers
+                            for mod_name in modifiers_to_remove:
+                                dup.modifiers.remove(dup.modifiers[mod_name])
+                                print(f"      Removed disabled modifier '{mod_name}' from {dup.name}")
+
+                        # Apply remaining modifiers
                         for modifier in dup.modifiers[:]:
                             try:
                                 bpy.ops.object.modifier_apply(modifier=modifier.name)
@@ -432,6 +447,12 @@ class CollectionExportItem(PropertyGroup):
     apply_modifiers_before_join: BoolProperty(
         name="Apply Modifiers Before Join",
         description="Apply all modifiers before joining empty children",
+        default=False
+    )
+
+    apply_only_visible: BoolProperty(
+        name="Apply Only Visible",
+        description="Remove disabled modifiers (viewport visibility) before applying modifiers for export",
         default=False
     )
 
@@ -622,22 +643,25 @@ class MASSEXPORTER_OT_join_empties(Operator):
     bl_idname = "massexporter.join_empties"
     bl_label = "Join Empties"
     bl_description = "Create joined copies of all mesh children of empties - only from enabled collections"
-    
+
     bl_options = {'REGISTER', 'UNDO'}
-    
+
     def execute(self, context):
         """Join empty children - uses the copy-based core logic function and KEEPS the copies"""
         props = context.scene.mass_exporter_props
-        
+
         # Check if any enabled collection has apply_modifiers_before_join enabled
         apply_modifiers = False
+        apply_only_visible = False
         for item in props.collection_items:
             if item.export_enabled and item.collection and item.apply_modifiers_before_join:
                 apply_modifiers = True
+                if item.apply_only_visible:
+                    apply_only_visible = True
                 break
-        
+
         # KEEP the joined copies for debug button (keep_joined_copy=True)
-        return join_empty_children_core_logic(context, self.report, apply_modifiers, keep_joined_copy=True)
+        return join_empty_children_core_logic(context, self.report, apply_modifiers, apply_only_visible, keep_joined_copy=True)
 
 class MASSEXPORTER_OT_add_collection(Operator):
     """Add a new collection to export list"""
@@ -1100,10 +1124,29 @@ class MASSEXPORTER_OT_export_all(Operator):
                     # FIXED: Validate duplicate exists
                     if dup.name not in bpy.data.objects:
                         continue
-                        
+
                     bpy.ops.object.select_all(action='DESELECT')
                     dup.select_set(True)
                     context.view_layer.objects.active = dup
+
+                    # Remove disabled modifiers first if apply_only_visible is enabled
+                    if item.apply_only_visible:
+                        if props.debug_mode:
+                            print(f"  Checking for disabled modifiers on {dup.name}...")
+                        modifiers_to_remove = []
+                        for modifier in dup.modifiers:
+                            if not modifier.show_viewport:
+                                modifiers_to_remove.append(modifier.name)
+                                if props.debug_mode:
+                                    print(f"    Marking disabled modifier '{modifier.name}' for removal")
+
+                        # Remove disabled modifiers
+                        for mod_name in modifiers_to_remove:
+                            dup.modifiers.remove(dup.modifiers[mod_name])
+                            if props.debug_mode:
+                                print(f"    Removed disabled modifier '{mod_name}' from {dup.name}")
+
+                    # Apply remaining modifiers
                     for mod in dup.modifiers[:]:
                         try:
                             bpy.ops.object.modifier_apply(modifier=mod.name)
@@ -1597,6 +1640,13 @@ class MASSEXPORTER_PT_collections(Panel):
                 if active_item.join_empty_children:
                     mod_box = join_box.box()
                     mod_box.prop(active_item, "apply_modifiers_before_join")
+
+                    if active_item.apply_modifiers_before_join:
+                        visible_box = mod_box.box()
+                        visible_box.prop(active_item, "apply_only_visible")
+                        if active_item.apply_only_visible:
+                            visible_box.label(text="Will remove disabled modifiers first")
+
                     mod_box.label(text="✓ Joins ALL empties into ONE mesh")
                     mod_box.label(text="✓ Falls back to normal if no empties")
                 
