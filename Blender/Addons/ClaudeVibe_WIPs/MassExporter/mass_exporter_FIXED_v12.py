@@ -427,32 +427,32 @@ class CollectionExportItem(PropertyGroup):
     )
 
     center_parent_empties: BoolProperty(
-        name="Center Parent Empties",
-        description="Move parent empty to (0,0,0), export, then restore position",
+        name="Center Each Empty",
+        description="Temporarily center each empty at origin during its export",
         default=True
     )
 
     move_empties_to_origin_on_export: BoolProperty(
-        name="Move Empties to Origin on Export",
-        description="Automatically run 'Move Empties to Origin' before export",
+        name="Move All Empties to Origin",
+        description="Move all empties to world origin before export begins",
         default=False
     )
 
     join_empty_children: BoolProperty(
         name="Join Empty Children",
-        description="Join all mesh children of ALL empties into ONE object during export (on-demand)",
+        description="Combine all mesh children into a single object per export",
         default=False
     )
 
     apply_modifiers_before_join: BoolProperty(
-        name="Apply Modifiers Before Join",
-        description="Apply all modifiers before joining empty children",
+        name="Apply Modifiers",
+        description="Apply modifiers before joining meshes",
         default=False
     )
 
     apply_only_visible: BoolProperty(
-        name="Apply Only Visible",
-        description="Remove disabled modifiers (viewport visibility) before applying modifiers for export",
+        name="Only Visible Modifiers",
+        description="Skip modifiers disabled in viewport",
         default=False
     )
 
@@ -1567,27 +1567,31 @@ class MASSEXPORTER_PT_main_panel(Panel):
 
         layout.separator()
 
-        # Enhanced controls section
-        controls_box = layout.box()
-        controls_box.label(text="Debug Controls:", icon='SETTINGS')
-        
-        # Move empties button
-        row = controls_box.row()
-        row.scale_y = 1.2
-        row.operator("massexporter.move_empties_to_origin", text="Move Empties to Origin", icon='OUTLINER_OB_EMPTY')
-        
-        # Join empties button
-        row = controls_box.row()
-        row.scale_y = 1.2
-        row.operator("massexporter.join_empties", text="Join ALL Empties (Create Copies)", icon='MOD_SOLIDIFY')
-        
-        controls_box.label(text="✓ v12: Exports meshes even with no empties")
-        controls_box.label(text="✓ Fallback to normal export when needed")
-
-        layout.separator()
-
         # Debug mode
         layout.prop(props, "debug_mode")
+
+class MASSEXPORTER_PT_debug(Panel):
+    """Debug Controls Panel"""
+    bl_label = "Debug Controls"
+    bl_idname = "MASSEXPORTER_PT_debug"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Mass Exporter"
+    bl_parent_id = "MASSEXPORTER_PT_main_panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        # Move empties button
+        row = layout.row()
+        row.scale_y = 1.2
+        row.operator("massexporter.move_empties_to_origin", text="Move Empties to Origin", icon='OUTLINER_OB_EMPTY')
+
+        # Join empties button
+        row = layout.row()
+        row.scale_y = 1.2
+        row.operator("massexporter.join_empties", text="Join Empties (Preview)", icon='MOD_SOLIDIFY')
 
 class MASSEXPORTER_PT_collections(Panel):
     """Collection Options Panel"""
@@ -1629,35 +1633,22 @@ class MASSEXPORTER_PT_collections(Panel):
 
             if active_item.use_empty_origins:
                 box = layout.box()
-                box.label(text="Parent Empty Options:", icon='EMPTY_ARROWS')
+                box.label(text="Empty Options:", icon='EMPTY_ARROWS')
                 box.prop(active_item, "center_parent_empties")
-                
+                box.prop(active_item, "move_empties_to_origin_on_export")
+
+                layout.separator()
+
                 # Join empty children section
-                join_box = box.box()
-                join_box.label(text="Join Empty Children:", icon='MOD_SOLIDIFY')
+                join_box = layout.box()
+                join_box.label(text="Join Options:", icon='MOD_SOLIDIFY')
                 join_box.prop(active_item, "join_empty_children")
-                
+
                 if active_item.join_empty_children:
-                    mod_box = join_box.box()
-                    mod_box.prop(active_item, "apply_modifiers_before_join")
+                    join_box.prop(active_item, "apply_modifiers_before_join")
 
                     if active_item.apply_modifiers_before_join:
-                        visible_box = mod_box.box()
-                        visible_box.prop(active_item, "apply_only_visible")
-                        if active_item.apply_only_visible:
-                            visible_box.label(text="Will remove disabled modifiers first")
-
-                    mod_box.label(text="✓ Joins ALL empties into ONE mesh")
-                    mod_box.label(text="✓ Falls back to normal if no empties")
-                
-                # Auto move feature
-                auto_box = box.box()
-                auto_box.label(text="Auto Move to Origin:", icon='OUTLINER_OB_EMPTY')
-                auto_box.prop(active_item, "move_empties_to_origin_on_export")
-                
-                if active_item.move_empties_to_origin_on_export:
-                    info_box = auto_box.box()
-                    info_box.label(text="Will move empties to origin before export")
+                        join_box.prop(active_item, "apply_only_visible")
 
 class MASSEXPORTER_PT_transform(Panel):
     """Transform Options Panel"""
@@ -1758,6 +1749,7 @@ classes = [
     MASSEXPORTER_OT_refresh_collections,
     MASSEXPORTER_OT_export_all,
     MASSEXPORTER_PT_main_panel,
+    MASSEXPORTER_PT_debug,
     MASSEXPORTER_PT_collections,
     MASSEXPORTER_PT_transform,
     MASSEXPORTER_PT_materials,
