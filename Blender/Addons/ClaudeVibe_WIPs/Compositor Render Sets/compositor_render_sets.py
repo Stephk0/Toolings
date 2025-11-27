@@ -137,6 +137,12 @@ class COMPRS_Settings(PropertyGroup):
         default="XXX"
     )
 
+    mute_unused_output_nodes: BoolProperty(
+        name="Mute Unused File Output Nodes",
+        description="Automatically mute all File Output nodes except the one used for render sets to prevent unwanted file outputs",
+        default=True
+    )
+
     # Render Settings
     sync_visibility: BoolProperty(
         name="Sync Collection Viewport Visibility to Render",
@@ -420,6 +426,78 @@ def apply_render_visibility_overrides(render_set):
 
             status = "visible" if item.render_visibility else "hidden"
             print(f"  Collection '{item.collection.name}': {status} in render (hide_render = {item.collection.hide_render})")
+
+
+def mute_unused_output_nodes(context, active_node_name):
+    """Mute all File Output nodes except the specified one
+
+    Args:
+        context: Blender context
+        active_node_name: Name of the File Output node to keep unmuted
+
+    Returns:
+        dict: Original mute states of all File Output nodes
+    """
+    scene = context.scene
+
+    # Get compositor node tree
+    node_tree = None
+    if hasattr(scene, 'compositing_node_group') and scene.compositing_node_group:
+        node_tree = scene.compositing_node_group
+    elif hasattr(scene, 'node_tree') and scene.node_tree:
+        node_tree = scene.node_tree
+
+    if not node_tree:
+        return {}
+
+    original_mute_states = {}
+
+    print(f"[MUTE OUTPUT NODES] Muting all File Output nodes except '{active_node_name}'")
+
+    for node in node_tree.nodes:
+        if node.type == 'OUTPUT_FILE':
+            # Store original mute state
+            original_mute_states[node.name] = node.mute
+
+            # Mute all except the active one
+            if node.name == active_node_name:
+                node.mute = False
+                print(f"  ✓ '{node.name}' - ACTIVE (unmuted)")
+            else:
+                node.mute = True
+                print(f"  - '{node.name}' - muted")
+
+    return original_mute_states
+
+
+def restore_output_nodes_mute_state(context, original_states):
+    """Restore original mute states of File Output nodes
+
+    Args:
+        context: Blender context
+        original_states: dict of node names to their original mute states
+    """
+    if not original_states:
+        return
+
+    scene = context.scene
+
+    # Get compositor node tree
+    node_tree = None
+    if hasattr(scene, 'compositing_node_group') and scene.compositing_node_group:
+        node_tree = scene.compositing_node_group
+    elif hasattr(scene, 'node_tree') and scene.node_tree:
+        node_tree = scene.node_tree
+
+    if not node_tree:
+        return
+
+    print(f"[RESTORE OUTPUT NODES] Restoring original mute states")
+
+    for node in node_tree.nodes:
+        if node.type == 'OUTPUT_FILE' and node.name in original_states:
+            node.mute = original_states[node.name]
+            print(f"  '{node.name}' - mute = {node.mute}")
 
 
 def find_file_output_node(context, render_set=None):
@@ -1284,6 +1362,7 @@ class COMPRS_OT_RenderSet(Operator):
     _original_render_visibility = None
     _original_modifier_settings = None
     _original_object_settings = None
+    _original_output_nodes_mute_states = None
     _render_complete = False
     _render_handlers_installed = False
 
@@ -1508,6 +1587,11 @@ class COMPRS_OT_RenderSet(Operator):
             restore_node_state(self._output_node, self._original_node_state)
             log_message(context, "File Output node restored to original state")
 
+        # Restore output nodes mute states
+        if self._original_output_nodes_mute_states:
+            restore_output_nodes_mute_state(context, self._original_output_nodes_mute_states)
+            log_message(context, "File Output nodes mute states restored")
+
         # Clear render state flags
         props = context.scene.compositor_render_sets
         props.is_rendering = False
@@ -1555,6 +1639,13 @@ class COMPRS_OT_RenderSet(Operator):
         self._render_queue = sets_to_render
         self._current_set_index = 0
         self._render_complete = False
+
+        # Mute unused output nodes if setting is enabled
+        if props.settings.mute_unused_output_nodes:
+            # Determine which node name to use (check for override on first set)
+            active_node_name = node.name
+            self._original_output_nodes_mute_states = mute_unused_output_nodes(context, active_node_name)
+            log_message(context, f"Muted unused File Output nodes (kept '{active_node_name}' active)")
 
         # Store state in scene properties for abort functionality
         import json
@@ -1909,6 +2000,7 @@ class COMPRS_PT_MainPanel(Panel):
         col.label(text="Output Node Settings (Global):", icon='NODE')
         col.prop(settings, "output_node_name", text="Output Node Name")
         col.prop(settings, "name_prefix", text="Name Prefix")
+        col.prop(settings, "mute_unused_output_nodes")
 
         box.separator()
 
