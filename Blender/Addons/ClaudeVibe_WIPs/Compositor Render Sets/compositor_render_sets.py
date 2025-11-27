@@ -77,10 +77,16 @@ class COMPRS_RenderSet(PropertyGroup):
         default=0
     )
 
-    # Constant collections (always rendered)
+    # Per-set constant collections override
+    override_constant_collections: BoolProperty(
+        name="Override Constant Render Set Collections",
+        description="Override global constant render set collections for this render set",
+        default=False
+    )
+
     constant_collections: CollectionProperty(
         type=COMPRS_CollectionItem,
-        name="Constant Collections"
+        name="Constant Render Set Collections (Override)"
     )
 
     active_constant_collection_index: IntProperty(
@@ -157,8 +163,8 @@ class COMPRS_Settings(PropertyGroup):
     )
 
     render_constant_collections: BoolProperty(
-        name="Render Constant Collections",
-        description="Always render constant collections with each render set",
+        name="Render Constant Render Set Collections",
+        description="Always render constant render set collections with each render set",
         default=True
     )
 
@@ -199,6 +205,18 @@ class COMPRS_Properties(PropertyGroup):
 
     settings: PointerProperty(
         type=COMPRS_Settings
+    )
+
+    # Global constant render set collections
+    constant_collections: CollectionProperty(
+        type=COMPRS_CollectionItem,
+        name="Constant Render Set Collections (Global)"
+    )
+
+    active_constant_collection_index: IntProperty(
+        name="Active Constant Collection Index",
+        description="Index of the active constant collection in the global list",
+        default=0
     )
 
     log_text: StringProperty(
@@ -247,16 +265,16 @@ class COMPRS_Properties(PropertyGroup):
         default=""
     )
 
-    # Cache for constant collections visibility
+    # Cache for constant render set collections visibility
     constant_collections_visible: BoolProperty(
-        name="Constant Collections Visible",
-        description="Whether constant collections are currently visible in viewport",
+        name="Constant Render Set Collections Visible",
+        description="Whether constant render set collections are currently visible in viewport",
         default=True
     )
 
     cached_constant_collections_visibility: StringProperty(
-        name="Cached Constant Collections Visibility",
-        description="JSON string of cached visibility states for constant collections",
+        name="Cached Constant Render Set Collections Visibility",
+        description="JSON string of cached visibility states for constant render set collections",
         default=""
     )
 
@@ -852,9 +870,9 @@ class COMPRS_OT_RemoveCollection(Operator):
 
 
 class COMPRS_OT_AddConstantCollection(Operator):
-    """Add a constant collection to the current render set"""
+    """Add a constant render set collection"""
     bl_idname = "comprs.add_constant_collection"
-    bl_label = "Add Constant Collection"
+    bl_label = "Add Constant Render Set Collection"
     bl_options = {'REGISTER', 'UNDO'}
 
     collection_name: StringProperty(
@@ -862,11 +880,14 @@ class COMPRS_OT_AddConstantCollection(Operator):
         description="Name of the collection to add as constant"
     )
 
+    use_override: BoolProperty(
+        name="Use Override",
+        description="Add to per-set override instead of global",
+        default=False
+    )
+
     def execute(self, context):
-        render_set = get_active_render_set(context)
-        if not render_set:
-            self.report({'WARNING'}, "No active render set")
-            return {'CANCELLED'}
+        props = context.scene.compositor_render_sets
 
         if not self.collection_name:
             self.report({'WARNING'}, "No collection selected")
@@ -878,16 +899,33 @@ class COMPRS_OT_AddConstantCollection(Operator):
             self.report({'WARNING'}, f"Collection '{self.collection_name}' not found")
             return {'CANCELLED'}
 
-        # Check if already added
-        for item in render_set.constant_collections:
-            if item.collection == collection:
-                self.report({'WARNING'}, f"Collection '{collection.name}' already in constant collections")
+        # Determine where to add (global or per-set override)
+        if self.use_override:
+            render_set = get_active_render_set(context)
+            if not render_set:
+                self.report({'WARNING'}, "No active render set")
                 return {'CANCELLED'}
 
-        new_item = render_set.constant_collections.add()
-        new_item.collection = collection
+            # Check if already added
+            for item in render_set.constant_collections:
+                if item.collection == collection:
+                    self.report({'WARNING'}, f"Collection '{collection.name}' already in per-set constant collections")
+                    return {'CANCELLED'}
 
-        log_message(context, f"Added constant collection '{collection.name}' to '{render_set.name}'")
+            new_item = render_set.constant_collections.add()
+            new_item.collection = collection
+            log_message(context, f"Added constant render set collection '{collection.name}' to '{render_set.name}' override")
+        else:
+            # Add to global
+            for item in props.constant_collections:
+                if item.collection == collection:
+                    self.report({'WARNING'}, f"Collection '{collection.name}' already in global constant collections")
+                    return {'CANCELLED'}
+
+            new_item = props.constant_collections.add()
+            new_item.collection = collection
+            log_message(context, f"Added global constant render set collection '{collection.name}'")
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -899,22 +937,32 @@ class COMPRS_OT_AddConstantCollection(Operator):
 
 
 class COMPRS_OT_RemoveConstantCollection(Operator):
-    """Remove a constant collection from the current render set"""
+    """Remove a constant render set collection"""
     bl_idname = "comprs.remove_constant_collection"
-    bl_label = "Remove Constant Collection"
+    bl_label = "Remove Constant Render Set Collection"
     bl_options = {'REGISTER', 'UNDO'}
 
     index: IntProperty()
+    use_override: BoolProperty(default=False)
 
     def execute(self, context):
-        render_set = get_active_render_set(context)
-        if not render_set:
-            return {'CANCELLED'}
+        props = context.scene.compositor_render_sets
 
-        if 0 <= self.index < len(render_set.constant_collections):
-            coll_name = render_set.constant_collections[self.index].collection.name if render_set.constant_collections[self.index].collection else "Unknown"
-            render_set.constant_collections.remove(self.index)
-            log_message(context, f"Removed constant collection '{coll_name}' from '{render_set.name}'")
+        if self.use_override:
+            render_set = get_active_render_set(context)
+            if not render_set:
+                return {'CANCELLED'}
+
+            if 0 <= self.index < len(render_set.constant_collections):
+                coll_name = render_set.constant_collections[self.index].collection.name if render_set.constant_collections[self.index].collection else "Unknown"
+                render_set.constant_collections.remove(self.index)
+                log_message(context, f"Removed constant render set collection '{coll_name}' from '{render_set.name}' override")
+        else:
+            # Remove from global
+            if 0 <= self.index < len(props.constant_collections):
+                coll_name = props.constant_collections[self.index].collection.name if props.constant_collections[self.index].collection else "Unknown"
+                props.constant_collections.remove(self.index)
+                log_message(context, f"Removed global constant render set collection '{coll_name}'")
 
         return {'FINISHED'}
 
@@ -1072,14 +1120,21 @@ class COMPRS_OT_HideOtherSets(Operator):
         props = context.scene.compositor_render_sets
         view_layer = context.view_layer
 
-        # Collect all collections from all render sets
-        all_render_set_collections = set()
-        for render_set in props.render_sets:
-            collections = get_collections_from_set(render_set)
-            all_render_set_collections.update(collections)
+        # Get the active render set
+        active_render_set = get_active_render_set(context)
+        active_set_collections = set()
+        if active_render_set:
+            active_set_collections = set(get_collections_from_set(active_render_set))
 
-        if not all_render_set_collections:
-            self.report({'WARNING'}, "No collections defined in any render sets")
+        # Collect all collections from OTHER render sets (exclude current set)
+        other_render_set_collections = set()
+        for i, render_set in enumerate(props.render_sets):
+            if i != props.active_set_index:  # Skip the active set
+                collections = get_collections_from_set(render_set)
+                other_render_set_collections.update(collections)
+
+        if not other_render_set_collections:
+            self.report({'WARNING'}, "No collections defined in other render sets")
             return {'CANCELLED'}
 
         # Toggle based on current state
@@ -1108,7 +1163,7 @@ class COMPRS_OT_HideOtherSets(Operator):
             import json
             visibility_cache = {}
 
-            for collection in all_render_set_collections:
+            for collection in other_render_set_collections:
                 layer_collection = find_layer_collection(view_layer.layer_collection, collection)
                 if layer_collection:
                     visibility_cache[collection.name] = layer_collection.hide_viewport
@@ -1117,7 +1172,7 @@ class COMPRS_OT_HideOtherSets(Operator):
 
             props.cached_other_sets_visibility = json.dumps(visibility_cache)
             props.other_sets_hidden = True
-            log_message(context, f"Hidden {len(all_render_set_collections)} collection(s) from render sets")
+            log_message(context, f"Hidden {len(other_render_set_collections)} collection(s) from other render sets")
 
         # Force viewport and outliner update
         for area in context.screen.areas:
@@ -1128,30 +1183,32 @@ class COMPRS_OT_HideOtherSets(Operator):
 
 
 class COMPRS_OT_ToggleConstantCollections(Operator):
-    """Toggle viewport visibility of constant collections"""
+    """Toggle viewport visibility of constant render set collections"""
     bl_idname = "comprs.toggle_constant_collections"
-    bl_label = "Toggle Constant Collections"
+    bl_label = "Toggle Constant Render Set Collections"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         props = context.scene.compositor_render_sets
         render_set = get_active_render_set(context)
 
-        if not render_set:
-            self.report({'WARNING'}, "No active render set")
-            return {'CANCELLED'}
-
-        if not render_set.constant_collections:
-            self.report({'WARNING'}, "No constant collections in this render set")
-            return {'CANCELLED'}
+        # Get constant collections (global or per-set override)
+        constant_colls = []
+        if render_set and render_set.override_constant_collections:
+            if not render_set.constant_collections:
+                self.report({'WARNING'}, "No constant render set collections in this render set override")
+                return {'CANCELLED'}
+            constant_colls = [item.collection for item in render_set.constant_collections if item.collection]
+        else:
+            if not props.constant_collections:
+                self.report({'WARNING'}, "No global constant render set collections defined")
+                return {'CANCELLED'}
+            constant_colls = [item.collection for item in props.constant_collections if item.collection]
 
         view_layer = context.view_layer
 
-        # Get constant collections
-        constant_colls = [item.collection for item in render_set.constant_collections if item.collection]
-
         if not constant_colls:
-            self.report({'WARNING'}, "No valid constant collections")
+            self.report({'WARNING'}, "No valid constant render set collections")
             return {'CANCELLED'}
 
         # Toggle based on current state
@@ -1169,7 +1226,7 @@ class COMPRS_OT_ToggleConstantCollections(Operator):
 
             props.cached_constant_collections_visibility = json.dumps(visibility_cache)
             props.constant_collections_visible = False
-            log_message(context, f"Hidden {len(constant_colls)} constant collection(s)")
+            log_message(context, f"Hidden {len(constant_colls)} constant render set collection(s)")
         else:
             # Restore visibility
             import json
@@ -1185,7 +1242,7 @@ class COMPRS_OT_ToggleConstantCollections(Operator):
                                 print(f"  Restored constant collection '{collection.name}': hide_viewport = {hide_state}")
                     props.constant_collections_visible = True
                     props.cached_constant_collections_visibility = ""
-                    log_message(context, f"Restored visibility for {len(cached)} constant collection(s)")
+                    log_message(context, f"Restored visibility for {len(cached)} constant render set collection(s)")
             except Exception as e:
                 print(f"Error restoring constant collections visibility: {e}")
                 # Fallback: just show them
@@ -1327,7 +1384,13 @@ class COMPRS_OT_RenderSet(Operator):
         # Get constant collections (if enabled)
         constant_collections = []
         if props.settings.render_constant_collections:
-            constant_collections = [item.collection for item in render_set.constant_collections if item.collection]
+            # Check if this set has an override
+            if render_set.override_constant_collections:
+                constant_collections = [item.collection for item in render_set.constant_collections if item.collection]
+                print(f"[CONSTANT COLLECTIONS] Using per-set override for '{render_set.name}'")
+            else:
+                constant_collections = [item.collection for item in props.constant_collections if item.collection]
+                print(f"[CONSTANT COLLECTIONS] Using global constant collections")
 
         # Set visibility for this render set
         view_layer = context.view_layer
@@ -1340,7 +1403,13 @@ class COMPRS_OT_RenderSet(Operator):
             for rs in props.render_sets:
                 all_render_set_collections.update(get_collections_from_set(rs))
                 if props.settings.render_constant_collections:
-                    all_constant_collections.update([item.collection for item in rs.constant_collections if item.collection])
+                    # Add per-set override collections if they exist
+                    if rs.override_constant_collections:
+                        all_constant_collections.update([item.collection for item in rs.constant_collections if item.collection])
+
+            # Add global constant collections
+            if props.settings.render_constant_collections:
+                all_constant_collections.update([item.collection for item in props.constant_collections if item.collection])
 
             # Combine both sets for "defined collections"
             all_defined_collections = all_render_set_collections.union(all_constant_collections)
@@ -1592,9 +1661,14 @@ class COMPRS_UL_CollectionList(UIList):
 
 
 class COMPRS_UL_ConstantCollectionList(UIList):
-    """UIList for displaying constant collections in a render set"""
+    """UIList for displaying constant render set collections"""
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # Determine if this is a per-set override or global list
+        props = context.scene.compositor_render_sets
+        render_set = get_active_render_set(context)
+        is_override = (render_set and render_set.override_constant_collections and data == render_set)
+
         if item.collection:
             row = layout.row(align=True)
             row.label(text=item.collection.name, icon='LIGHT')
@@ -1605,6 +1679,7 @@ class COMPRS_UL_ConstantCollectionList(UIList):
             # Remove button
             op = row.operator("comprs.remove_constant_collection", text="", icon='X', emboss=False)
             op.index = index
+            op.use_override = is_override
         else:
             layout.label(text="<Missing Collection>", icon='ERROR')
 
@@ -1648,10 +1723,18 @@ class COMPRS_PT_MainPanel(Panel):
                     else:
                         row.operator("comprs.select_set", text=render_set.name, depress=False).index = i
 
+            # Add/Remove buttons right under tabs
+            row = box.row(align=True)
+            row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
+            row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
+
+            box.separator()
+
             # Active render set details
             render_set = props.render_sets[props.active_set_index]
 
             col = box.column(align=True)
+            col.prop(render_set, "enabled_for_render", text="Enabled for Render")
             col.prop(render_set, "name", text="Name")
             col.prop(render_set, "output_path", text="Output")
 
@@ -1665,11 +1748,6 @@ class COMPRS_PT_MainPanel(Panel):
                 sub = col.box().column(align=True)
                 sub.prop(render_set, "output_node_name_override", text="Output Node")
                 sub.prop(render_set, "name_prefix_override", text="Name Prefix")
-
-            box.separator()
-
-            col = box.column(align=True)
-            col.prop(render_set, "enabled_for_render", text="Enabled for Render")
 
             box.separator()
 
@@ -1696,55 +1774,96 @@ class COMPRS_PT_MainPanel(Panel):
 
             box.separator()
 
-            # Constant Collections list
-            box.label(text="Constant Collections:", icon='LIGHT')
-            box.label(text="(Always rendered, not affected by visibility buttons)", icon='INFO')
-
-            # Use template_list for constant collections
-            box.template_list(
-                "COMPRS_UL_ConstantCollectionList",
-                "",
-                render_set,
-                "constant_collections",
-                render_set,
-                "active_constant_collection_index",
-                rows=3
-            )
-
-            col = box.column(align=True)
-            col.operator("comprs.add_constant_collection", text="Add Constant Collection", icon='ADD')
-
-            # Show constant collection count
-            if len(render_set.constant_collections) > 0:
-                box.label(text=f"{len(render_set.constant_collections)} constant collection(s)", icon='INFO')
-
-            box.separator()
-
-            # Visibility controls
+            # Visibility controls for Render Set Collections
             col = box.column(align=True)
             visibility_text = "Hide Set" if render_set.is_visible else "Show Set"
             col.operator("comprs.toggle_set_visibility", text=visibility_text, icon='HIDE_OFF' if render_set.is_visible else 'HIDE_ON')
 
-            hide_other_text = "Show other Sets" if props.other_sets_hidden else "Hide other Sets"
+            hide_other_text = "Show Other Sets" if props.other_sets_hidden else "Hide Other Sets"
             hide_other_icon = 'RESTRICT_VIEW_OFF' if props.other_sets_hidden else 'RESTRICT_VIEW_ON'
             col.operator("comprs.hide_other_sets", text=hide_other_text, icon=hide_other_icon)
 
             solo_text = "Un-Solo Set" if props.solo_active else "Solo Set"
             col.operator("comprs.solo_set", text=solo_text, icon='SOLO_ON' if props.solo_active else 'SOLO_OFF')
 
-            # Constant collections visibility toggle
-            if len(render_set.constant_collections) > 0:
-                const_vis_text = "Hide Constant Collections" if props.constant_collections_visible else "Show Constant Collections"
-                const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
-                col.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
+            box.separator()
+
+            # Constant Render Set Collections (per-set override)
+            col = box.column(align=True)
+            col.prop(render_set, "override_constant_collections", text="Override Constant Render Set Collections", toggle=True)
+
+            if render_set.override_constant_collections:
+                sub = box.box()
+                sub.label(text="Constant Render Set Collections (Override):", icon='LIGHT')
+
+                # Use template_list for per-set constant collections
+                sub.template_list(
+                    "COMPRS_UL_ConstantCollectionList",
+                    "",
+                    render_set,
+                    "constant_collections",
+                    render_set,
+                    "active_constant_collection_index",
+                    rows=3
+                )
+
+                col2 = sub.column(align=True)
+                op = col2.operator("comprs.add_constant_collection", text="Add Constant Render Set Collection", icon='ADD')
+                op.use_override = True
+
+                # Show constant collection count
+                if len(render_set.constant_collections) > 0:
+                    sub.label(text=f"{len(render_set.constant_collections)} constant collection(s) in override", icon='INFO')
+
+                # Constant collections visibility toggle for override
+                if len(render_set.constant_collections) > 0:
+                    sub.separator()
+                    const_vis_text = "Hide Constant Render Set Collections" if props.constant_collections_visible else "Show Constant Render Set Collections"
+                    const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
+                    col2.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
 
         else:
             box.label(text="No render sets. Add one below.", icon='INFO')
+            # Add/Remove buttons
+            row = box.row(align=True)
+            row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
+            row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
 
-        # Add/Remove buttons
-        row = box.row(align=True)
-        row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
-        row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
+        layout.separator()
+
+        # ====================================================================
+        # Global Constant Render Set Collections Section
+        # ====================================================================
+
+        box = layout.box()
+        box.label(text="Constant Render Set Collections (Global)", icon='LIGHT')
+
+        # Use template_list for global constant collections
+        box.template_list(
+            "COMPRS_UL_ConstantCollectionList",
+            "",
+            props,
+            "constant_collections",
+            props,
+            "active_constant_collection_index",
+            rows=3
+        )
+
+        col = box.column(align=True)
+        op = col.operator("comprs.add_constant_collection", text="Add Constant Render Set Collection", icon='ADD')
+        op.use_override = False
+
+        # Show constant collection count
+        if len(props.constant_collections) > 0:
+            box.label(text=f"{len(props.constant_collections)} global constant collection(s)", icon='INFO')
+
+        # Constant collections visibility toggle for global
+        if len(props.constant_collections) > 0:
+            box.separator()
+            col = box.column(align=True)
+            const_vis_text = "Hide Constant Render Set Collections" if props.constant_collections_visible else "Show Constant Render Set Collections"
+            const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
+            col.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
 
         layout.separator()
 
