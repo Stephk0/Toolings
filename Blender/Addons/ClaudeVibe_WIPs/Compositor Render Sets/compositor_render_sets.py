@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Compositor Render Sets",
     "author": "Claude AI + Stephan Viranyi",
-    "version": (1, 6, 0),
+    "version": (1, 7, 0),
     "blender": (4, 0, 0),
     "location": "3D View > Sidebar > Compositor Render Sets",
     "description": "Render distinct collections through compositor with automatic File Output node management. Compatible with Blender 4.x and 5.0+",
@@ -68,12 +68,24 @@ class COMPRS_RenderSet(PropertyGroup):
 
     collections: CollectionProperty(
         type=COMPRS_CollectionItem,
-        name="Collections"
+        name="Render Set Collection"
     )
 
     active_collection_index: IntProperty(
         name="Active Collection Index",
         description="Index of the active collection in the list",
+        default=0
+    )
+
+    # Constant collections (always rendered)
+    constant_collections: CollectionProperty(
+        type=COMPRS_CollectionItem,
+        name="Constant Collections"
+    )
+
+    active_constant_collection_index: IntProperty(
+        name="Active Constant Collection Index",
+        description="Index of the active constant collection in the list",
         default=0
     )
 
@@ -84,9 +96,29 @@ class COMPRS_RenderSet(PropertyGroup):
         default=True
     )
 
+    # Per-set output node settings override
+    override_output_settings: BoolProperty(
+        name="Override Output Node Settings",
+        description="Override global output node settings for this render set",
+        default=False
+    )
+
+    output_node_name_override: StringProperty(
+        name="Output Node Name",
+        description="Name of the File Output node for this set",
+        default="RenderSetOutput"
+    )
+
+    name_prefix_override: StringProperty(
+        name="Name Prefix",
+        description="Prefix to replace in File Output node input names for this set",
+        default="XXX"
+    )
+
 
 class COMPRS_Settings(PropertyGroup):
     """Settings for the addon"""
+    # Output Node Settings (Global)
     output_node_name: StringProperty(
         name="Output Node Name",
         description="Name of the File Output node in compositor to manipulate",
@@ -99,6 +131,7 @@ class COMPRS_Settings(PropertyGroup):
         default="XXX"
     )
 
+    # Render Settings
     sync_visibility: BoolProperty(
         name="Sync Collection Viewport Visibility to Render",
         description="Sync collection render visibility to match viewport visibility (eye icon) for each render",
@@ -123,6 +156,13 @@ class COMPRS_Settings(PropertyGroup):
         default=False
     )
 
+    render_constant_collections: BoolProperty(
+        name="Render Constant Collections",
+        description="Always render constant collections with each render set",
+        default=True
+    )
+
+    # UI Settings
     only_show_renderable: BoolProperty(
         name="Hide/Show Set Only Renderable",
         description="Limit hide/show set visibility toggle to only affect collections enabled for render (camera icon on)",
@@ -204,6 +244,19 @@ class COMPRS_Properties(PropertyGroup):
     cached_node_state: StringProperty(
         name="Cached Node State",
         description="JSON string of cached File Output node state for abort functionality",
+        default=""
+    )
+
+    # Cache for constant collections visibility
+    constant_collections_visible: BoolProperty(
+        name="Constant Collections Visible",
+        description="Whether constant collections are currently visible in viewport",
+        default=True
+    )
+
+    cached_constant_collections_visibility: StringProperty(
+        name="Cached Constant Collections Visibility",
+        description="JSON string of cached visibility states for constant collections",
         default=""
     )
 
@@ -351,8 +404,13 @@ def apply_render_visibility_overrides(render_set):
             print(f"  Collection '{item.collection.name}': {status} in render (hide_render = {item.collection.hide_render})")
 
 
-def find_file_output_node(context):
-    """Find the File Output node by name in the compositor"""
+def find_file_output_node(context, render_set=None):
+    """Find the File Output node by name in the compositor
+
+    Args:
+        context: Blender context
+        render_set: Optional render set to check for overrides
+    """
     scene = context.scene
 
     # Ensure compositor is enabled
@@ -378,7 +436,12 @@ def find_file_output_node(context):
         print(f"[DEBUG] hasattr(scene, 'compositing_node_group'): {hasattr(scene, 'compositing_node_group')}")
         return None, "No compositor node tree found. Ensure 'Use Nodes' is enabled in the Compositor workspace."
 
-    node_name = context.scene.compositor_render_sets.settings.output_node_name
+    # Check for per-set override
+    if render_set and render_set.override_output_settings:
+        node_name = render_set.output_node_name_override
+        print(f"[FIND NODE] Using per-set override for '{render_set.name}'")
+    else:
+        node_name = context.scene.compositor_render_sets.settings.output_node_name
 
     print(f"[FIND NODE] Looking for File Output node named: '{node_name}'")
     print(f"  Total nodes in compositor: {len(node_tree.nodes)}")
@@ -441,9 +504,28 @@ def restore_node_state(node, state):
     print(f"[RESTORE] Node state restored")
 
 
-def configure_node_for_set(node, render_set, prefix):
-    """Configure File Output node for a specific render set"""
+def configure_node_for_set(node, render_set, prefix=None, context=None):
+    """Configure File Output node for a specific render set
+
+    Args:
+        node: File Output node to configure
+        render_set: Render set to configure for
+        prefix: Name prefix to replace (if None, uses global or per-set override)
+        context: Blender context (needed to get global settings if no prefix provided)
+    """
     print(f"\n[CONFIGURE] Configuring File Output node for set: {render_set.name}")
+
+    # Determine prefix to use
+    if prefix is None:
+        if render_set.override_output_settings and render_set.name_prefix_override:
+            prefix = render_set.name_prefix_override
+            print(f"  Using per-set prefix override: '{prefix}'")
+        elif context:
+            prefix = context.scene.compositor_render_sets.settings.name_prefix
+            print(f"  Using global prefix: '{prefix}'")
+        else:
+            prefix = "XXX"  # Fallback
+            print(f"  Using fallback prefix: '{prefix}'")
 
     # Set base path
     output_path = bpy.path.abspath(render_set.output_path)
@@ -769,6 +851,74 @@ class COMPRS_OT_RemoveCollection(Operator):
         return {'FINISHED'}
 
 
+class COMPRS_OT_AddConstantCollection(Operator):
+    """Add a constant collection to the current render set"""
+    bl_idname = "comprs.add_constant_collection"
+    bl_label = "Add Constant Collection"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    collection_name: StringProperty(
+        name="Collection",
+        description="Name of the collection to add as constant"
+    )
+
+    def execute(self, context):
+        render_set = get_active_render_set(context)
+        if not render_set:
+            self.report({'WARNING'}, "No active render set")
+            return {'CANCELLED'}
+
+        if not self.collection_name:
+            self.report({'WARNING'}, "No collection selected")
+            return {'CANCELLED'}
+
+        # Get the collection by name
+        collection = bpy.data.collections.get(self.collection_name)
+        if not collection:
+            self.report({'WARNING'}, f"Collection '{self.collection_name}' not found")
+            return {'CANCELLED'}
+
+        # Check if already added
+        for item in render_set.constant_collections:
+            if item.collection == collection:
+                self.report({'WARNING'}, f"Collection '{collection.name}' already in constant collections")
+                return {'CANCELLED'}
+
+        new_item = render_set.constant_collections.add()
+        new_item.collection = collection
+
+        log_message(context, f"Added constant collection '{collection.name}' to '{render_set.name}'")
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop_search(self, "collection_name", bpy.data, "collections", text="Collection")
+
+
+class COMPRS_OT_RemoveConstantCollection(Operator):
+    """Remove a constant collection from the current render set"""
+    bl_idname = "comprs.remove_constant_collection"
+    bl_label = "Remove Constant Collection"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: IntProperty()
+
+    def execute(self, context):
+        render_set = get_active_render_set(context)
+        if not render_set:
+            return {'CANCELLED'}
+
+        if 0 <= self.index < len(render_set.constant_collections):
+            coll_name = render_set.constant_collections[self.index].collection.name if render_set.constant_collections[self.index].collection else "Unknown"
+            render_set.constant_collections.remove(self.index)
+            log_message(context, f"Removed constant collection '{coll_name}' from '{render_set.name}'")
+
+        return {'FINISHED'}
+
+
 # ============================================================================
 # Operators - Visibility Control
 # ============================================================================
@@ -977,6 +1127,82 @@ class COMPRS_OT_HideOtherSets(Operator):
         return {'FINISHED'}
 
 
+class COMPRS_OT_ToggleConstantCollections(Operator):
+    """Toggle viewport visibility of constant collections"""
+    bl_idname = "comprs.toggle_constant_collections"
+    bl_label = "Toggle Constant Collections"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        props = context.scene.compositor_render_sets
+        render_set = get_active_render_set(context)
+
+        if not render_set:
+            self.report({'WARNING'}, "No active render set")
+            return {'CANCELLED'}
+
+        if not render_set.constant_collections:
+            self.report({'WARNING'}, "No constant collections in this render set")
+            return {'CANCELLED'}
+
+        view_layer = context.view_layer
+
+        # Get constant collections
+        constant_colls = [item.collection for item in render_set.constant_collections if item.collection]
+
+        if not constant_colls:
+            self.report({'WARNING'}, "No valid constant collections")
+            return {'CANCELLED'}
+
+        # Toggle based on current state
+        if props.constant_collections_visible:
+            # Hide constant collections and cache state
+            import json
+            visibility_cache = {}
+
+            for collection in constant_colls:
+                layer_collection = find_layer_collection(view_layer.layer_collection, collection)
+                if layer_collection:
+                    visibility_cache[collection.name] = layer_collection.hide_viewport
+                    layer_collection.hide_viewport = True
+                    print(f"  Hidden constant collection '{collection.name}'")
+
+            props.cached_constant_collections_visibility = json.dumps(visibility_cache)
+            props.constant_collections_visible = False
+            log_message(context, f"Hidden {len(constant_colls)} constant collection(s)")
+        else:
+            # Restore visibility
+            import json
+            try:
+                if props.cached_constant_collections_visibility:
+                    cached = json.loads(props.cached_constant_collections_visibility)
+                    for coll_name, hide_state in cached.items():
+                        collection = bpy.data.collections.get(coll_name)
+                        if collection:
+                            layer_collection = find_layer_collection(view_layer.layer_collection, collection)
+                            if layer_collection:
+                                layer_collection.hide_viewport = hide_state
+                                print(f"  Restored constant collection '{collection.name}': hide_viewport = {hide_state}")
+                    props.constant_collections_visible = True
+                    props.cached_constant_collections_visibility = ""
+                    log_message(context, f"Restored visibility for {len(cached)} constant collection(s)")
+            except Exception as e:
+                print(f"Error restoring constant collections visibility: {e}")
+                # Fallback: just show them
+                for collection in constant_colls:
+                    layer_collection = find_layer_collection(view_layer.layer_collection, collection)
+                    if layer_collection:
+                        layer_collection.hide_viewport = False
+                props.constant_collections_visible = True
+
+        # Force viewport and outliner update
+        for area in context.screen.areas:
+            if area.type in {'VIEW_3D', 'OUTLINER'}:
+                area.tag_redraw()
+
+        return {'FINISHED'}
+
+
 # ============================================================================
 # Operators - Rendering
 # ============================================================================
@@ -1079,8 +1305,7 @@ class COMPRS_OT_RenderSet(Operator):
 
         # Now configure the File Output node for this render set
         # Starting from the original state ensures clean prefix replacement
-        prefix = props.settings.name_prefix
-        output_names = configure_node_for_set(self._output_node, render_set, prefix)
+        output_names = configure_node_for_set(self._output_node, render_set, context=context)
 
         # Force compositor to update with new node settings
         # Support both Blender 4.x (node_tree) and 5.0+ (compositing_node_group) APIs
@@ -1099,6 +1324,11 @@ class COMPRS_OT_RenderSet(Operator):
         # Get collections in this set
         collections = get_collections_from_set(render_set)
 
+        # Get constant collections (if enabled)
+        constant_collections = []
+        if props.settings.render_constant_collections:
+            constant_collections = [item.collection for item in render_set.constant_collections if item.collection]
+
         # Set visibility for this render set
         view_layer = context.view_layer
 
@@ -1106,11 +1336,17 @@ class COMPRS_OT_RenderSet(Operator):
         if props.settings.hide_undefined_collections:
             # Only hide collections that are defined in any render set
             all_render_set_collections = set()
+            all_constant_collections = set()
             for rs in props.render_sets:
                 all_render_set_collections.update(get_collections_from_set(rs))
+                if props.settings.render_constant_collections:
+                    all_constant_collections.update([item.collection for item in rs.constant_collections if item.collection])
+
+            # Combine both sets for "defined collections"
+            all_defined_collections = all_render_set_collections.union(all_constant_collections)
 
             # Hide only collections from render sets
-            for coll in all_render_set_collections:
+            for coll in all_defined_collections:
                 layer_coll = find_layer_collection(view_layer.layer_collection, coll)
                 if layer_coll:
                     layer_coll.hide_viewport = True
@@ -1125,6 +1361,17 @@ class COMPRS_OT_RenderSet(Operator):
 
         # Apply collection visibility from the render set
         apply_collection_visibility(render_set, context)
+
+        # Show constant collections (they are always visible when rendering)
+        if constant_collections:
+            print(f"[CONSTANT COLLECTIONS] Showing {len(constant_collections)} constant collection(s):")
+            for coll in constant_collections:
+                layer_coll = find_layer_collection(view_layer.layer_collection, coll)
+                if layer_coll:
+                    layer_coll.hide_viewport = False
+                    # Constant collections are always renderable
+                    coll.hide_render = False
+                    print(f"  - {coll.name} (always visible for render)")
 
         # Sync render visibility if enabled
         self._original_render_visibility = sync_visibility_to_render(context)
@@ -1344,6 +1591,24 @@ class COMPRS_UL_CollectionList(UIList):
             layout.label(text="<Missing Collection>", icon='ERROR')
 
 
+class COMPRS_UL_ConstantCollectionList(UIList):
+    """UIList for displaying constant collections in a render set"""
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if item.collection:
+            row = layout.row(align=True)
+            row.label(text=item.collection.name, icon='LIGHT')
+
+            # Render visibility toggle
+            row.prop(item, "render_visibility", text="", icon='RESTRICT_RENDER_OFF' if item.render_visibility else 'RESTRICT_RENDER_ON', emboss=False)
+
+            # Remove button
+            op = row.operator("comprs.remove_constant_collection", text="", icon='X', emboss=False)
+            op.index = index
+        else:
+            layout.label(text="<Missing Collection>", icon='ERROR')
+
+
 # ============================================================================
 # Main Panel
 # ============================================================================
@@ -1389,12 +1654,27 @@ class COMPRS_PT_MainPanel(Panel):
             col = box.column(align=True)
             col.prop(render_set, "name", text="Name")
             col.prop(render_set, "output_path", text="Output")
+
+            box.separator()
+
+            # Output Node Settings (collapsible)
+            col = box.column(align=True)
+            col.prop(render_set, "override_output_settings", text="Override Output Node Settings", toggle=True)
+
+            if render_set.override_output_settings:
+                sub = col.box().column(align=True)
+                sub.prop(render_set, "output_node_name_override", text="Output Node")
+                sub.prop(render_set, "name_prefix_override", text="Name Prefix")
+
+            box.separator()
+
+            col = box.column(align=True)
             col.prop(render_set, "enabled_for_render", text="Enabled for Render")
 
             box.separator()
 
-            # Collections list
-            box.label(text="Collections:", icon='OUTLINER_COLLECTION')
+            # Render Set Collection list
+            box.label(text="Render Set Collection:", icon='OUTLINER_COLLECTION')
 
             # Use template_list properly with the active_collection_index
             box.template_list(
@@ -1416,6 +1696,30 @@ class COMPRS_PT_MainPanel(Panel):
 
             box.separator()
 
+            # Constant Collections list
+            box.label(text="Constant Collections:", icon='LIGHT')
+            box.label(text="(Always rendered, not affected by visibility buttons)", icon='INFO')
+
+            # Use template_list for constant collections
+            box.template_list(
+                "COMPRS_UL_ConstantCollectionList",
+                "",
+                render_set,
+                "constant_collections",
+                render_set,
+                "active_constant_collection_index",
+                rows=3
+            )
+
+            col = box.column(align=True)
+            col.operator("comprs.add_constant_collection", text="Add Constant Collection", icon='ADD')
+
+            # Show constant collection count
+            if len(render_set.constant_collections) > 0:
+                box.label(text=f"{len(render_set.constant_collections)} constant collection(s)", icon='INFO')
+
+            box.separator()
+
             # Visibility controls
             col = box.column(align=True)
             visibility_text = "Hide Set" if render_set.is_visible else "Show Set"
@@ -1427,6 +1731,12 @@ class COMPRS_PT_MainPanel(Panel):
 
             solo_text = "Un-Solo Set" if props.solo_active else "Solo Set"
             col.operator("comprs.solo_set", text=solo_text, icon='SOLO_ON' if props.solo_active else 'SOLO_OFF')
+
+            # Constant collections visibility toggle
+            if len(render_set.constant_collections) > 0:
+                const_vis_text = "Hide Constant Collections" if props.constant_collections_visible else "Show Constant Collections"
+                const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
+                col.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
 
         else:
             box.label(text="No render sets. Add one below.", icon='INFO')
@@ -1474,26 +1784,30 @@ class COMPRS_PT_MainPanel(Panel):
         box.label(text="Settings", icon='PREFERENCES')
 
         settings = props.settings
+
+        # Output Node Settings (Global)
         col = box.column(align=True)
+        col.label(text="Output Node Settings (Global):", icon='NODE')
         col.prop(settings, "output_node_name", text="Output Node Name")
         col.prop(settings, "name_prefix", text="Name Prefix")
 
         box.separator()
-        col = box.column(align=True)
-        col.label(text="UI Settings:", icon='WINDOW')
-        col.prop(settings, "max_tabs_per_row", text="Max Tabs Per Row")
 
-        box.separator()
+        # Render Settings (merged Sync and Visibility Options)
         col = box.column(align=True)
-        col.label(text="Sync Options:", icon='UV_SYNC_SELECT')
+        col.label(text="Render Settings:", icon='RENDER_STILL')
         col.prop(settings, "sync_visibility")
         col.prop(settings, "sync_modifiers")
         col.prop(settings, "sync_objects")
+        col.prop(settings, "hide_undefined_collections")
+        col.prop(settings, "render_constant_collections")
 
         box.separator()
+
+        # UI Settings
         col = box.column(align=True)
-        col.label(text="Visibility Options:", icon='RESTRICT_VIEW_OFF')
-        col.prop(settings, "hide_undefined_collections")
+        col.label(text="UI Settings:", icon='WINDOW')
+        col.prop(settings, "max_tabs_per_row", text="Max Tabs Per Row")
         col.prop(settings, "only_show_renderable")
 
         box.separator()
@@ -1595,7 +1909,38 @@ class COMPRS_OT_SelectSet(Operator):
 
     def execute(self, context):
         props = context.scene.compositor_render_sets
+        old_index = props.active_set_index
+
+        # Update active set index
         props.active_set_index = self.index
+
+        # When switching tabs, update visibility button states based on actual collection visibility
+        if old_index != self.index:
+            render_set = get_active_render_set(context)
+            if render_set:
+                view_layer = context.view_layer
+
+                # Check if any collections in this set are visible
+                collections_in_set = get_collections_from_set(render_set)
+                if collections_in_set:
+                    # Count how many are visible
+                    visible_count = 0
+                    for collection in collections_in_set:
+                        layer_collection = find_layer_collection(view_layer.layer_collection, collection)
+                        if layer_collection and not layer_collection.hide_viewport:
+                            visible_count += 1
+
+                    # Update is_visible state based on majority
+                    render_set.is_visible = visible_count > len(collections_in_set) / 2
+
+                # Update other_sets_hidden state by checking if other sets are actually hidden
+                # (This is a simplification - in practice you'd check actual visibility)
+
+                # Force UI update
+                for area in context.screen.areas:
+                    if area.type in {'VIEW_3D', 'OUTLINER'}:
+                        area.tag_redraw()
+
         return {'FINISHED'}
 
 
@@ -1685,15 +2030,19 @@ classes = (
     COMPRS_OT_RemoveRenderSet,
     COMPRS_OT_AddCollection,
     COMPRS_OT_RemoveCollection,
+    COMPRS_OT_AddConstantCollection,
+    COMPRS_OT_RemoveConstantCollection,
     COMPRS_OT_ToggleSetVisibility,
     COMPRS_OT_SoloSet,
     COMPRS_OT_HideOtherSets,
+    COMPRS_OT_ToggleConstantCollections,
     COMPRS_OT_RenderSet,
     COMPRS_OT_AbortRender,
     COMPRS_OT_SelectSet,
     COMPRS_OT_ClearLog,
     COMPRS_OT_TestNodeSetup,
     COMPRS_UL_CollectionList,
+    COMPRS_UL_ConstantCollectionList,
     COMPRS_PT_MainPanel,
     COMPRS_PT_ShaderEditorPanel,
     COMPRS_PT_CompositorPanel,
