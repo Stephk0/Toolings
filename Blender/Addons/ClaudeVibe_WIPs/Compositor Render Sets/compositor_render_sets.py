@@ -947,6 +947,118 @@ class COMPRS_OT_RemoveCollection(Operator):
         return {'FINISHED'}
 
 
+class COMPRS_OT_AddVisibleCollections(Operator):
+    """Add all currently visible collections in viewport (excluding constant collections)"""
+    bl_idname = "comprs.add_visible_collections"
+    bl_label = "Add Currently Visible Collections"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        props = context.scene.compositor_render_sets
+        render_set = get_active_render_set(context)
+        if not render_set:
+            self.report({'WARNING'}, "No active render set")
+            return {'CANCELLED'}
+
+        view_layer = context.view_layer
+
+        # Get all constant collections (global and per-set override) to exclude them
+        constant_collections = set()
+
+        # Add global constant collections
+        for item in props.constant_collections:
+            if item.collection:
+                constant_collections.add(item.collection)
+
+        # Add per-set override constant collections from all render sets
+        for rs in props.render_sets:
+            if rs.override_constant_collections:
+                for item in rs.constant_collections:
+                    if item.collection:
+                        constant_collections.add(item.collection)
+
+        # Get all collections already in the current render set
+        existing_collections = set(get_collections_from_set(render_set))
+
+        # Recursively find all visible collections
+        visible_collections = []
+
+        def collect_visible_recursive(layer_coll):
+            """Recursively collect all visible collections"""
+            if not layer_coll.hide_viewport:
+                collection = layer_coll.collection
+                # Add if: visible, not constant, and not already in the set
+                if (collection not in constant_collections and
+                    collection not in existing_collections):
+                    visible_collections.append(collection)
+
+            # Recurse into children
+            for child in layer_coll.children:
+                collect_visible_recursive(child)
+
+        # Start recursive collection from root
+        collect_visible_recursive(view_layer.layer_collection)
+
+        # Add all visible collections to the render set
+        added_count = 0
+        skipped_count = 0
+        for collection in visible_collections:
+            # Create a new item first
+            new_item = render_set.collections.add()
+            try:
+                # Try to assign the collection
+                new_item.collection = collection
+                added_count += 1
+                print(f"  Added visible collection: '{collection.name}'")
+            except RuntimeError as e:
+                # If assignment fails, remove the item we just added
+                render_set.collections.remove(len(render_set.collections) - 1)
+                skipped_count += 1
+                print(f"  Skipped collection '{collection.name}': {e}")
+
+        if added_count > 0:
+            message = f"Added {added_count} visible collection(s) to '{render_set.name}'"
+            if skipped_count > 0:
+                message += f" (skipped {skipped_count} embedded collection(s))"
+            self.report({'INFO'}, message)
+            log_message(context, message)
+        else:
+            if skipped_count > 0:
+                self.report({'INFO'}, f"No collections added. Skipped {skipped_count} embedded collection(s)")
+            else:
+                self.report({'INFO'}, "No new visible collections to add (all visible collections are already in set or are constant collections)")
+
+        return {'FINISHED'}
+
+
+class COMPRS_OT_ClearAllCollections(Operator):
+    """Remove all collections from the current render set"""
+    bl_idname = "comprs.clear_all_collections"
+    bl_label = "Clear All Collections"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        render_set = get_active_render_set(context)
+        if not render_set:
+            self.report({'WARNING'}, "No active render set")
+            return {'CANCELLED'}
+
+        collection_count = len(render_set.collections)
+
+        if collection_count == 0:
+            self.report({'INFO'}, "No collections to clear")
+            return {'CANCELLED'}
+
+        # Clear all collections by removing them in reverse order
+        while len(render_set.collections) > 0:
+            render_set.collections.remove(len(render_set.collections) - 1)
+
+        self.report({'INFO'}, f"Cleared {collection_count} collection(s) from '{render_set.name}'")
+        log_message(context, f"Cleared {collection_count} collection(s) from '{render_set.name}'")
+
+        return {'FINISHED'}
+
+
 class COMPRS_OT_AddConstantCollection(Operator):
     """Add a constant render set collection"""
     bl_idname = "comprs.add_constant_collection"
@@ -1748,7 +1860,12 @@ class COMPRS_UL_CollectionList(UIList):
             op = row.operator("comprs.remove_collection", text="", icon='X', emboss=False)
             op.index = index
         else:
-            layout.label(text="<Missing Collection>", icon='ERROR')
+            # Missing collection - show error with remove button
+            row = layout.row(align=True)
+            row.label(text="<Missing Collection>", icon='ERROR')
+            # Remove button for missing collections
+            op = row.operator("comprs.remove_collection", text="", icon='X', emboss=False)
+            op.index = index
 
 
 class COMPRS_UL_ConstantCollectionList(UIList):
@@ -1772,7 +1889,13 @@ class COMPRS_UL_ConstantCollectionList(UIList):
             op.index = index
             op.use_override = is_override
         else:
-            layout.label(text="<Missing Collection>", icon='ERROR')
+            # Missing collection - show error with remove button
+            row = layout.row(align=True)
+            row.label(text="<Missing Collection>", icon='ERROR')
+            # Remove button for missing collections
+            op = row.operator("comprs.remove_constant_collection", text="", icon='X', emboss=False)
+            op.index = index
+            op.use_override = is_override
 
 
 # ============================================================================
@@ -1840,6 +1963,14 @@ class COMPRS_PT_MainPanel(Panel):
                 sub.prop(render_set, "output_node_name_override", text="Output Node")
                 sub.prop(render_set, "name_prefix_override", text="Name Prefix")
 
+                # Create/Test Node Setup buttons for override
+                sub.separator()
+                row = sub.row(align=True)
+                op = row.operator("comprs.create_node_setup", text="Create Node Setup", icon='ADD')
+                op.use_override = True
+                op = row.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
+                op.use_override = True
+
             box.separator()
 
             # Render Set Collection list
@@ -1858,6 +1989,8 @@ class COMPRS_PT_MainPanel(Panel):
 
             col = box.column(align=True)
             col.operator("comprs.add_collection", text="Add Collection", icon='ADD')
+            col.operator("comprs.add_visible_collections", text="Add Currently Visible Collections", icon='RESTRICT_VIEW_OFF')
+            col.operator("comprs.clear_all_collections", text="Clear All Collections", icon='TRASH')
 
             # Show collection count
             if len(render_set.collections) > 0:
@@ -2002,6 +2135,14 @@ class COMPRS_PT_MainPanel(Panel):
         col.prop(settings, "name_prefix", text="Name Prefix")
         col.prop(settings, "mute_unused_output_nodes")
 
+        # Create/Test Node Setup buttons
+        col.separator()
+        row = col.row(align=True)
+        op = row.operator("comprs.create_node_setup", text="Create Node Setup", icon='ADD')
+        op.use_override = False
+        op = row.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
+        op.use_override = False
+
         box.separator()
 
         # Render Settings (merged Sync and Visibility Options)
@@ -2024,10 +2165,6 @@ class COMPRS_PT_MainPanel(Panel):
         box.separator()
         col = box.column(align=True)
         col.prop(settings, "enable_log", text="Enable Log")
-
-        # Debug/Test button
-        box.separator()
-        box.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
 
         layout.separator()
 
@@ -2165,11 +2302,116 @@ class COMPRS_OT_ClearLog(Operator):
         return {'FINISHED'}
 
 
+class COMPRS_OT_CreateNodeSetup(Operator):
+    """Create the required File Output node setup based on settings"""
+    bl_idname = "comprs.create_node_setup"
+    bl_label = "Create Node Setup"
+    bl_description = "Create a File Output node with the configured name in the compositor"
+
+    use_override: BoolProperty(
+        name="Use Override Settings",
+        description="Create node using per-set override settings",
+        default=False
+    )
+
+    def execute(self, context):
+        props = context.scene.compositor_render_sets
+        scene = context.scene
+
+        # Ensure compositor is enabled
+        if not scene.use_nodes:
+            scene.use_nodes = True
+            log_message(context, "Enabled compositor 'Use Nodes'")
+
+        # Get compositor node tree
+        node_tree = None
+        if hasattr(scene, 'compositing_node_group') and scene.compositing_node_group:
+            node_tree = scene.compositing_node_group
+        elif hasattr(scene, 'node_tree') and scene.node_tree:
+            node_tree = scene.node_tree
+        else:
+            self.report({'ERROR'}, "Could not access compositor node tree")
+            return {'CANCELLED'}
+
+        # Determine node name to use
+        if self.use_override:
+            render_set = get_active_render_set(context)
+            if not render_set or not render_set.override_output_settings:
+                self.report({'ERROR'}, "No active render set or override not enabled")
+                return {'CANCELLED'}
+            node_name = render_set.output_node_name_override
+            prefix = render_set.name_prefix_override
+        else:
+            node_name = props.settings.output_node_name
+            prefix = props.settings.name_prefix
+
+        # Check if node already exists
+        if node_name in node_tree.nodes:
+            self.report({'WARNING'}, f"File Output node '{node_name}' already exists")
+            return {'CANCELLED'}
+
+        # Create File Output node
+        output_node = node_tree.nodes.new('CompositorNodeOutputFile')
+        output_node.name = node_name
+        output_node.label = node_name
+
+        # Set default base path
+        set_output_node_base_path(output_node, "//")
+
+        # Blender 5.0+ uses 'format' enum instead of separate format properties
+        # Set format to 'IMAGE' (individual images) instead of 'MULTILAYER' (multilayer EXR)
+        if hasattr(output_node, 'format'):
+            try:
+                output_node.format = 'IMAGE'
+                print(f"[CREATE NODE] Set format to IMAGE (Blender 5.0+)")
+            except:
+                print(f"[CREATE NODE] Could not set format property")
+
+        # Get file slots using our version-compatible helper
+        file_slots = get_output_node_file_slots(output_node)
+
+        # Clear default slots if any exist
+        if hasattr(output_node, 'file_slots'):
+            # Blender 4.x API
+            while len(file_slots) > 0:
+                output_node.file_slots.remove(file_slots[0])
+
+            # Add example slot with prefix convention
+            slot = output_node.file_slots.new(prefix + "_ExampleSlot")
+            print(f"[CREATE NODE] Created slot using file_slots API: {prefix}_ExampleSlot")
+        elif hasattr(output_node, 'file_output_items'):
+            # Blender 5.0+ API - requires socket type and name as arguments
+            while len(file_slots) > 0:
+                output_node.file_output_items.remove(file_slots[0])
+
+            # Add example slot with prefix convention
+            # In Blender 5.0+, new() takes socket_type and name as arguments
+            slot = output_node.file_output_items.new('RGBA', prefix + "_ExampleSlot")
+            print(f"[CREATE NODE] Created slot using file_output_items API: {prefix}_ExampleSlot")
+        else:
+            self.report({'ERROR'}, "Could not find file slots API")
+            return {'CANCELLED'}
+
+        # Position the node nicely
+        output_node.location = (400, 0)
+
+        self.report({'INFO'}, f"Created File Output node '{node_name}' with example slot '{prefix}_ExampleSlot'")
+        log_message(context, f"Created File Output node '{node_name}' with format set to IMAGE and example slot '{prefix}_ExampleSlot'")
+
+        return {'FINISHED'}
+
+
 class COMPRS_OT_TestNodeSetup(Operator):
     """Test if the File Output node can be found and configured"""
     bl_idname = "comprs.test_node_setup"
     bl_label = "Test Node Setup"
     bl_description = "Verify that the File Output node is correctly configured"
+
+    use_override: BoolProperty(
+        name="Use Override Settings",
+        description="Test using per-set override settings",
+        default=False
+    )
 
     def execute(self, context):
         props = context.scene.compositor_render_sets
@@ -2178,8 +2420,22 @@ class COMPRS_OT_TestNodeSetup(Operator):
         print("TESTING FILE OUTPUT NODE SETUP")
         print("="*60)
 
+        # Determine which settings to use
+        if self.use_override:
+            render_set = get_active_render_set(context)
+            if not render_set or not render_set.override_output_settings:
+                self.report({'ERROR'}, "No active render set or override not enabled")
+                return {'CANCELLED'}
+            node_name = render_set.output_node_name_override
+            prefix = render_set.name_prefix_override
+            print(f"Testing with override settings from '{render_set.name}'")
+        else:
+            node_name = props.settings.output_node_name
+            prefix = props.settings.name_prefix
+            print(f"Testing with global settings")
+
         # Test 1: Find the node
-        node, error = find_file_output_node(context)
+        node, error = find_file_output_node(context, render_set if self.use_override else None)
         if not node:
             self.report({'ERROR'}, error)
             log_message(context, f"TEST FAILED: {error}")
@@ -2189,7 +2445,6 @@ class COMPRS_OT_TestNodeSetup(Operator):
         log_message(context, f"✓ Node found: {node.name}")
 
         # Test 2: Check file slots
-        prefix = props.settings.name_prefix
         file_slots = get_output_node_file_slots(node)
         matching_slots = [get_slot_path(slot) for slot in file_slots if get_slot_path(slot).startswith(prefix)]
 
@@ -2241,6 +2496,8 @@ classes = (
     COMPRS_OT_RemoveRenderSet,
     COMPRS_OT_AddCollection,
     COMPRS_OT_RemoveCollection,
+    COMPRS_OT_AddVisibleCollections,
+    COMPRS_OT_ClearAllCollections,
     COMPRS_OT_AddConstantCollection,
     COMPRS_OT_RemoveConstantCollection,
     COMPRS_OT_ToggleSetVisibility,
@@ -2251,6 +2508,7 @@ classes = (
     COMPRS_OT_AbortRender,
     COMPRS_OT_SelectSet,
     COMPRS_OT_ClearLog,
+    COMPRS_OT_CreateNodeSetup,
     COMPRS_OT_TestNodeSetup,
     COMPRS_UL_CollectionList,
     COMPRS_UL_ConstantCollectionList,
