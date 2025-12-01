@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(echo:*)",
+      "Bash(npx --version)",
+      "Bash(uvx:*)",
+      "Bash(cat:*)",
+      "Bash(timeout 5 npx:*)",
+      "Bash(timeout 3 npx:*)",
+      "Bash(timeout 5 uvx:*)",
+      "Bash(timeout 3 uvx:*)",
+      "Bash(timeout:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(/dev/null)",
+      "Bash(env)",
+      "Bash(python:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(cmd /c echo %USERPROFILE%)",
+      "Bash(powershell -Command \"$env:USERPROFILE\")",
+      "Bash(powershell -Command \"Write-Host $env:USERPROFILE\")",
+      "Bash(powershell -Command \"[System.Environment]::GetFolderPath(''UserProfile'')\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(cmd /c echo %APPDATA%)",
+      "Bash(powershell -Command \"Write-Host $env:APPDATA\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
