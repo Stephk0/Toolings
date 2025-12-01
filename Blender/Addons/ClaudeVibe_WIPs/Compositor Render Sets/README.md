@@ -1,6 +1,6 @@
 # Compositor Render Sets
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.9.0-blue)
 ![Blender](https://img.shields.io/badge/blender-4.0+-orange)
 
 **Author:** Claude AI + Stephan Viranyi
@@ -532,7 +532,32 @@ Potential features for future versions:
 
 ## 📜 Version History
 
-### Version 1.0.0 (Current)
+### Version 1.9.0 (Current)
+- **Bug Fix:** Override Output Node Settings now correctly uses the specified File Output node
+  - Per-set override nodes are now properly found and configured
+  - Override node name and prefix are correctly applied during rendering
+  - Mute Unused File Output Nodes now correctly identifies and unmutes override nodes
+  - All override nodes are properly restored to original state after rendering
+  - Fixed slot path handling to prioritize the correct 'path' attribute
+  - Override node states are now pre-cached before rendering to preserve original values
+- Fixed issue where override settings were ignored and global settings were always used
+- Fixed potential "file_nametex_" filename corruption by improving slot path getter/setter priority
+
+### Version 1.8.0
+- **UI Improvement:** All main sections are now collapsible/foldable
+  - Render Set Setup (expanded by default)
+  - Constant Render Set Collections (expanded by default)
+  - Render (expanded by default)
+  - Settings (collapsed by default)
+  - Log (collapsed by default)
+- Space-saving UI for cleaner workspace organization
+
+### Version 1.7.0
+- Added batch collection management
+- Create Node Setup feature
+- Mute Unused File Output Nodes feature
+
+### Version 1.0.0
 - Initial release
 - Render set management (add, remove, tabs)
 - Collection assignment per set

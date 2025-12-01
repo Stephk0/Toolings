@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Compositor Render Sets",
     "author": "Claude AI + Stephan Viranyi",
-    "version": (1, 7, 0),
+    "version": (1, 9, 0),
     "blender": (4, 0, 0),
     "location": "3D View > Sidebar > Compositor Render Sets",
     "description": "Render distinct collections through compositor with automatic File Output node management. Compatible with Blender 4.x and 5.0+",
@@ -195,6 +195,37 @@ class COMPRS_Settings(PropertyGroup):
         default=True
     )
 
+    # UI Collapse/Expand States
+    expand_render_set_setup: BoolProperty(
+        name="Expand Render Set Setup",
+        description="Show/hide the Render Set Setup section",
+        default=True
+    )
+
+    expand_constant_collections: BoolProperty(
+        name="Expand Constant Collections",
+        description="Show/hide the Global Constant Render Set Collections section",
+        default=True
+    )
+
+    expand_render: BoolProperty(
+        name="Expand Render",
+        description="Show/hide the Render section",
+        default=True
+    )
+
+    expand_settings: BoolProperty(
+        name="Expand Settings",
+        description="Show/hide the Settings section",
+        default=False
+    )
+
+    expand_log: BoolProperty(
+        name="Expand Log",
+        description="Show/hide the Log section",
+        default=False
+    )
+
 
 class COMPRS_Properties(PropertyGroup):
     """Main property group storing all addon data"""
@@ -337,10 +368,16 @@ def get_output_node_file_slots(node):
 
 def get_slot_path(slot):
     """Get path from a file slot (Blender version compatible)"""
-    # Try common path attributes
-    for attr in ['path', 'name', 'file_path', 'filepath']:
-        if hasattr(slot, attr):
-            return getattr(slot, attr)
+    # In both Blender 4.x and 5.0+, the 'path' attribute contains the subpath/filename
+    # This is the file name WITHOUT the base directory
+    if hasattr(slot, 'path'):
+        value = slot.path
+        return value
+
+    # Fallback: try 'name' (but this is usually the slot name, not the file path)
+    if hasattr(slot, 'name'):
+        value = slot.name
+        return value
 
     # Debug if not found
     print(f"[WARNING] Could not find path attribute on slot")
@@ -350,16 +387,25 @@ def get_slot_path(slot):
 
 def set_slot_path(slot, path):
     """Set path on a file slot (Blender version compatible)"""
-    # Try common path attributes
-    for attr in ['path', 'name', 'file_path', 'filepath']:
-        if hasattr(slot, attr):
-            try:
-                setattr(slot, attr, path)
-                return True
-            except:
-                continue
+    # In both Blender 4.x and 5.0+, the 'path' attribute is the subpath/filename
+    if hasattr(slot, 'path'):
+        try:
+            slot.path = path
+            return True
+        except Exception as e:
+            print(f"[ERROR] Could not set path on slot: {e}")
+            return False
 
-    print(f"[WARNING] Could not set path on slot")
+    # Fallback: try 'name' (though this might not work as expected)
+    if hasattr(slot, 'name'):
+        try:
+            slot.name = path
+            return True
+        except Exception as e:
+            print(f"[ERROR] Could not set name on slot: {e}")
+            return False
+
+    print(f"[WARNING] Could not set path on slot - no suitable attribute found")
     return False
 
 def log_message(context, message):
@@ -569,15 +615,22 @@ def cache_node_state(node):
 
     # Cache each file slot's path
     file_slots = get_output_node_file_slots(node)
+    print(f"[CACHE] Caching node '{node.name}' state:")
+    print(f"  Base path: {state['base_path']}")
+    print(f"  Number of slots: {len(file_slots)}")
+
     for i, slot in enumerate(file_slots):
+        slot_path = get_slot_path(slot)
         state['file_slots'].append({
-            'path': get_slot_path(slot),
+            'path': slot_path,
             'index': i
         })
+        print(f"  Slot {i}: path='{slot_path}'")
 
-    print(f"[CACHE] Cached node state:")
-    print(f"  Base path: {state['base_path']}")
-    print(f"  File slots: {[s['path'] for s in state['file_slots']]}")
+        # Check for suspicious content at cache time
+        if "file_nametex_" in slot_path.lower():
+            print(f"    ⚠ WARNING: Slot already contains 'file_nametex_' at cache time!")
+            print(f"    ⚠ This node may have been previously modified or has default corrupted values")
 
     return state
 
@@ -647,14 +700,19 @@ def configure_node_for_set(node, render_set, prefix=None, context=None):
 
     for i, slot in enumerate(file_slots):
         current_path = get_slot_path(slot)
+        print(f"    [DEBUG] Slot {i} current_path: '{current_path}' (type: {type(current_path)}, len: {len(current_path) if current_path else 0})")
 
         if current_path.startswith(prefix):
             # Remove prefix and replace with render set name
             remainder = current_path[len(prefix):]
             new_name = render_set.name + remainder
-            set_slot_path(slot, new_name)
-            output_names.append(new_name)
-            print(f"    Slot {i}: '{current_path}' -> '{new_name}'")
+            success = set_slot_path(slot, new_name)
+            if success:
+                output_names.append(new_name)
+                print(f"    Slot {i}: '{current_path}' -> '{new_name}' ✓")
+            else:
+                print(f"    Slot {i}: '{current_path}' -> '{new_name}' ✗ FAILED")
+                output_names.append(current_path)
         else:
             # Slot doesn't match prefix, keep as-is
             print(f"    Slot {i}: '{current_path}' (no prefix match, keeping as-is)")
@@ -1545,15 +1603,44 @@ class COMPRS_OT_RenderSet(Operator):
 
         log_message(context, f"Starting render for set: {render_set.name}")
 
+        # Check if this render set uses an override for the output node
+        current_output_node = self._output_node
+        current_node_state = self._original_node_state
+
+        if render_set.override_output_settings:
+            # This render set uses a different File Output node
+            override_node, error = find_file_output_node(context, render_set)
+            if not override_node:
+                log_message(context, f"ERROR: {error}")
+                print(f"[ERROR] Failed to find override output node: {error}")
+                # Skip this set
+                self._current_set_index += 1
+                return
+
+            # Use the override node for this set
+            current_output_node = override_node
+            # Get the cached state (should already be cached from execute())
+            if override_node.name in self._override_node_states:
+                current_node_state = self._override_node_states[override_node.name]
+            else:
+                # Fallback: cache it now (shouldn't normally happen)
+                print(f"[WARNING] Override node '{override_node.name}' not pre-cached, caching now")
+                current_node_state = cache_node_state(override_node)
+                self._override_node_states[override_node.name] = current_node_state
+
+            print(f"[OVERRIDE] Using override File Output node: '{override_node.name}'")
+        else:
+            print(f"[GLOBAL] Using global File Output node: '{current_output_node.name}'")
+
         # CRITICAL: First restore node to original state before configuring
         # This ensures we always start from the clean original prefix (e.g., XXX_Beauty)
         # not from the previously modified state (e.g., CharacterA_Beauty)
         print(f"[RESTORE] Restoring node to original state before configuring...")
-        restore_node_state(self._output_node, self._original_node_state)
+        restore_node_state(current_output_node, current_node_state)
 
         # Now configure the File Output node for this render set
         # Starting from the original state ensures clean prefix replacement
-        output_names = configure_node_for_set(self._output_node, render_set, context=context)
+        output_names = configure_node_for_set(current_output_node, render_set, context=context)
 
         # Force compositor to update with new node settings
         # Support both Blender 4.x (node_tree) and 5.0+ (compositing_node_group) APIs
@@ -1566,8 +1653,29 @@ class COMPRS_OT_RenderSet(Operator):
         context.view_layer.update()
 
         print(f"[NODE] File Output configured for '{render_set.name}'")
-        print(f"  Base path: {get_output_node_base_path(self._output_node)}")
-        print(f"  Output slots: {[get_slot_path(slot) for slot in get_output_node_file_slots(self._output_node)]}")
+        print(f"  Base path: {get_output_node_base_path(current_output_node)}")
+
+        # VALIDATION: Check slot paths before rendering
+        file_slots_check = get_output_node_file_slots(current_output_node)
+        print(f"  [PRE-RENDER VALIDATION] Checking {len(file_slots_check)} output slots:")
+        for idx, slot in enumerate(file_slots_check):
+            slot_path = get_slot_path(slot)
+            print(f"    Slot {idx}: path='{slot_path}'")
+
+            # Check for suspicious patterns
+            if "file_nametex_" in slot_path.lower():
+                print(f"    ⚠ WARNING: Slot {idx} contains 'file_nametex_' - this may be corrupted!")
+            if not slot_path or slot_path.strip() == "":
+                print(f"    ⚠ WARNING: Slot {idx} has empty path!")
+
+        # Update mute states if needed for override nodes
+        if props.settings.mute_unused_output_nodes:
+            # Temporarily update mute states for this render set
+            if render_set.override_output_settings:
+                # Unmute the override node, mute all others
+                print(f"[MUTE] Updating mute states for override node: '{current_output_node.name}'")
+                mute_unused_output_nodes(context, current_output_node.name)
+            # If not using override, the global node is already correctly unmuted from execute()
 
         # Get collections in this set
         collections = get_collections_from_set(render_set)
@@ -1694,10 +1802,33 @@ class COMPRS_OT_RenderSet(Operator):
         if self._original_object_settings:
             restore_object_settings(self._original_object_settings)
 
-        # Restore the node to original state
+        # Restore the global node to original state
         if self._output_node and self._original_node_state:
             restore_node_state(self._output_node, self._original_node_state)
-            log_message(context, "File Output node restored to original state")
+            log_message(context, "Global File Output node restored to original state")
+
+        # Restore all override nodes to their original states
+        if hasattr(self, '_override_node_states'):
+            for node_name, node_state in self._override_node_states.items():
+                # Find the node
+                override_node = None
+                scene = context.scene
+                node_tree = None
+                if hasattr(scene, 'compositing_node_group') and scene.compositing_node_group:
+                    node_tree = scene.compositing_node_group
+                elif hasattr(scene, 'node_tree') and scene.node_tree:
+                    node_tree = scene.node_tree
+
+                if node_tree:
+                    for node in node_tree.nodes:
+                        if node.name == node_name and node.type == 'OUTPUT_FILE':
+                            override_node = node
+                            break
+
+                if override_node:
+                    restore_node_state(override_node, node_state)
+                    print(f"[RESTORE] Override node '{node_name}' restored to original state")
+                    log_message(context, f"Override File Output node '{node_name}' restored to original state")
 
         # Restore output nodes mute states
         if self._original_output_nodes_mute_states:
@@ -1751,11 +1882,35 @@ class COMPRS_OT_RenderSet(Operator):
         self._render_queue = sets_to_render
         self._current_set_index = 0
         self._render_complete = False
+        self._override_node_states = {}  # Store states of override nodes
+
+        # Pre-cache all override nodes' states BEFORE any rendering starts
+        # This ensures we capture their original, unmodified state
+        for render_set in sets_to_render:
+            if render_set.override_output_settings:
+                override_node, error = find_file_output_node(context, render_set)
+                if override_node:
+                    # Only cache if we haven't already (avoid duplicates if multiple sets use same override)
+                    if override_node.name not in self._override_node_states:
+                        self._override_node_states[override_node.name] = cache_node_state(override_node)
+                        print(f"[CACHE] Pre-cached override node: '{override_node.name}'")
+                else:
+                    print(f"[WARNING] Could not find override node for set '{render_set.name}': {error}")
 
         # Mute unused output nodes if setting is enabled
         if props.settings.mute_unused_output_nodes:
             # Determine which node name to use (check for override on first set)
-            active_node_name = node.name
+            first_set = sets_to_render[0]
+            if first_set.override_output_settings:
+                # First set uses an override, find that node
+                override_node, error = find_file_output_node(context, first_set)
+                if override_node:
+                    active_node_name = override_node.name
+                else:
+                    active_node_name = node.name
+            else:
+                active_node_name = node.name
+
             self._original_output_nodes_mute_states = mute_unused_output_nodes(context, active_node_name)
             log_message(context, f"Muted unused File Output nodes (kept '{active_node_name}' active)")
 
@@ -1919,139 +2074,148 @@ class COMPRS_PT_MainPanel(Panel):
         # ====================================================================
 
         box = layout.box()
-        box.label(text="Render Set Setup", icon='RENDERLAYERS')
+        row = box.row()
+        row.prop(props.settings, "expand_render_set_setup",
+                 text="Render Set Setup",
+                 icon='TRIA_DOWN' if props.settings.expand_render_set_setup else 'TRIA_RIGHT',
+                 icon_only=False,
+                 emboss=False)
 
-        # Tabs for render sets with row wrapping
-        if len(props.render_sets) > 0:
-            max_tabs_per_row = props.settings.max_tabs_per_row
+        if not props.settings.expand_render_set_setup:
+            layout.separator()
 
-            # Create rows as needed based on max_tabs_per_row
-            for row_start in range(0, len(props.render_sets), max_tabs_per_row):
+        if props.settings.expand_render_set_setup:
+            # Tabs for render sets with row wrapping
+            if len(props.render_sets) > 0:
+                max_tabs_per_row = props.settings.max_tabs_per_row
+
+                # Create rows as needed based on max_tabs_per_row
+                for row_start in range(0, len(props.render_sets), max_tabs_per_row):
+                    row = box.row(align=True)
+                    row_end = min(row_start + max_tabs_per_row, len(props.render_sets))
+
+                    for i in range(row_start, row_end):
+                        render_set = props.render_sets[i]
+                        if i == props.active_set_index:
+                            row.operator("comprs.select_set", text=render_set.name, depress=True, emboss=True).index = i
+                        else:
+                            row.operator("comprs.select_set", text=render_set.name, depress=False).index = i
+
+                # Add/Remove buttons right under tabs
                 row = box.row(align=True)
-                row_end = min(row_start + max_tabs_per_row, len(props.render_sets))
+                row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
+                row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
 
-                for i in range(row_start, row_end):
-                    render_set = props.render_sets[i]
-                    if i == props.active_set_index:
-                        row.operator("comprs.select_set", text=render_set.name, depress=True, emboss=True).index = i
-                    else:
-                        row.operator("comprs.select_set", text=render_set.name, depress=False).index = i
+                box.separator()
 
-            # Add/Remove buttons right under tabs
-            row = box.row(align=True)
-            row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
-            row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
+                # Active render set details
+                render_set = props.render_sets[props.active_set_index]
 
-            box.separator()
+                col = box.column(align=True)
+                col.prop(render_set, "enabled_for_render", text="Enabled for Render")
+                col.prop(render_set, "name", text="Name")
+                col.prop(render_set, "output_path", text="Output")
 
-            # Active render set details
-            render_set = props.render_sets[props.active_set_index]
+                box.separator()
 
-            col = box.column(align=True)
-            col.prop(render_set, "enabled_for_render", text="Enabled for Render")
-            col.prop(render_set, "name", text="Name")
-            col.prop(render_set, "output_path", text="Output")
+                # Output Node Settings (collapsible)
+                col = box.column(align=True)
+                col.prop(render_set, "override_output_settings", text="Override Output Node Settings", toggle=True)
 
-            box.separator()
+                if render_set.override_output_settings:
+                    sub = col.box().column(align=True)
+                    sub.prop(render_set, "output_node_name_override", text="Output Node")
+                    sub.prop(render_set, "name_prefix_override", text="Name Prefix")
 
-            # Output Node Settings (collapsible)
-            col = box.column(align=True)
-            col.prop(render_set, "override_output_settings", text="Override Output Node Settings", toggle=True)
+                    # Create/Test Node Setup buttons for override
+                    sub.separator()
+                    row = sub.row(align=True)
+                    op = row.operator("comprs.create_node_setup", text="Create Node Setup", icon='ADD')
+                    op.use_override = True
+                    op = row.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
+                    op.use_override = True
 
-            if render_set.override_output_settings:
-                sub = col.box().column(align=True)
-                sub.prop(render_set, "output_node_name_override", text="Output Node")
-                sub.prop(render_set, "name_prefix_override", text="Name Prefix")
+                box.separator()
 
-                # Create/Test Node Setup buttons for override
-                sub.separator()
-                row = sub.row(align=True)
-                op = row.operator("comprs.create_node_setup", text="Create Node Setup", icon='ADD')
-                op.use_override = True
-                op = row.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
-                op.use_override = True
+                # Render Set Collection list
+                box.label(text="Render Set Collection:", icon='OUTLINER_COLLECTION')
 
-            box.separator()
-
-            # Render Set Collection list
-            box.label(text="Render Set Collection:", icon='OUTLINER_COLLECTION')
-
-            # Use template_list properly with the active_collection_index
-            box.template_list(
-                "COMPRS_UL_CollectionList",
-                "",
-                render_set,
-                "collections",
-                render_set,
-                "active_collection_index",
-                rows=4
-            )
-
-            col = box.column(align=True)
-            col.operator("comprs.add_collection", text="Add Collection", icon='ADD')
-            col.operator("comprs.add_visible_collections", text="Add Currently Visible Collections", icon='RESTRICT_VIEW_OFF')
-            col.operator("comprs.clear_all_collections", text="Clear All Collections", icon='TRASH')
-
-            # Show collection count
-            if len(render_set.collections) > 0:
-                box.label(text=f"{len(render_set.collections)} collection(s) in set", icon='INFO')
-
-            box.separator()
-
-            # Visibility controls for Render Set Collections
-            col = box.column(align=True)
-            visibility_text = "Hide Set" if render_set.is_visible else "Show Set"
-            col.operator("comprs.toggle_set_visibility", text=visibility_text, icon='HIDE_OFF' if render_set.is_visible else 'HIDE_ON')
-
-            hide_other_text = "Show Other Sets" if props.other_sets_hidden else "Hide Other Sets"
-            hide_other_icon = 'RESTRICT_VIEW_OFF' if props.other_sets_hidden else 'RESTRICT_VIEW_ON'
-            col.operator("comprs.hide_other_sets", text=hide_other_text, icon=hide_other_icon)
-
-            solo_text = "Un-Solo Set" if props.solo_active else "Solo Set"
-            col.operator("comprs.solo_set", text=solo_text, icon='SOLO_ON' if props.solo_active else 'SOLO_OFF')
-
-            box.separator()
-
-            # Constant Render Set Collections (per-set override)
-            col = box.column(align=True)
-            col.prop(render_set, "override_constant_collections", text="Override Constant Render Set Collections", toggle=True)
-
-            if render_set.override_constant_collections:
-                sub = box.box()
-                sub.label(text="Constant Render Set Collections (Override):", icon='LIGHT')
-
-                # Use template_list for per-set constant collections
-                sub.template_list(
-                    "COMPRS_UL_ConstantCollectionList",
+                # Use template_list properly with the active_collection_index
+                box.template_list(
+                    "COMPRS_UL_CollectionList",
                     "",
                     render_set,
-                    "constant_collections",
+                    "collections",
                     render_set,
-                    "active_constant_collection_index",
-                    rows=3
+                    "active_collection_index",
+                    rows=4
                 )
 
-                col2 = sub.column(align=True)
-                op = col2.operator("comprs.add_constant_collection", text="Add Constant Render Set Collection", icon='ADD')
-                op.use_override = True
+                col = box.column(align=True)
+                col.operator("comprs.add_collection", text="Add Collection", icon='ADD')
+                col.operator("comprs.add_visible_collections", text="Add Currently Visible Collections", icon='RESTRICT_VIEW_OFF')
+                col.operator("comprs.clear_all_collections", text="Clear All Collections", icon='TRASH')
 
-                # Show constant collection count
-                if len(render_set.constant_collections) > 0:
-                    sub.label(text=f"{len(render_set.constant_collections)} constant collection(s) in override", icon='INFO')
+                # Show collection count
+                if len(render_set.collections) > 0:
+                    box.label(text=f"{len(render_set.collections)} collection(s) in set", icon='INFO')
 
-                # Constant collections visibility toggle for override
-                if len(render_set.constant_collections) > 0:
-                    sub.separator()
-                    const_vis_text = "Hide Constant Render Set Collections" if props.constant_collections_visible else "Show Constant Render Set Collections"
-                    const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
-                    col2.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
+                box.separator()
 
-        else:
-            box.label(text="No render sets. Add one below.", icon='INFO')
-            # Add/Remove buttons
-            row = box.row(align=True)
-            row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
-            row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
+                # Visibility controls for Render Set Collections
+                col = box.column(align=True)
+                visibility_text = "Hide Set" if render_set.is_visible else "Show Set"
+                col.operator("comprs.toggle_set_visibility", text=visibility_text, icon='HIDE_OFF' if render_set.is_visible else 'HIDE_ON')
+
+                hide_other_text = "Show Other Sets" if props.other_sets_hidden else "Hide Other Sets"
+                hide_other_icon = 'RESTRICT_VIEW_OFF' if props.other_sets_hidden else 'RESTRICT_VIEW_ON'
+                col.operator("comprs.hide_other_sets", text=hide_other_text, icon=hide_other_icon)
+
+                solo_text = "Un-Solo Set" if props.solo_active else "Solo Set"
+                col.operator("comprs.solo_set", text=solo_text, icon='SOLO_ON' if props.solo_active else 'SOLO_OFF')
+
+                box.separator()
+
+                # Constant Render Set Collections (per-set override)
+                col = box.column(align=True)
+                col.prop(render_set, "override_constant_collections", text="Override Constant Render Set Collections", toggle=True)
+
+                if render_set.override_constant_collections:
+                    sub = box.box()
+                    sub.label(text="Constant Render Set Collections (Override):", icon='LIGHT')
+
+                    # Use template_list for per-set constant collections
+                    sub.template_list(
+                        "COMPRS_UL_ConstantCollectionList",
+                        "",
+                        render_set,
+                        "constant_collections",
+                        render_set,
+                        "active_constant_collection_index",
+                        rows=3
+                    )
+
+                    col2 = sub.column(align=True)
+                    op = col2.operator("comprs.add_constant_collection", text="Add Constant Render Set Collection", icon='ADD')
+                    op.use_override = True
+
+                    # Show constant collection count
+                    if len(render_set.constant_collections) > 0:
+                        sub.label(text=f"{len(render_set.constant_collections)} constant collection(s) in override", icon='INFO')
+
+                    # Constant collections visibility toggle for override
+                    if len(render_set.constant_collections) > 0:
+                        sub.separator()
+                        const_vis_text = "Hide Constant Render Set Collections" if props.constant_collections_visible else "Show Constant Render Set Collections"
+                        const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
+                        col2.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
+
+            else:
+                box.label(text="No render sets. Add one below.", icon='INFO')
+                # Add/Remove buttons
+                row = box.row(align=True)
+                row.operator("comprs.add_render_set", text="Add Set", icon='ADD')
+                row.operator("comprs.remove_render_set", text="Remove Set", icon='REMOVE')
 
         layout.separator()
 
@@ -2060,34 +2224,43 @@ class COMPRS_PT_MainPanel(Panel):
         # ====================================================================
 
         box = layout.box()
-        box.label(text="Constant Render Set Collections (Global)", icon='LIGHT')
+        row = box.row()
+        row.prop(props.settings, "expand_constant_collections",
+                 text="Constant Render Set Collections (Global)",
+                 icon='TRIA_DOWN' if props.settings.expand_constant_collections else 'TRIA_RIGHT',
+                 icon_only=False,
+                 emboss=False)
 
-        # Use template_list for global constant collections
-        box.template_list(
-            "COMPRS_UL_ConstantCollectionList",
-            "",
-            props,
-            "constant_collections",
-            props,
-            "active_constant_collection_index",
-            rows=3
-        )
+        if not props.settings.expand_constant_collections:
+            layout.separator()
 
-        col = box.column(align=True)
-        op = col.operator("comprs.add_constant_collection", text="Add Constant Render Set Collection", icon='ADD')
-        op.use_override = False
+        if props.settings.expand_constant_collections:
+            # Use template_list for global constant collections
+            box.template_list(
+                "COMPRS_UL_ConstantCollectionList",
+                "",
+                props,
+                "constant_collections",
+                props,
+                "active_constant_collection_index",
+                rows=3
+            )
 
-        # Show constant collection count
-        if len(props.constant_collections) > 0:
-            box.label(text=f"{len(props.constant_collections)} global constant collection(s)", icon='INFO')
-
-        # Constant collections visibility toggle for global
-        if len(props.constant_collections) > 0:
-            box.separator()
             col = box.column(align=True)
-            const_vis_text = "Hide Constant Render Set Collections" if props.constant_collections_visible else "Show Constant Render Set Collections"
-            const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
-            col.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
+            op = col.operator("comprs.add_constant_collection", text="Add Constant Render Set Collection", icon='ADD')
+            op.use_override = False
+
+            # Show constant collection count
+            if len(props.constant_collections) > 0:
+                box.label(text=f"{len(props.constant_collections)} global constant collection(s)", icon='INFO')
+
+            # Constant collections visibility toggle for global
+            if len(props.constant_collections) > 0:
+                box.separator()
+                col = box.column(align=True)
+                const_vis_text = "Hide Constant Render Set Collections" if props.constant_collections_visible else "Show Constant Render Set Collections"
+                const_vis_icon = 'HIDE_OFF' if props.constant_collections_visible else 'HIDE_ON'
+                col.operator("comprs.toggle_constant_collections", text=const_vis_text, icon=const_vis_icon)
 
         layout.separator()
 
@@ -2096,26 +2269,35 @@ class COMPRS_PT_MainPanel(Panel):
         # ====================================================================
 
         box = layout.box()
-        box.label(text="Render", icon='RENDER_STILL')
+        row = box.row()
+        row.prop(props.settings, "expand_render",
+                 text="Render",
+                 icon='TRIA_DOWN' if props.settings.expand_render else 'TRIA_RIGHT',
+                 icon_only=False,
+                 emboss=False)
 
-        col = box.column(align=True)
-        col.scale_y = 1.3
+        if not props.settings.expand_render:
+            layout.separator()
 
-        op = col.operator("comprs.render_set", text="Render Current Set", icon='RENDER_STILL')
-        op.mode = 'current'
+        if props.settings.expand_render:
+            col = box.column(align=True)
+            col.scale_y = 1.3
 
-        op = col.operator("comprs.render_set", text="Render Selected Sets", icon='RENDERLAYERS')
-        op.mode = 'selected'
+            op = col.operator("comprs.render_set", text="Render Current Set", icon='RENDER_STILL')
+            op.mode = 'current'
 
-        op = col.operator("comprs.render_set", text="Render All Sets", icon='RENDER_ANIMATION')
-        op.mode = 'all'
+            op = col.operator("comprs.render_set", text="Render Selected Sets", icon='RENDERLAYERS')
+            op.mode = 'selected'
 
-        box.separator()
+            op = col.operator("comprs.render_set", text="Render All Sets", icon='RENDER_ANIMATION')
+            op.mode = 'all'
 
-        # Abort button (only enabled when rendering)
-        col = box.column(align=True)
-        col.enabled = props.is_rendering
-        col.operator("comprs.abort_render", text="Abort Render", icon='CANCEL')
+            box.separator()
+
+            # Abort button (only enabled when rendering)
+            col = box.column(align=True)
+            col.enabled = props.is_rendering
+            col.operator("comprs.abort_render", text="Abort Render", icon='CANCEL')
 
         layout.separator()
 
@@ -2124,47 +2306,56 @@ class COMPRS_PT_MainPanel(Panel):
         # ====================================================================
 
         box = layout.box()
-        box.label(text="Settings", icon='PREFERENCES')
+        row = box.row()
+        row.prop(props.settings, "expand_settings",
+                 text="Settings",
+                 icon='TRIA_DOWN' if props.settings.expand_settings else 'TRIA_RIGHT',
+                 icon_only=False,
+                 emboss=False)
 
-        settings = props.settings
+        if not props.settings.expand_settings:
+            layout.separator()
 
-        # Output Node Settings (Global)
-        col = box.column(align=True)
-        col.label(text="Output Node Settings (Global):", icon='NODE')
-        col.prop(settings, "output_node_name", text="Output Node Name")
-        col.prop(settings, "name_prefix", text="Name Prefix")
-        col.prop(settings, "mute_unused_output_nodes")
+        if props.settings.expand_settings:
+            settings = props.settings
 
-        # Create/Test Node Setup buttons
-        col.separator()
-        row = col.row(align=True)
-        op = row.operator("comprs.create_node_setup", text="Create Node Setup", icon='ADD')
-        op.use_override = False
-        op = row.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
-        op.use_override = False
+            # Output Node Settings (Global)
+            col = box.column(align=True)
+            col.label(text="Output Node Settings (Global):", icon='NODE')
+            col.prop(settings, "output_node_name", text="Output Node Name")
+            col.prop(settings, "name_prefix", text="Name Prefix")
+            col.prop(settings, "mute_unused_output_nodes")
 
-        box.separator()
+            # Create/Test Node Setup buttons
+            col.separator()
+            row = col.row(align=True)
+            op = row.operator("comprs.create_node_setup", text="Create Node Setup", icon='ADD')
+            op.use_override = False
+            op = row.operator("comprs.test_node_setup", text="Test Node Setup", icon='VIEWZOOM')
+            op.use_override = False
 
-        # Render Settings (merged Sync and Visibility Options)
-        col = box.column(align=True)
-        col.label(text="Render Settings:", icon='RENDER_STILL')
-        col.prop(settings, "sync_visibility")
-        col.prop(settings, "sync_modifiers")
-        col.prop(settings, "sync_objects")
-        col.prop(settings, "hide_undefined_collections")
-        col.prop(settings, "render_constant_collections")
+            box.separator()
 
-        box.separator()
+            # Render Settings (merged Sync and Visibility Options)
+            col = box.column(align=True)
+            col.label(text="Render Settings:", icon='RENDER_STILL')
+            col.prop(settings, "sync_visibility")
+            col.prop(settings, "sync_modifiers")
+            col.prop(settings, "sync_objects")
+            col.prop(settings, "hide_undefined_collections")
+            col.prop(settings, "render_constant_collections")
 
-        # UI Settings
-        col = box.column(align=True)
-        col.label(text="UI Settings:", icon='WINDOW')
-        col.prop(settings, "max_tabs_per_row", text="Max Tabs Per Row")
-        col.prop(settings, "only_show_renderable")
+            box.separator()
 
-        box.separator()
-        col = box.column(align=True)
-        col.prop(settings, "enable_log", text="Enable Log")
+            # UI Settings
+            col = box.column(align=True)
+            col.label(text="UI Settings:", icon='WINDOW')
+            col.prop(settings, "max_tabs_per_row", text="Max Tabs Per Row")
+            col.prop(settings, "only_show_renderable")
+
+            box.separator()
+            col = box.column(align=True)
+            col.prop(settings, "enable_log", text="Enable Log")
 
         layout.separator()
 
@@ -2174,19 +2365,24 @@ class COMPRS_PT_MainPanel(Panel):
 
         box = layout.box()
         row = box.row()
-        row.label(text="Log", icon='TEXT')
+        row.prop(props.settings, "expand_log",
+                 text="Log",
+                 icon='TRIA_DOWN' if props.settings.expand_log else 'TRIA_RIGHT',
+                 icon_only=False,
+                 emboss=False)
         row.operator("comprs.clear_log", text="", icon='X')
 
-        if props.log_text:
-            # Split log into lines and show last 10
-            lines = props.log_text.strip().split('\n')
-            num_lines_to_show = min(10, len(lines))
+        if props.settings.expand_log:
+            if props.log_text:
+                # Split log into lines and show last 10
+                lines = props.log_text.strip().split('\n')
+                num_lines_to_show = min(10, len(lines))
 
-            col = box.column(align=True)
-            for line in lines[-num_lines_to_show:]:
-                col.label(text=line[:80])  # Truncate long lines
-        else:
-            box.label(text="No log entries yet")
+                col = box.column(align=True)
+                for line in lines[-num_lines_to_show:]:
+                    col.label(text=line[:80])  # Truncate long lines
+            else:
+                box.label(text="No log entries yet")
 
 
 # ============================================================================
