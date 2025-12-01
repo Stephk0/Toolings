@@ -91,6 +91,7 @@ Stephko_Tooling/
 
 **Core Functionality:**
 - Batch export multiple collections
+- Batch collection management (add/remove collections from export list)
 - Smart parent-child relationship handling
 - Empty parent preservation/removal options
 - Automatic mesh joining
@@ -98,13 +99,31 @@ Stephko_Tooling/
 - Material override system
 - Origin auto-move functionality
 - Debug logging system
+- Apply Only Visible modifiers option
 
 **Important Implementation Details:**
 - Uses temporary collections for non-destructive operations
 - Handles parent-child relationships with "Apply Only Visible" option
+- Batch collection management interface for efficient workflow
 - Implements custom export presets
 - Comprehensive error handling
 - Undo-safe operations
+
+### Compositor Render Sets v1.7.0
+**File:** `Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/`
+
+**Core Functionality:**
+- Multi-render setup management for compositor workflows
+- Create Node Setup feature for automated compositor node creation
+- Mute Unused File Output Nodes optimization
+- Batch render set operations
+- Node group organization and management
+
+**Key Features:**
+- Automated node setup creation for efficient compositor workflows
+- Smart file output node management
+- UI improvements for better usability
+- Comprehensive render set controls
 
 ### Geometry Node Assets
 **Location:** `Blender/Geonodes/*.blend`
@@ -123,15 +142,18 @@ Stephko_Tooling/
 
 ## Recent Changes & Context
 
-### Latest Updates (Branch: competent-goldberg)
-1. **Commit 2483b12** - Mass exporter UI cleanup and description improvements
-2. **Commit 8bf8028** - Updated attribute functions, removed old instancer, added Compositor Render Sets
-3. **Commit 80264e5** - Added "Apply Only Visible" modifier feature to mass exporter v12
-4. **Commit 419424f** - Removed .blend1 backup files from git tracking
-5. **Commit 3f4ecd7** - Mirror groupable fixes
+### Latest Updates (Branch: optimistic-dewdney)
+1. **Commit 4a8e61b** - Add batch collection management and Create Node Setup features
+2. **Commit 79ffbc1** - Add 'Mute Unused File Output Nodes' feature to Compositor Render Sets
+3. **Commit 4693fca** - Refactor Compositor Render Sets v1.7.0 - UI improvements and fixes
+4. **Commit 3f7e4b7** - Update Compositor Render Sets to v1.7.0 with major improvements
+5. **Commit 2483b12** - Clean up mass exporter UI and improve descriptions
+6. **Commit 8bf8028** - Updated attribute functions, removed old instancer, added Compositor Render Sets
+7. **Commit 80264e5** - Add 'Apply Only Visible' modifier feature to mass exporter v12
 
 ### Active Development Areas
-- Mass Exporter refinement (UI/UX improvements)
+- Compositor Render Sets v1.7.0 enhancements (node automation, optimization)
+- Mass Exporter refinement (batch collection management, UI/UX improvements)
 - Geometry node library expansion
 - Compositor workflow integration
 - Modifier handling improvements
@@ -271,10 +293,10 @@ if __name__ == "__main__":
 
 ---
 
-**Last Updated:** 2025-11-28
-**Documentation Version:** 1.0
+**Last Updated:** 2025-12-01
+**Documentation Version:** 1.1
 **Primary Branch:** main
-**Active Worktree:** competent-goldberg
+**Active Worktree:** optimistic-dewdney
 
 ---
 
