@@ -1,10 +1,10 @@
 bl_info = {
     "name": "Compositor Render Sets",
     "author": "Claude AI + Stephan Viranyi",
-    "version": (1, 9, 0),
+    "version": (1, 7, 4),
     "blender": (4, 0, 0),
     "location": "3D View > Sidebar > Compositor Render Sets",
-    "description": "Render distinct collections through compositor with automatic File Output node management. Compatible with Blender 4.x and 5.0+",
+    "description": "Render distinct collections through compositor with automatic File Output node management. Blender 5.0 filename field support with modifier sync filtering for improved performance",
     "category": "Render",
 }
 
@@ -60,9 +60,9 @@ class COMPRS_RenderSet(PropertyGroup):
         subtype='DIR_PATH'
     )
 
-    enabled_for_render: BoolProperty(
-        name="Enabled",
-        description="Include this set when rendering selected sets",
+    enabled_for_batch_render: BoolProperty(
+        name="Enable for Batch Render",
+        description="Include this set when batch rendering sets",
         default=True
     )
 
@@ -153,6 +153,12 @@ class COMPRS_Settings(PropertyGroup):
     sync_modifiers: BoolProperty(
         name="Sync Modifier Viewport Visibility to Render",
         description="Sync modifier render settings to match viewport display (what you see is what you get)",
+        default=True
+    )
+
+    only_sync_modifiers_in_renderset: BoolProperty(
+        name="Only Sync Modifiers in Render Set",
+        description="Only sync modifiers on objects in the render set collections (faster, less debug output)",
         default=True
     )
 
@@ -642,6 +648,11 @@ def restore_node_state(node, state):
 
     set_output_node_base_path(node, state['base_path'])
 
+    # Clear file_name field if it exists (Blender 5.0+)
+    if hasattr(node, 'file_name'):
+        node.file_name = ""
+        print(f"  file_name field cleared")
+
     # Restore each file slot path
     file_slots = get_output_node_file_slots(node)
     for slot_data in state['file_slots']:
@@ -664,17 +675,17 @@ def configure_node_for_set(node, render_set, prefix=None, context=None):
     """
     print(f"\n[CONFIGURE] Configuring File Output node for set: {render_set.name}")
 
-    # Determine prefix to use
-    if prefix is None:
-        if render_set.override_output_settings and render_set.name_prefix_override:
-            prefix = render_set.name_prefix_override
-            print(f"  Using per-set prefix override: '{prefix}'")
-        elif context:
-            prefix = context.scene.compositor_render_sets.settings.name_prefix
-            print(f"  Using global prefix: '{prefix}'")
-        else:
-            prefix = "XXX"  # Fallback
-            print(f"  Using fallback prefix: '{prefix}'")
+    # Debug: Check Blender version and node attributes
+    print(f"  [DEBUG] Blender version: {bpy.app.version}")
+    print(f"  [DEBUG] Node type: {node.type}")
+    print(f"  [DEBUG] Node attributes containing 'file' or 'name': {[attr for attr in dir(node) if 'file' in attr.lower() or 'name' in attr.lower() and not attr.startswith('_')]}")
+
+    # Check if Blender 5 file_name field is available (note: underscore, not 'filename')
+    has_filename_field = hasattr(node, 'file_name')
+    print(f"  [DEBUG] Has 'file_name' attribute: {has_filename_field}")
+
+    if has_filename_field:
+        print(f"  [DEBUG] Current file_name value: '{node.file_name}'")
 
     # Set base path
     output_path = bpy.path.abspath(render_set.output_path)
@@ -693,34 +704,63 @@ def configure_node_for_set(node, render_set, prefix=None, context=None):
     except Exception as e:
         print(f"  Warning: Could not create directory {output_path}: {e}")
 
-    # Process file slots - assumes slots are in their ORIGINAL state (with prefix)
     output_names = []
     file_slots = get_output_node_file_slots(node)
-    print(f"  Processing {len(file_slots)} file slots with prefix '{prefix}':")
 
-    for i, slot in enumerate(file_slots):
-        current_path = get_slot_path(slot)
-        print(f"    [DEBUG] Slot {i} current_path: '{current_path}' (type: {type(current_path)}, len: {len(current_path) if current_path else 0})")
+    # Blender 5: Simply set the file_name field to render set name
+    if has_filename_field:
+        print(f"  [BLENDER 5] Setting file_name field to: '{render_set.name}'")
+        node.file_name = render_set.name
 
-        if current_path.startswith(prefix):
-            # Remove prefix and replace with render set name
-            remainder = current_path[len(prefix):]
-            new_name = render_set.name + remainder
-            success = set_slot_path(slot, new_name)
-            if success:
-                output_names.append(new_name)
-                print(f"    Slot {i}: '{current_path}' -> '{new_name}' ✓")
+        # Collect output names from slots (without modifying them)
+        print(f"  Collecting {len(file_slots)} output slot names:")
+        for i, slot in enumerate(file_slots):
+            slot_path = get_slot_path(slot)
+            # In Blender 5, the final output will be: directory/filename_slotpath
+            output_name = f"{render_set.name}_{slot_path}" if slot_path else render_set.name
+            output_names.append(output_name)
+            print(f"    Slot {i}: '{slot_path}' -> Output: '{output_name}'")
+
+    # Blender 4.x: Modify slot paths by replacing prefix
+    else:
+        # Determine prefix to use for Blender 4.x
+        if prefix is None:
+            if render_set.override_output_settings and render_set.name_prefix_override:
+                prefix = render_set.name_prefix_override
+                print(f"  Using per-set prefix override: '{prefix}'")
+            elif context:
+                prefix = context.scene.compositor_render_sets.settings.name_prefix
+                print(f"  Using global prefix: '{prefix}'")
             else:
-                print(f"    Slot {i}: '{current_path}' -> '{new_name}' ✗ FAILED")
+                prefix = "XXX"  # Fallback
+                print(f"  Using fallback prefix: '{prefix}'")
+        print(f"  [BLENDER 4.x] Processing {len(file_slots)} file slots with prefix '{prefix}':")
+
+        for i, slot in enumerate(file_slots):
+            current_path = get_slot_path(slot)
+            print(f"    [DEBUG] Slot {i} current_path: '{current_path}' (type: {type(current_path)}, len: {len(current_path) if current_path else 0})")
+
+            if current_path.startswith(prefix):
+                # Remove prefix and replace with render set name
+                remainder = current_path[len(prefix):]
+                new_name = render_set.name + remainder
+                success = set_slot_path(slot, new_name)
+                if success:
+                    output_names.append(new_name)
+                    print(f"    Slot {i}: '{current_path}' -> '{new_name}' ✓")
+                else:
+                    print(f"    Slot {i}: '{current_path}' -> '{new_name}' ✗ FAILED")
+                    output_names.append(current_path)
+            else:
+                # Slot doesn't match prefix, keep as-is
+                print(f"    Slot {i}: '{current_path}' (no prefix match, keeping as-is)")
                 output_names.append(current_path)
-        else:
-            # Slot doesn't match prefix, keep as-is
-            print(f"    Slot {i}: '{current_path}' (no prefix match, keeping as-is)")
-            output_names.append(current_path)
 
     print(f"  Total outputs configured: {len(output_names)}")
     print(f"  Final node state:")
     print(f"    base_path: {get_output_node_base_path(node)}")
+    if has_filename_field:
+        print(f"    file_name: {node.file_name}")
     for i, slot in enumerate(file_slots):
         print(f"    Slot {i}: {get_slot_path(slot)}")
 
@@ -770,20 +810,73 @@ def restore_render_visibility(original_states):
             print(f"  '{coll_name}' - hide_render = {hide_state}")
 
 
-def sync_modifiers_to_viewport(context):
-    """Sync modifier render settings to viewport display (WYSIWYG for modifiers)"""
+def save_viewport_visibility(context):
+    """Save current viewport visibility state of all layer collections"""
+    view_layer = context.view_layer
+    original_states = {}
+
+    def save_recursive(layer_coll):
+        collection = layer_coll.collection
+        original_states[collection.name] = layer_coll.hide_viewport
+        for child in layer_coll.children:
+            save_recursive(child)
+
+    save_recursive(view_layer.layer_collection)
+    print(f"[SAVE] Saved viewport visibility for {len(original_states)} collection(s)")
+    return original_states
+
+
+def restore_viewport_visibility(context, original_states):
+    """Restore original viewport visibility states"""
+    if not original_states:
+        return
+
+    view_layer = context.view_layer
+    print("[RESTORE] Restoring original viewport visibility:")
+
+    def restore_recursive(layer_coll):
+        collection = layer_coll.collection
+        if collection.name in original_states:
+            layer_coll.hide_viewport = original_states[collection.name]
+            print(f"  '{collection.name}' - hide_viewport = {original_states[collection.name]}")
+        for child in layer_coll.children:
+            restore_recursive(child)
+
+    restore_recursive(view_layer.layer_collection)
+
+
+def sync_modifiers_to_viewport(context, collections_filter=None):
+    """Sync modifier render settings to viewport display (WYSIWYG for modifiers)
+
+    Args:
+        context: Blender context
+        collections_filter: Optional list of collections to filter objects by
+    """
     props = context.scene.compositor_render_sets
 
     if not props.settings.sync_modifiers:
         return None
+
+    # Build set of objects in filter collections if needed
+    filtered_objects = None
+    if collections_filter and props.settings.only_sync_modifiers_in_renderset:
+        filtered_objects = set()
+        for collection in collections_filter:
+            if collection:
+                filtered_objects.update(collection.objects)
+        print(f"[SYNC MODIFIERS] Filtering to {len(filtered_objects)} objects in render set collections")
+    else:
+        print("[SYNC MODIFIERS] Syncing modifiers on ALL objects in scene")
 
     print("[SYNC MODIFIERS] Syncing modifier render settings to viewport display:")
 
     # Store original modifier states
     original_states = {}
 
-    # Iterate through all objects in the scene
-    for obj in bpy.data.objects:
+    # Iterate through objects (filtered or all)
+    objects_to_process = filtered_objects if filtered_objects is not None else bpy.data.objects
+
+    for obj in objects_to_process:
         if not hasattr(obj, 'modifiers') or len(obj.modifiers) == 0:
             continue
 
@@ -1512,6 +1605,7 @@ class COMPRS_OT_ToggleConstantCollections(Operator):
 # Operators - Rendering
 # ============================================================================
 
+
 class COMPRS_OT_RenderSet(Operator):
     """Render one or more render sets through the compositor"""
     bl_idname = "comprs.render_set"
@@ -1524,123 +1618,56 @@ class COMPRS_OT_RenderSet(Operator):
         default='current'
     )
 
-    _timer = None
     _render_queue = []
     _current_set_index = 0
     _original_node_state = None
     _output_node = None
+    _current_output_node = None  # Track the node used for current render
+    _current_node_state = None   # Track the state to restore for current node
     _original_render_visibility = None
+    _original_viewport_visibility = None
     _original_modifier_settings = None
     _original_object_settings = None
     _original_output_nodes_mute_states = None
-    _render_complete = False
-    _render_handlers_installed = False
 
-    def render_complete_handler(self, scene, depsgraph=None):
-        """Called when render completes successfully"""
-        print("[RENDER] Render complete handler called")
-        self._render_complete = True
-
-    def render_cancel_handler(self, scene, depsgraph=None):
-        """Called when render is cancelled"""
-        print("[RENDER] Render cancelled handler called")
-        self._render_complete = True
-
-    def install_render_handlers(self):
-        """Install render completion handlers"""
-        if not self._render_handlers_installed:
-            bpy.app.handlers.render_complete.append(self.render_complete_handler)
-            bpy.app.handlers.render_cancel.append(self.render_cancel_handler)
-            self._render_handlers_installed = True
-            print("[RENDER] Handlers installed")
-
-    def remove_render_handlers(self):
-        """Remove render completion handlers"""
-        if self._render_handlers_installed:
-            try:
-                bpy.app.handlers.render_complete.remove(self.render_complete_handler)
-                bpy.app.handlers.render_cancel.remove(self.render_cancel_handler)
-            except:
-                pass  # Handlers may have already been removed
-            self._render_handlers_installed = False
-            print("[RENDER] Handlers removed")
-
-    def modal(self, context, event):
-        if event.type == 'TIMER':
-            # Check if render is complete
-            if self._render_complete:
-                print(f"[MODAL] Render completed for set {self._current_set_index + 1}")
-                self._render_complete = False
-
-                # Wait a moment to ensure file is fully written
-                import time
-                time.sleep(0.1)
-
-                # Render completed, move to next set
-                self._current_set_index += 1
-
-                if self._current_set_index < len(self._render_queue):
-                    # Render next set - reconfigure the node for this set
-                    print(f"[MODAL] Moving to next set ({self._current_set_index + 1}/{len(self._render_queue)})")
-                    self.render_next_set(context)
-                    return {'RUNNING_MODAL'}
-                else:
-                    # All sets rendered, cleanup
-                    print(f"[MODAL] All renders complete, cleaning up")
-                    self.cleanup(context)
-                    return {'FINISHED'}
-
-        return {'PASS_THROUGH'}
-
-    def render_next_set(self, context):
-        """Render the next set in the queue"""
+    def render_single_set(self, context, render_set, set_index, total_sets):
+        """Render a single set synchronously (like Render Current Set)"""
         props = context.scene.compositor_render_sets
-        render_set = self._render_queue[self._current_set_index]
 
         print(f"\n{'='*60}")
-        print(f"RENDERING SET {self._current_set_index + 1}/{len(self._render_queue)}: {render_set.name}")
+        print(f"RENDERING SET {set_index + 1}/{total_sets}: {render_set.name}")
         print(f"{'='*60}")
 
         log_message(context, f"Starting render for set: {render_set.name}")
 
-        # Check if this render set uses an override for the output node
-        current_output_node = self._output_node
-        current_node_state = self._original_node_state
-
+        # Determine which File Output node to use
         if render_set.override_output_settings:
-            # This render set uses a different File Output node
-            override_node, error = find_file_output_node(context, render_set)
-            if not override_node:
+            output_node, error = find_file_output_node(context, render_set)
+            if not output_node:
+                self.report({'ERROR'}, f"Override node not found for '{render_set.name}': {error}")
                 log_message(context, f"ERROR: {error}")
-                print(f"[ERROR] Failed to find override output node: {error}")
-                # Skip this set
-                self._current_set_index += 1
                 return
-
-            # Use the override node for this set
-            current_output_node = override_node
-            # Get the cached state (should already be cached from execute())
-            if override_node.name in self._override_node_states:
-                current_node_state = self._override_node_states[override_node.name]
-            else:
-                # Fallback: cache it now (shouldn't normally happen)
-                print(f"[WARNING] Override node '{override_node.name}' not pre-cached, caching now")
-                current_node_state = cache_node_state(override_node)
-                self._override_node_states[override_node.name] = current_node_state
-
-            print(f"[OVERRIDE] Using override File Output node: '{override_node.name}'")
+            print(f"[OVERRIDE] Using override File Output node: '{output_node.name}'")
         else:
-            print(f"[GLOBAL] Using global File Output node: '{current_output_node.name}'")
+            output_node = self._output_node
+            print(f"[GLOBAL] Using global File Output node: '{output_node.name}'")
 
-        # CRITICAL: First restore node to original state before configuring
-        # This ensures we always start from the clean original prefix (e.g., XXX_Beauty)
-        # not from the previously modified state (e.g., CharacterA_Beauty)
-        print(f"[RESTORE] Restoring node to original state before configuring...")
-        restore_node_state(current_output_node, current_node_state)
+        # Get the original state for this node
+        if render_set.override_output_settings:
+            if output_node.name in self._override_node_states:
+                original_state = self._override_node_states[output_node.name]
+            else:
+                original_state = cache_node_state(output_node)
+                self._override_node_states[output_node.name] = original_state
+        else:
+            original_state = self._original_node_state
 
-        # Now configure the File Output node for this render set
-        # Starting from the original state ensures clean prefix replacement
-        output_names = configure_node_for_set(current_output_node, render_set, context=context)
+        # Restore node to original state
+        print(f"[RESTORE] Restoring node '{output_node.name}' to original state")
+        restore_node_state(output_node, original_state)
+
+        # Configure the File Output node for this render set
+        output_names = configure_node_for_set(output_node, render_set, context=context)
 
         # Force compositor to update with new node settings
         # Support both Blender 4.x (node_tree) and 5.0+ (compositing_node_group) APIs
@@ -1653,29 +1680,18 @@ class COMPRS_OT_RenderSet(Operator):
         context.view_layer.update()
 
         print(f"[NODE] File Output configured for '{render_set.name}'")
-        print(f"  Base path: {get_output_node_base_path(current_output_node)}")
+        print(f"  Base path: {get_output_node_base_path(output_node)}")
+        if hasattr(output_node, 'file_name'):
+            print(f"  file_name field: '{output_node.file_name}'")
 
-        # VALIDATION: Check slot paths before rendering
-        file_slots_check = get_output_node_file_slots(current_output_node)
-        print(f"  [PRE-RENDER VALIDATION] Checking {len(file_slots_check)} output slots:")
-        for idx, slot in enumerate(file_slots_check):
-            slot_path = get_slot_path(slot)
-            print(f"    Slot {idx}: path='{slot_path}'")
-
-            # Check for suspicious patterns
-            if "file_nametex_" in slot_path.lower():
-                print(f"    ⚠ WARNING: Slot {idx} contains 'file_nametex_' - this may be corrupted!")
-            if not slot_path or slot_path.strip() == "":
-                print(f"    ⚠ WARNING: Slot {idx} has empty path!")
-
-        # Update mute states if needed for override nodes
+        # Update mute states if needed
         if props.settings.mute_unused_output_nodes:
-            # Temporarily update mute states for this render set
-            if render_set.override_output_settings:
-                # Unmute the override node, mute all others
-                print(f"[MUTE] Updating mute states for override node: '{current_output_node.name}'")
-                mute_unused_output_nodes(context, current_output_node.name)
-            # If not using override, the global node is already correctly unmuted from execute()
+            print(f"[MUTE] Updating mute states for node: '{output_node.name}'")
+            mute_unused_output_nodes(context, output_node.name)
+
+        # Save original viewport visibility ONLY on first render
+        if set_index == 0:
+            self._original_viewport_visibility = save_viewport_visibility(context)
 
         # Get collections in this set
         collections = get_collections_from_set(render_set)
@@ -1742,22 +1758,21 @@ class COMPRS_OT_RenderSet(Operator):
                     print(f"  - {coll.name} (always visible for render)")
 
         # Sync render visibility if enabled
-        self._original_render_visibility = sync_visibility_to_render(context)
+        if set_index == 0:
+            self._original_render_visibility = sync_visibility_to_render(context)
+        else:
+            sync_visibility_to_render(context)
 
-        # Apply render visibility overrides AFTER sync to ensure toggles take precedence
-        # This ensures collections with render_visibility=False are excluded from render
+        # Apply render visibility overrides
         apply_render_visibility_overrides(render_set)
 
-        # Sync modifier and object settings if enabled (only once, not per render set)
-        if self._current_set_index == 0:  # Only on first render
-            self._original_modifier_settings = sync_modifiers_to_viewport(context)
-
-            # Gather all collections from all render sets in the queue
+        # Sync modifiers and objects ONLY on first render
+        if set_index == 0:
             all_collections_to_sync = set()
             for rs in self._render_queue:
                 all_collections_to_sync.update(get_collections_from_set(rs))
 
-            # Sync objects only from collections in the render queue
+            self._original_modifier_settings = sync_modifiers_to_viewport(context, list(all_collections_to_sync))
             self._original_object_settings = sync_objects_to_viewport(context, list(all_collections_to_sync))
 
         # Force viewport and outliner update
@@ -1765,7 +1780,7 @@ class COMPRS_OT_RenderSet(Operator):
             if area.type in {'VIEW_3D', 'OUTLINER'}:
                 area.tag_redraw()
 
-        # Force depsgraph update to ensure all changes are applied
+        # Force depsgraph update
         context.evaluated_depsgraph_get().update()
 
         # Log what will be rendered
@@ -1773,22 +1788,25 @@ class COMPRS_OT_RenderSet(Operator):
         outputs_str = ", ".join(output_names) if output_names else "No matching outputs"
         log_message(context, f"Rendering '{render_set.name}' to '{output_path}'. Outputs: {outputs_str}")
 
-        # Trigger render - using INVOKE_DEFAULT to allow modal to continue
-        print(f"[RENDER] Triggering render operation...")
-        bpy.ops.render.render('INVOKE_DEFAULT', write_still=True)
+        # Trigger SYNCHRONOUS render (blocks until complete)
+        print(f"[RENDER] Starting synchronous render for '{render_set.name}'...")
+        bpy.ops.render.render('EXEC_DEFAULT', write_still=True)
+
+        print(f"[RENDER] Render complete for '{render_set.name}'")
+
+        # Restore node to original state immediately after render
+        print(f"[RESTORE] Restoring node '{output_node.name}' after render")
+        restore_node_state(output_node, original_state)
 
     def cleanup(self, context):
         """Cleanup after all renders complete"""
         print(f"\n{'='*60}")
-        print(f"ALL RENDERS COMPLETE - CLEANING UP")
+        print(f"ALL RENDERS COMPLETE ({len(self._render_queue)} SET(S)) - CLEANING UP")
         print(f"{'='*60}")
 
-        # Remove render handlers
-        self.remove_render_handlers()
-
-        # Remove timer
-        if self._timer:
-            context.window_manager.event_timer_remove(self._timer)
+        # Restore viewport visibility
+        if self._original_viewport_visibility:
+            restore_viewport_visibility(context, self._original_viewport_visibility)
 
         # Restore render visibility
         if self._original_render_visibility:
@@ -1802,12 +1820,13 @@ class COMPRS_OT_RenderSet(Operator):
         if self._original_object_settings:
             restore_object_settings(self._original_object_settings)
 
-        # Restore the global node to original state
+        # Restore the global node to original state (if not already restored between renders)
         if self._output_node and self._original_node_state:
+            print(f"[CLEANUP] Restoring global node '{self._output_node.name}' to original state")
             restore_node_state(self._output_node, self._original_node_state)
             log_message(context, "Global File Output node restored to original state")
 
-        # Restore all override nodes to their original states
+        # Restore all override nodes to their original states (if not already restored between renders)
         if hasattr(self, '_override_node_states'):
             for node_name, node_state in self._override_node_states.items():
                 # Find the node
@@ -1846,6 +1865,21 @@ class COMPRS_OT_RenderSet(Operator):
     def execute(self, context):
         props = context.scene.compositor_render_sets
 
+        # Initialize/reset all instance variables for fresh render
+        print(f"\n[EXECUTE] Initializing batch render operator")
+        self._render_queue = []
+        self._current_set_index = 0
+        self._original_node_state = None
+        self._output_node = None
+        self._current_output_node = None
+        self._current_node_state = None
+        self._original_render_visibility = None
+        self._original_viewport_visibility = None
+        self._original_modifier_settings = None
+        self._original_object_settings = None
+        self._original_output_nodes_mute_states = None
+        self._override_node_states = {}
+
         # Determine which sets to render
         sets_to_render = []
 
@@ -1857,17 +1891,17 @@ class COMPRS_OT_RenderSet(Operator):
                 self.report({'ERROR'}, "No active render set")
                 return {'CANCELLED'}
 
-        elif self.mode == 'selected':
-            sets_to_render = [rs for rs in props.render_sets if rs.enabled_for_render]
+        elif self.mode == 'all':
+            # Batch render: only render sets with 'enabled_for_batch_render' checked
+            sets_to_render = [rs for rs in props.render_sets if rs.enabled_for_batch_render]
             if not sets_to_render:
-                self.report({'WARNING'}, "No render sets enabled for rendering")
+                self.report({'WARNING'}, "No render sets enabled for batch rendering")
                 return {'CANCELLED'}
 
-        elif self.mode == 'all':
-            sets_to_render = list(props.render_sets)
-            if not sets_to_render:
-                self.report({'WARNING'}, "No render sets available")
-                return {'CANCELLED'}
+            # Debug output
+            print(f"\n[BATCH RENDER] Queuing {len(sets_to_render)} set(s) for batch render:")
+            for i, rs in enumerate(sets_to_render):
+                print(f"  {i+1}. {rs.name}")
 
         # Find the File Output node
         node, error = find_file_output_node(context)
@@ -1880,9 +1914,7 @@ class COMPRS_OT_RenderSet(Operator):
         self._original_node_state = cache_node_state(node)
         self._output_node = node
         self._render_queue = sets_to_render
-        self._current_set_index = 0
-        self._render_complete = False
-        self._override_node_states = {}  # Store states of override nodes
+        print(f"[EXECUTE] Cached global node '{node.name}' original state")
 
         # Pre-cache all override nodes' states BEFORE any rendering starts
         # This ensures we capture their original, unmodified state
@@ -1919,17 +1951,24 @@ class COMPRS_OT_RenderSet(Operator):
         props.is_rendering = True
         props.cached_node_state = json.dumps(self._original_node_state)
 
-        # Install render handlers to detect completion
-        self.install_render_handlers()
+        print(f"\n{'='*60}")
+        print(f"STARTING BATCH RENDER - {len(sets_to_render)} SETS")
+        print(f"{'='*60}")
 
-        # Start rendering the first set
-        self.render_next_set(context)
+        # Render each set synchronously
+        for i, render_set in enumerate(sets_to_render):
+            print(f"\n[BATCH] Processing set {i + 1}/{len(sets_to_render)}: {render_set.name}")
+            self.render_single_set(context, render_set, i, len(sets_to_render))
 
-        # Add timer for modal
-        self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
-        context.window_manager.modal_handler_add(self)
+        print(f"\n{'='*60}")
+        print(f"BATCH RENDER COMPLETE - ALL {len(sets_to_render)} SETS RENDERED")
+        print(f"{'='*60}")
 
-        return {'RUNNING_MODAL'}
+        # Cleanup and finish
+        self.cleanup(context)
+        props.is_rendering = False
+
+        return {'FINISHED'}
 
     def cancel(self, context):
         """Called when operator is cancelled"""
@@ -2096,6 +2135,11 @@ class COMPRS_PT_MainPanel(Panel):
 
                     for i in range(row_start, row_end):
                         render_set = props.render_sets[i]
+                        # Add render icon toggle
+                        icon = 'RESTRICT_RENDER_OFF' if render_set.enabled_for_batch_render else 'RESTRICT_RENDER_ON'
+                        op = row.operator("comprs.toggle_batch_render", text="", icon=icon, emboss=False)
+                        op.index = i
+                        # Add tab button
                         if i == props.active_set_index:
                             row.operator("comprs.select_set", text=render_set.name, depress=True, emboss=True).index = i
                         else:
@@ -2112,7 +2156,7 @@ class COMPRS_PT_MainPanel(Panel):
                 render_set = props.render_sets[props.active_set_index]
 
                 col = box.column(align=True)
-                col.prop(render_set, "enabled_for_render", text="Enabled for Render")
+                col.prop(render_set, "enabled_for_batch_render", text="Enable for Batch Render")
                 col.prop(render_set, "name", text="Name")
                 col.prop(render_set, "output_path", text="Output")
 
@@ -2286,10 +2330,7 @@ class COMPRS_PT_MainPanel(Panel):
             op = col.operator("comprs.render_set", text="Render Current Set", icon='RENDER_STILL')
             op.mode = 'current'
 
-            op = col.operator("comprs.render_set", text="Render Selected Sets", icon='RENDERLAYERS')
-            op.mode = 'selected'
-
-            op = col.operator("comprs.render_set", text="Render All Sets", icon='RENDER_ANIMATION')
+            op = col.operator("comprs.render_set", text="Batch Render Sets", icon='RENDER_ANIMATION')
             op.mode = 'all'
 
             box.separator()
@@ -2341,6 +2382,12 @@ class COMPRS_PT_MainPanel(Panel):
             col.label(text="Render Settings:", icon='RENDER_STILL')
             col.prop(settings, "sync_visibility")
             col.prop(settings, "sync_modifiers")
+
+            # Sub-option for modifier sync filtering (indented)
+            if settings.sync_modifiers:
+                sub = col.column(align=True)
+                sub.prop(settings, "only_sync_modifiers_in_renderset")
+
             col.prop(settings, "sync_objects")
             col.prop(settings, "hide_undefined_collections")
             col.prop(settings, "render_constant_collections")
@@ -2485,6 +2532,22 @@ class COMPRS_OT_SelectSet(Operator):
                     if area.type in {'VIEW_3D', 'OUTLINER'}:
                         area.tag_redraw()
 
+        return {'FINISHED'}
+
+
+class COMPRS_OT_ToggleBatchRender(Operator):
+    """Toggle batch render enabled for a render set"""
+    bl_idname = "comprs.toggle_batch_render"
+    bl_label = "Toggle Batch Render"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    index: IntProperty()
+
+    def execute(self, context):
+        props = context.scene.compositor_render_sets
+        if 0 <= self.index < len(props.render_sets):
+            render_set = props.render_sets[self.index]
+            render_set.enabled_for_batch_render = not render_set.enabled_for_batch_render
         return {'FINISHED'}
 
 
@@ -2703,6 +2766,7 @@ classes = (
     COMPRS_OT_RenderSet,
     COMPRS_OT_AbortRender,
     COMPRS_OT_SelectSet,
+    COMPRS_OT_ToggleBatchRender,
     COMPRS_OT_ClearLog,
     COMPRS_OT_CreateNodeSetup,
     COMPRS_OT_TestNodeSetup,

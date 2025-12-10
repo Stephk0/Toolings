@@ -78,6 +78,16 @@ Stephko_Tooling/
 - Properties: snake_case
 - bl_idname: CATEGORY_PT/OT_name format
 
+**Blender Operator Patterns:**
+- Operators cannot be instantiated with `ClassName()` - Blender manages their lifecycle
+- To share methods between operators, use unbound method pattern:
+  ```python
+  # Instead of: instance = MyOperator()
+  # Use: MyOperator.method_name(self, context, args)
+  ```
+- Always pass `self` explicitly when calling unbound methods
+- Common use case: sharing export logic between main export and quick export operators
+
 **Documentation:**
 - Each addon has its own README.md
 - Include usage examples
@@ -86,8 +96,8 @@ Stephko_Tooling/
 
 ## Key Features to Understand
 
-### Mass Collection Exporter v12
-**File:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/Mass_Collection_Exporter_v12.py`
+### Mass Collection Exporter v12.1
+**File:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/mass_exporter_FIXED_v12.py`
 
 **Core Functionality:**
 - Batch export multiple collections
@@ -100,6 +110,7 @@ Stephko_Tooling/
 - Origin auto-move functionality
 - Debug logging system
 - Apply Only Visible modifiers option
+- Quick export from selection (export collection or sub-collections of selected object)
 
 **Important Implementation Details:**
 - Uses temporary collections for non-destructive operations
@@ -108,22 +119,75 @@ Stephko_Tooling/
 - Implements custom export presets
 - Comprehensive error handling
 - Undo-safe operations
+- Unbound method pattern for cross-operator method sharing (Blender operator compatibility)
+- Quick export buttons find immediate collection from selected object and use configured settings
 
-### Compositor Render Sets v1.7.0
+### Compositor Render Sets v1.7.4
 **File:** `Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/`
 
 **Core Functionality:**
 - Multi-render setup management for compositor workflows
 - Create Node Setup feature for automated compositor node creation
 - Mute Unused File Output Nodes optimization
-- Batch render set operations
+- Synchronous batch render set operations
 - Node group organization and management
+- Blender 5.0 compatibility with new filename field support
 
 **Key Features:**
 - Automated node setup creation for efficient compositor workflows
-- Smart file output node management
+- Smart file output node management (Blender 4.x and 5.0 compatible)
+- Modifier sync filtering for performance optimization
+- Reliable synchronous batch rendering (v1.7.3-1.7.4)
+- Proper node restoration between renders with override support
+- Console-based progress tracking
 - UI improvements for better usability
 - Comprehensive render set controls
+- Automatic version detection for backward compatibility
+
+### Procedural Tree Generator v1.0
+**Location:** `Blender/Geonodes/setup_tree_generator.py`
+**Documentation:** `Blender/Geonodes/TreeGenDocu/`
+
+**Core Functionality:**
+- Fully procedural tree generation using Geometry Nodes
+- Iterative branch spawning with Repeat Zones (Blender 4.5+)
+- Organized node tree with 5 functional frames
+- Reproducible randomness with seed control
+- MCP-compatible for AI-assisted creation
+
+**Phase 1 Features (Implemented):**
+- Input processing (mesh/curve conversion, resampling)
+- Core attribute system (iteration_level, branch_id, branch_thickness, curve_parameter)
+- Multi-level branch generation (0-10 iterations)
+- Random spawn point selection
+- Basic growth direction (parent normal + random variation)
+- Curve to mesh with radius control
+- 5 user parameters exposed
+
+**User Parameters:**
+- Base Thickness (0.01-2.0m) - Trunk and branch radius
+- Branch Length (0.1-10.0m) - Branch growth length
+- Iterations (0-10) - Subdivision depth
+- Random Seed (0-999999) - Variation control
+- Angular Spread (0.0-1.0) - Randomness/chaos factor
+
+**Setup Scripts:**
+- `setup_tree_generator.py` - Main Geometry Nodes installer
+- `quick_test_scene.py` - Automated test scene creator
+- `send_to_blender.py` - MCP integration utility
+
+**Phase 2+ Planned:**
+- Natural growth forces (gravity, sun direction, wind)
+- Thickness/length decay per iteration
+- Canopy system (procedural and mesh-based)
+- Leaf/asset scattering system
+- Advanced optimization
+
+**Documentation Files:**
+- `README.md` - Quick start and navigation
+- `SETUP_INSTRUCTIONS.md` - Detailed usage guide
+- `ProceduralTreeGenerator_Specification.md` - 90-page technical spec
+- `MCP_INTEGRATION.md` - AI automation guide
 
 ### Geometry Node Assets
 **Location:** `Blender/Geonodes/*.blend`
@@ -142,21 +206,104 @@ Stephko_Tooling/
 
 ## Recent Changes & Context
 
-### Latest Updates (Branch: optimistic-dewdney)
-1. **Commit 4a8e61b** - Add batch collection management and Create Node Setup features
-2. **Commit 79ffbc1** - Add 'Mute Unused File Output Nodes' feature to Compositor Render Sets
-3. **Commit 4693fca** - Refactor Compositor Render Sets v1.7.0 - UI improvements and fixes
-4. **Commit 3f7e4b7** - Update Compositor Render Sets to v1.7.0 with major improvements
-5. **Commit 2483b12** - Clean up mass exporter UI and improve descriptions
-6. **Commit 8bf8028** - Updated attribute functions, removed old instancer, added Compositor Render Sets
-7. **Commit 80264e5** - Add 'Apply Only Visible' modifier feature to mass exporter v12
+### Latest Updates (2025-12-10)
+
+1. **Compositor Render Sets v1.7.3-1.7.4** - Batch Render Overhaul
+   - Complete rewrite of batch rendering system using synchronous rendering
+   - Fixed batch render with override output node settings (only outputting one file)
+   - Removed complex async modal/handler system
+   - Implemented simple synchronous render loop (mimics "Render Current Set")
+   - Proper node restoration between each render (global and override nodes)
+   - Removed all progress bar code (was causing crashes)
+   - Console-based progress tracking only
+   - Reliable batch rendering for all configurations (global, override, mixed)
+
+### Previous Updates (2025-12-09)
+
+2. **Compositor Render Sets v1.7.1** - Blender 5 Compatibility & Performance
+   - Fixed syntax error preventing addon installation (line 316 property definition)
+   - Added Blender 5.0 file output node support (new `filename` field)
+   - Implemented automatic version detection for file output nodes
+   - Added modifier sync filtering: "Only Sync Modifiers in Render Set" option
+   - Performance optimization: Only syncs modifiers on objects in render set collections
+   - Reduced debug output for cleaner console
+   - UI: Modifier filter checkbox appears as sub-option when sync is enabled
+   - Backward compatible with Blender 4.x (uses prefix replacement logic)
+
+### Previous Updates (2025-12-03)
+
+3. **Blender MCP Integration** - ✅ Successfully Connected
+   - Integrated Blender MCP server (`blender-mcp`) with Claude Code
+   - Direct control of Blender through natural language
+   - Socket-based communication on localhost:9876
+   - Tested with object creation (icosphere, cylinder)
+   - Scripts: `send_to_blender.py` for direct socket communication
+
+4. **Procedural Tree Generator v1.0** - Phase 1 MVP Complete
+   - Full Geometry Nodes implementation based on 90-page specification
+   - 5 organized node frames (Input, Attributes, Branch Generation, Growth Direction, Geometry Builder)
+   - Iterative branch generation using Repeat Zones
+   - User parameters: Base Thickness, Branch Length, Iterations, Random Seed, Angular Spread
+   - Setup scripts: `setup_tree_generator.py`, `quick_test_scene.py`
+   - Complete documentation in `TreeGenDocu/` folder
+   - Ready for Phase 2 development (gravity, sun, wind forces)
+
+5. **Mass Exporter v12.1** - Fixed critical AttributeError bugs
+   - Fixed unbound method calls across operators (MASSEXPORTER_OT_export_selected_collection and MASSEXPORTER_OT_export_selected_subcollections)
+   - Fixed "Export Collection of Selected" button removing unwanted "_main" suffix
+   - Improved quick export buttons to properly use configured export settings
+   - Updated UI labels for clarity ("Quick Export from Selection")
+
+6. **Earlier Updates (Branch: optimistic-dewdney)**
+   - **Commit 4a8e61b** - Add batch collection management and Create Node Setup features
+   - **Commit 79ffbc1** - Add 'Mute Unused File Output Nodes' feature to Compositor Render Sets
+   - **Commit 4693fca** - Refactor Compositor Render Sets v1.7.0 - UI improvements and fixes
+   - **Commit 3f7e4b7** - Update Compositor Render Sets to v1.7.0 with major improvements
+   - **Commit 2483b12** - Clean up mass exporter UI and improve descriptions
+   - **Commit 8bf8028** - Updated attribute functions, removed old instancer, added Compositor Render Sets
+   - **Commit 80264e5** - Add 'Apply Only Visible' modifier feature to mass exporter v12
 
 ### Active Development Areas
-- Compositor Render Sets v1.7.0 enhancements (node automation, optimization)
-- Mass Exporter refinement (batch collection management, UI/UX improvements)
+- **Procedural Tree Generator Phase 2** - Natural growth forces (gravity, sun, wind)
+- **MCP-Enhanced Workflows** - AI-assisted Blender control and iteration
+- Mass Exporter bug fixes and stability improvements
+- Quick export functionality refinement
+- Compositor Render Sets v1.7.4 - Batch rendering complete, stable and reliable
 - Geometry node library expansion
 - Compositor workflow integration
-- Modifier handling improvements
+
+### MCP Integration (Model Context Protocol)
+
+**Status:** ✅ Active and Working
+
+**Configuration:**
+- Server: `blender-mcp` (via `uvx blender-mcp`)
+- Transport: stdio
+- Connection: Socket on localhost:9876
+- Configuration File: `C:\Users\Stephko\.claude.json`
+
+**Capabilities:**
+- Execute arbitrary Python code in Blender
+- Create and modify 3D objects
+- Adjust procedural tree parameters
+- Get scene information
+- Render and capture screenshots
+- Export objects to various formats
+
+**Usage:**
+```
+Natural Language → Claude Code → MCP Server → Blender Socket → Blender Python API
+```
+
+**Example Commands:**
+- "Create a tree with 3 iterations"
+- "Add a cylinder at position (2,0,0)"
+- "Get information about the current scene"
+- "Render the viewport and save as image"
+
+**Scripts:**
+- `Blender/MCP/send_to_blender.py` - Direct socket communication utility
+- Available command types: `execute_code`, `get_scene_info`, `get_object_info`, `get_viewport_screenshot`
 
 ## Common Development Tasks
 
@@ -293,11 +440,13 @@ if __name__ == "__main__":
 
 ---
 
-**Last Updated:** 2025-12-01
-**Documentation Version:** 1.1
+**Last Updated:** 2025-12-10
+**Documentation Version:** 1.5
 **Primary Branch:** main
 **Active Worktree:** optimistic-dewdney
+**MCP Status:** ✅ Connected (blender-mcp on localhost:9876)
 
 ---
 
 *This file helps Claude AI understand the codebase context, structure, and development guidelines. Update as the project evolves.*
+- This project has the Serena MCP server configured. Use at all times applicable, especially core programming tasks and guided or free form idiation.
