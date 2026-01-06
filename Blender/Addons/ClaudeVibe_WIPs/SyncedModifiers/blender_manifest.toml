@@ -1,0 +1,23 @@
+schema_version = "1.0.0"
+id = "SyncedModifiers"
+version = "2.4.0"
+name = "Synced Modifiers"
+tagline = "Add modifiers to multiple objects and sync them using Drivers (now with Geometry Nodes support!)"
+maintainer = "Amandeep"
+type = "add-on"
+website = "NONE"
+tags = ["Object"]
+
+blender_version_min = "2.91.0"
+
+
+# License conforming to https://spdx.org/licenses/ (use "SPDX: prefix)
+# https://docs.blender.org/manual/en/dev/advanced/extensions/licenses.html
+license = [
+  "SPDX:GPL-2.0-or-later",
+]
+copyright = [
+    "2024 Amandeep",
+]
+
+[permissions]
