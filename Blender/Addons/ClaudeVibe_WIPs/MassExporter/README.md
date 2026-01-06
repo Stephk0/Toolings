@@ -1,4 +1,4 @@
-# Mass Collection Exporter v12
+# Mass Collection Exporter v12.2
 
 A powerful Blender addon for batch exporting collections with advanced parent-child relationship handling, automatic joining, and flexible export options.
 Allows specifying a collection for export with subcollections (Main Collection Env_Buildings > SubCollections Building_01, Building_02, Building_03, etc)
@@ -21,6 +21,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Core Functionality
 - **Batch Collection Export**: Export multiple collections at once with individual settings
+- **Quick Export from Selection**: Export selected object(s), collection, or sub-collections with one click (v12.1+)
 - **Smart Empty Handling**: Automatically process parent empties and their children
 - **On-Demand Joining**: Join mesh children during export without affecting your scene
 - **Multiple Export Formats**: FBX, OBJ, Collada (DAE), and glTF 2.0
@@ -35,8 +36,16 @@ Allows specifying a collection for export with subcollections (Main Collection E
 - **Fallback Export**: Automatically exports regular meshes if no empties are found
 
 ### v12 Updates
-✅ **Export meshes even when no empties present** - Falls back to normal mesh export  
-✅ **Improved robustness** - Better error handling and validation  
+
+**v12.2** (Latest)
+✅ **Export Selected Object(s)** - NEW quick export button to export collections of selected objects using their configured settings
+
+**v12.1**
+✅ **Quick Export from Selection** - Export collection or sub-collections of selected object with one click
+
+**v12.0**
+✅ **Export meshes even when no empties present** - Falls back to normal mesh export
+✅ **Improved robustness** - Better error handling and validation
 ✅ **Enhanced debugging** - Comprehensive debug mode for troubleshooting
 
 ---
@@ -350,6 +359,126 @@ Input:
 Output:
   CollectionName_joined.fbx (single mesh with Mesh1-5)
 ```
+
+---
+
+### Scenario 6: Quick Export - Selected Object(s) (v12.2)
+
+**Use Case**: Export the collections containing selected objects, using each collection's normal export settings
+
+**Setup:**
+```
+1. Select one or more objects from different collections
+2. In the Mass Exporter panel, go to "Quick Export from Selection"
+3. Click "Export Selected Object(s)"
+```
+
+**What Happens:**
+```
+1. Finds all unique collections from selected objects
+2. Exports each collection using its configured settings
+3. Respects merge_to_single, export_subcollections_as_single, and all other options
+4. Uses parent collection settings if collection not in export list
+```
+
+**Example 1 - Objects from Same Collection:**
+```
+Collection: "Furniture" (merge_to_single: ON)
+  ├─ Chair
+  ├─ Table  ← Selected
+  └─ Lamp   ← Selected
+
+Result: Furniture.fbx (entire collection exported as one file)
+```
+
+**Example 2 - Objects from Different Collections:**
+```
+Collection: "Props" (merge_to_single: OFF)
+  ├─ Chair   ← Selected
+  └─ Table   ← Selected
+
+Collection: "Decorations" (merge_to_single: ON)
+  ├─ Vase    ← Selected
+  └─ Picture
+
+Result:
+  - Chair.fbx (individual object)
+  - Table.fbx (individual object)
+  - Decorations.fbx (entire collection merged)
+```
+
+**Example 3 - Sub-Collections Mode:**
+```
+Collection: "Buildings" (export_subcollections_as_single: ON)
+  ├─ Sub: "House_A"
+  │   └─ Wall_01  ← Selected
+  └─ Sub: "House_B"
+      └─ Door_01  ← Selected
+
+Result:
+  - House_A.fbx (entire sub-collection)
+  - House_B.fbx (entire sub-collection)
+```
+
+**Best For:**
+- Batch exporting multiple collections at once
+- Exporting based on what you're currently working on
+- Quick workflow without navigating collection list
+- Respecting pre-configured collection export settings
+
+---
+
+### Scenario 7: Quick Export - Collection of Selected (v12.1)
+
+**Use Case**: Export the entire collection containing the selected object
+
+**Setup:**
+```
+1. Select any object
+2. Click "Export Collection of Selected"
+```
+
+**What Happens:**
+```
+1. Finds the immediate collection containing selected object
+2. Exports entire collection using its configured settings
+3. Ignores sub-collections mode (exports as whole)
+```
+
+**Best For:**
+- Quick export of a specific collection
+- Testing without navigating collection list
+
+---
+
+### Scenario 8: Quick Export - Sub-Collections of Selected (v12.1)
+
+**Use Case**: Export all sub-collections of the selected object's collection
+
+**Setup:**
+```
+1. Select object in parent collection
+2. Click "Export Sub-Collections of Selected"
+```
+
+**What Happens:**
+```
+1. Finds collection containing selected object
+2. Exports each sub-collection individually
+3. Uses parent collection's export settings
+```
+
+**Example:**
+```
+Selected object is in: "Props"
+  ├─ Sub: "Furniture" → Exports Furniture.fbx
+  ├─ Sub: "Decorations" → Exports Decorations.fbx
+  └─ Sub: "Lighting" → Exports Lighting.fbx
+```
+
+**Best For:**
+- Batch exporting related asset groups
+- Quick iteration on modular sets
 
 ---
 

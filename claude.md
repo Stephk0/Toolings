@@ -9,6 +9,14 @@
 **Primary Focus:** Production-ready tools for Blender, Unity, and 3DS Max workflows
 **Active Development:** Blender addons and geometry nodes
 
+**IMPORTANT - Project Structure:**
+- This is a **compilation of independent projects**, NOT a single monolithic codebase
+- Each addon in `Blender/Addons/ClaudeVibe_WIPs/` is a **separate, standalone project**
+- Each geometry node asset in `Blender/Geonodes/` is an **independent tool**
+- Addons may occasionally reference other addons within the same folder structure
+- When working on one addon, treat it as its own project with its own scope
+- Do not assume shared dependencies or unified architecture between addons
+
 ## Repository Structure
 
 ```
@@ -22,7 +30,8 @@ Stephko_Tooling/
 │   │   ├── Center Edges/            # Edge loop centering
 │   │   ├── Edit Mode Overlay/       # Viewport feedback
 │   │   ├── Toggle Modifier Display/ # Modifier visibility toggle
-│   │   └── Compositor Render Sets/  # Compositor render management
+│   │   ├── Compositor Render Sets/  # Compositor render management
+│   │   └── AddBoundsToName/         # Object dimension-based renaming
 │   └── Geonodes/                    # Geometry node presets
 │       ├── GN_AttributeFunctions_4.5.blend
 │       ├── GN_CollectionInstancer.blend
@@ -144,6 +153,46 @@ Stephko_Tooling/
 - Comprehensive render set controls
 - Automatic version detection for backward compatibility
 
+### Add Bounds To Name v1.0
+**File:** `Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName/__init__.py`
+
+**Core Functionality:**
+- Automatic object renaming based on bounding box dimensions
+- Flexible unit conversion (meters, centimeters, millimeters)
+- Smart rounding system (floor, ceiling, standard rounding)
+- Axis swizzling for custom dimension ordering
+- Batch processing support for multiple objects
+- Custom preset save/load system
+
+**Key Features:**
+- **Dual Bounds Calculation:** Object bounds (with modifiers) or mesh bounds (base geometry only)
+- **Format Customization:** Prefix/suffix placement, custom separators, digit padding
+- **Numeric Styles:** Integer or float output with configurable decimal places
+- **Rounding Modes:** None, Round, Floor, Ceil with custom increments
+- **Axis Ordering:** All 6 permutations of XYZ (XYZ, XZY, YXZ, YZX, ZXY, ZYX)
+- **Preset System:** Save/load custom configurations for workflow standardization
+- **Batch Operations:** Rename active object or all selected objects at once
+- **Unit Suffixes:** Optional display of unit abbreviations (e.g., "100cm")
+
+**User Interface:**
+- 3D Viewport Sidebar panel (N key → "Bounds Name" tab)
+- Organized sections: Presets, Units & Rounding, Formatting, Measurement, Actions
+- Real-time feedback with debug mode option
+- Undo support for all rename operations
+
+**Example Use Cases:**
+- Production asset organization: `tree_large_5x8x5`
+- Export size validation: `platform_100x100x10cm`
+- Modular building sets: `wall_400x200x10cm`
+- Mesh optimization tracking: `rock_highpoly_2.5x1.8x2.1`
+
+**Implementation Details:**
+- Pure Python, no external dependencies
+- Helper functions for unit conversion, rounding, swizzle, formatting
+- Preset storage in Blender's user scripts directory
+- JSON-based preset serialization
+- Comprehensive error handling with debug logging
+
 ### Procedural Tree Generator v1.0
 **Location:** `Blender/Geonodes/setup_tree_generator.py`
 **Documentation:** `Blender/Geonodes/TreeGenDocu/`
@@ -206,9 +255,26 @@ Stephko_Tooling/
 
 ## Recent Changes & Context
 
-### Latest Updates (2025-12-10)
+### Latest Updates (2025-12-11)
 
-1. **Compositor Render Sets v1.7.3-1.7.4** - Batch Render Overhaul
+1. **Add Bounds To Name v1.1.3** - Smart Float Formatting
+   - **NEW:** Omit Decimal Zero option for clean float output (1x1.5x1 instead of 1.0x1.5x1.0)
+   - **v1.1.2:** Simplified axis swizzle UI labels (X/Y/Z instead of 1st/2nd/3rd)
+   - **v1.1.1:** 2D pattern detection support (detects both `1x2` and `1x2x3` formats)
+   - **v1.1.0:** Independent axis swizzling, replace previous bounds, erase Blender numbering
+   - **v1.0.0:** Initial release with full specification implementation
+   - Complete dimension-based object renaming system
+   - Flexible unit conversion (meters, centimeters, millimeters)
+   - Smart rounding modes (none, round, floor, ceil) with custom increments
+   - Custom preset save/load system for workflow standardization
+   - Batch processing for multiple objects
+   - Dual bounds calculation (object vs mesh bounds)
+   - Comprehensive formatting options (prefix/suffix, separators, padding)
+   - Full documentation and test suite included
+
+### Previous Updates (2025-12-10)
+
+2. **Compositor Render Sets v1.7.3-1.7.4** - Batch Render Overhaul
    - Complete rewrite of batch rendering system using synchronous rendering
    - Fixed batch render with override output node settings (only outputting one file)
    - Removed complex async modal/handler system
@@ -220,7 +286,7 @@ Stephko_Tooling/
 
 ### Previous Updates (2025-12-09)
 
-2. **Compositor Render Sets v1.7.1** - Blender 5 Compatibility & Performance
+3. **Compositor Render Sets v1.7.1** - Blender 5 Compatibility & Performance
    - Fixed syntax error preventing addon installation (line 316 property definition)
    - Added Blender 5.0 file output node support (new `filename` field)
    - Implemented automatic version detection for file output nodes
@@ -232,14 +298,14 @@ Stephko_Tooling/
 
 ### Previous Updates (2025-12-03)
 
-3. **Blender MCP Integration** - ✅ Successfully Connected
+4. **Blender MCP Integration** - ✅ Successfully Connected
    - Integrated Blender MCP server (`blender-mcp`) with Claude Code
    - Direct control of Blender through natural language
    - Socket-based communication on localhost:9876
    - Tested with object creation (icosphere, cylinder)
    - Scripts: `send_to_blender.py` for direct socket communication
 
-4. **Procedural Tree Generator v1.0** - Phase 1 MVP Complete
+5. **Procedural Tree Generator v1.0** - Phase 1 MVP Complete
    - Full Geometry Nodes implementation based on 90-page specification
    - 5 organized node frames (Input, Attributes, Branch Generation, Growth Direction, Geometry Builder)
    - Iterative branch generation using Repeat Zones
@@ -248,13 +314,13 @@ Stephko_Tooling/
    - Complete documentation in `TreeGenDocu/` folder
    - Ready for Phase 2 development (gravity, sun, wind forces)
 
-5. **Mass Exporter v12.1** - Fixed critical AttributeError bugs
+6. **Mass Exporter v12.1** - Fixed critical AttributeError bugs
    - Fixed unbound method calls across operators (MASSEXPORTER_OT_export_selected_collection and MASSEXPORTER_OT_export_selected_subcollections)
    - Fixed "Export Collection of Selected" button removing unwanted "_main" suffix
    - Improved quick export buttons to properly use configured export settings
    - Updated UI labels for clarity ("Quick Export from Selection")
 
-6. **Earlier Updates (Branch: optimistic-dewdney)**
+7. **Earlier Updates (Branch: optimistic-dewdney)**
    - **Commit 4a8e61b** - Add batch collection management and Create Node Setup features
    - **Commit 79ffbc1** - Add 'Mute Unused File Output Nodes' feature to Compositor Render Sets
    - **Commit 4693fca** - Refactor Compositor Render Sets v1.7.0 - UI improvements and fixes
@@ -440,8 +506,8 @@ if __name__ == "__main__":
 
 ---
 
-**Last Updated:** 2025-12-10
-**Documentation Version:** 1.5
+**Last Updated:** 2025-12-11
+**Documentation Version:** 1.7
 **Primary Branch:** main
 **Active Worktree:** optimistic-dewdney
 **MCP Status:** ✅ Connected (blender-mcp on localhost:9876)
@@ -450,3 +516,4 @@ if __name__ == "__main__":
 
 *This file helps Claude AI understand the codebase context, structure, and development guidelines. Update as the project evolves.*
 - This project has the Serena MCP server configured. Use at all times applicable, especially core programming tasks and guided or free form idiation.
+- like in code, comment your geonodes as well by framing and naming nodes. it will be easier to understand for a human

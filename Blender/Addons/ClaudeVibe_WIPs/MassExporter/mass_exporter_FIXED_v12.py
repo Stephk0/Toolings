@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Mass Collection Exporter",
-    "author": "Claude AI", 
-    "version": (12, 0, 0),  # FIXED v12 - Export meshes even when no empties present
+    "author": "Claude AI",
+    "version": (12, 2, 0),  # v12.2 - Added export selected objects feature
     "blender": (3, 0, 0),
     "location": "3D View > N-Panel > Mass Exporter",
     "description": "Export collections with on-demand join during export - joins ALL empties together",
@@ -830,23 +830,23 @@ class MASSEXPORTER_OT_export_all(Operator):
 
         # Handle different export modes
         if item.export_subcollections_as_single:
-            return self.export_subcollections_as_single(context, props, item)
+            return MASSEXPORTER_OT_export_all.export_subcollections_as_single(self, context, props, item)
         elif item.use_empty_origins:
-            return self.export_with_empty_origins(context, props, item)
+            return MASSEXPORTER_OT_export_all.export_with_empty_origins(self, context, props, item)
         else:
             # Original export logic
-            objects = self.get_collection_objects(collection)
+            objects = MASSEXPORTER_OT_export_all.get_collection_objects(self, collection)
 
             if not objects:
                 self.report({'WARNING'}, f"No objects found in collection: {collection.name}")
                 return False
 
             if item.merge_to_single:
-                return self.export_objects_as_single(context, props, objects, collection.name, export_path)
+                return MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, objects, collection.name, export_path)
             else:
                 success_count = 0
                 for obj in objects:
-                    if self.export_single_object(context, props, obj, export_path):
+                    if MASSEXPORTER_OT_export_all.export_single_object(self, context, props, obj, export_path):
                         success_count += 1
                 return success_count > 0
 
@@ -862,7 +862,7 @@ class MASSEXPORTER_OT_export_all(Operator):
         # Export main collection objects (if any) as one file
         main_objects = [obj for obj in collection.objects if obj.type == 'MESH']
         if main_objects:
-            if self.export_objects_as_single(context, props, main_objects, f"{collection.name}_main", export_path):
+            if MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, main_objects, f"{collection.name}_main", export_path):
                 success_count += 1
 
         # Export each sub-collection as individual merged files
@@ -870,12 +870,12 @@ class MASSEXPORTER_OT_export_all(Operator):
             # FIXED: Use new join logic if join_empty_children is enabled
             if item.use_empty_origins and item.join_empty_children:
                 # Join all empties in this sub-collection and export as one
-                if self.export_collection_with_all_empties_joined(context, props, item, sub_collection, export_path):
+                if MASSEXPORTER_OT_export_all.export_collection_with_all_empties_joined(self, context, props, item, sub_collection, export_path):
                     success_count += 1
             else:
-                sub_objects = self.get_collection_objects(sub_collection)
+                sub_objects = MASSEXPORTER_OT_export_all.get_collection_objects(self, sub_collection)
                 if sub_objects:
-                    if self.export_objects_as_single(context, props, sub_objects, sub_collection.name, export_path):
+                    if MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, sub_objects, sub_collection.name, export_path):
                         success_count += 1
 
         return success_count > 0
@@ -891,10 +891,10 @@ class MASSEXPORTER_OT_export_all(Operator):
 
         # FIXED: If join is enabled, export the entire collection as ONE joined file
         if item.join_empty_children:
-            return self.export_collection_with_all_empties_joined(context, props, item, collection, export_path)
-        
+            return MASSEXPORTER_OT_export_all.export_collection_with_all_empties_joined(self, context, props, item, collection, export_path)
+
         # Original behavior: export each empty separately (without join)
-        return self.export_with_empty_origins_individual(context, props, item)
+        return MASSEXPORTER_OT_export_all.export_with_empty_origins_individual(self, context, props, item)
 
     def export_with_empty_origins_individual(self, context, props, item):
         """Export each empty's children individually (original behavior without join)"""
@@ -933,14 +933,14 @@ class MASSEXPORTER_OT_export_all(Operator):
             if props.debug_mode:
                 print("No empties with children found")
             # No empties, export normally
-            objects = self.get_collection_objects(collection)
+            objects = MASSEXPORTER_OT_export_all.get_collection_objects(self, collection)
             if objects:
                 if item.merge_to_single:
-                    return self.export_objects_as_single(context, props, objects, collection.name, export_path)
+                    return MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, objects, collection.name, export_path)
                 else:
                     success_count = 0
                     for obj in objects:
-                        if self.export_single_object(context, props, obj, export_path):
+                        if MASSEXPORTER_OT_export_all.export_single_object(self, context, props, obj, export_path):
                             success_count += 1
                     return success_count > 0
             return False
@@ -955,20 +955,20 @@ class MASSEXPORTER_OT_export_all(Operator):
 
             if item.center_parent_empties:
                 original_empty_pos = empty.location.copy()
-                
+
                 try:
                     empty.location = (0.0, 0.0, 0.0)
                     bpy.context.view_layer.update()
 
                     # Export children individually
-                    if self.export_children_individual(context, props, empty, children, export_path):
+                    if MASSEXPORTER_OT_export_all.export_children_individual(self, context, props, empty, children, export_path):
                         success_count += 1
 
                 finally:
                     empty.location = original_empty_pos
                     bpy.context.view_layer.update()
             else:
-                if self.export_children_individual(context, props, empty, children, export_path):
+                if MASSEXPORTER_OT_export_all.export_children_individual(self, context, props, empty, children, export_path):
                     success_count += 1
 
         return success_count > 0
@@ -1019,23 +1019,23 @@ class MASSEXPORTER_OT_export_all(Operator):
                 print("âž¡ Falling back to normal export of meshes in collection")
             
             # Get all mesh objects from the collection
-            objects = self.get_collection_objects(collection)
-            
+            objects = MASSEXPORTER_OT_export_all.get_collection_objects(self, collection)
+
             if not objects:
                 if props.debug_mode:
                     print("âš  No mesh objects found in collection either")
                 return False
-            
+
             if props.debug_mode:
                 print(f"✓ Found {len(objects)} mesh objects to export")
-            
+
             # Export based on merge setting
             if item.merge_to_single:
-                return self.export_objects_as_single(context, props, objects, collection.name, export_path)
+                return MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, objects, collection.name, export_path)
             else:
                 success_count = 0
                 for obj in objects:
-                    if self.export_single_object(context, props, obj, export_path):
+                    if MASSEXPORTER_OT_export_all.export_single_object(self, context, props, obj, export_path):
                         success_count += 1
                 return success_count > 0
         
@@ -1241,9 +1241,9 @@ class MASSEXPORTER_OT_export_all(Operator):
             # STEP 7: Export ONLY this ONE joined object
             if props.debug_mode:
                 print(f"Exporting joined object as '{collection.name}.fbx'...")
-            
-            result = self.export_single_object_simple(context, props, joined_obj, collection.name, export_path)
-            
+
+            result = MASSEXPORTER_OT_export_all.export_single_object_simple(self, context, props, joined_obj, collection.name, export_path)
+
             if props.debug_mode:
                 print(f"Export result: {'SUCCESS' if result else 'FAILED'}")
             
@@ -1290,7 +1290,7 @@ class MASSEXPORTER_OT_export_all(Operator):
 
             # Export this child
             child_name = f"{empty_name}_{child.name}" if len(children) > 1 else empty_name
-            if self.export_single_object_simple(context, props, child, child_name, export_path):
+            if MASSEXPORTER_OT_export_all.export_single_object_simple(self, context, props, child, child_name, export_path):
                 success_count += 1
 
         return success_count > 0
@@ -1313,7 +1313,7 @@ class MASSEXPORTER_OT_export_all(Operator):
 
             # Apply material overrides if needed
             if props.override_materials and props.override_material:
-                self.apply_material_overrides([obj], props)
+                MASSEXPORTER_OT_export_all.apply_material_overrides(self, [obj], props)
 
             # Set export filename
             filename = f"{name}.{props.export_format.lower()}"
@@ -1323,7 +1323,7 @@ class MASSEXPORTER_OT_export_all(Operator):
                 print(f"Exporting to: {filepath}")
 
             # Export based on format
-            result = self.perform_export(props, filepath)
+            result = MASSEXPORTER_OT_export_all.perform_export(self, props, filepath)
 
             if props.debug_mode:
                 print(f"Export result: {result}")
@@ -1387,14 +1387,14 @@ class MASSEXPORTER_OT_export_all(Operator):
 
             # Apply material overrides if needed
             if props.override_materials and props.override_material:
-                self.apply_material_overrides(objects, props)
+                MASSEXPORTER_OT_export_all.apply_material_overrides(self, objects, props)
 
             # Set export filename
             filename = f"{collection_name}.{props.export_format.lower()}"
             filepath = os.path.join(export_path, filename)
 
             # Export based on format
-            result = self.perform_export(props, filepath)
+            result = MASSEXPORTER_OT_export_all.perform_export(self, props, filepath)
 
         finally:
             # Restore original transforms if we moved to origin and didn't apply transforms
@@ -1430,14 +1430,14 @@ class MASSEXPORTER_OT_export_all(Operator):
 
             # Apply material overrides if needed
             if props.override_materials and props.override_material:
-                self.apply_material_overrides([obj], props)
+                MASSEXPORTER_OT_export_all.apply_material_overrides(self, [obj], props)
 
             # Set export filename
             filename = f"{obj.name}.{props.export_format.lower()}"
             filepath = os.path.join(export_path, filename)
 
             # Export based on format
-            result = self.perform_export(props, filepath)
+            result = MASSEXPORTER_OT_export_all.perform_export(self, props, filepath)
 
         finally:
             # Restore original transform if we moved to origin and didn't apply transforms
@@ -1549,10 +1549,482 @@ class MASSEXPORTER_OT_export_all(Operator):
             print(f"Export error: {str(e)}")
             return False
 
+class MASSEXPORTER_OT_export_selected_collection(Operator):
+    """Export collection of currently selected object as a whole"""
+    bl_idname = "massexporter.export_selected_collection"
+    bl_label = "Export Collection of Selected"
+    bl_description = "Export the immediate collection containing the selected object as a whole, using configured export settings (ignores 'Sub-Collections as Single' mode)"
+
+    def find_immediate_collection(self, obj):
+        """Find the immediate (lowest-level) collection containing the object"""
+        # Start with all collections that contain this object
+        containing_collections = []
+        for collection in bpy.data.collections:
+            if obj.name in collection.objects:
+                containing_collections.append(collection)
+
+        if not containing_collections:
+            return None
+
+        # If only one collection, return it
+        if len(containing_collections) == 1:
+            return containing_collections[0]
+
+        # Find the most specific (deepest) collection by checking which collections
+        # are children of other collections in the list
+        # A collection is "immediate" if it's not a parent of any other collection in the list
+        immediate_collection = None
+        for coll in containing_collections:
+            is_parent = False
+            for other_coll in containing_collections:
+                if coll != other_coll and self.is_parent_of(coll, other_coll):
+                    is_parent = True
+                    break
+
+            # If this collection is not a parent of any other, it's more immediate
+            if not is_parent:
+                immediate_collection = coll
+                break
+
+        return immediate_collection if immediate_collection else containing_collections[0]
+
+    def is_parent_of(self, parent_coll, child_coll):
+        """Check if parent_coll is a parent (or ancestor) of child_coll"""
+        # Check direct children by comparing collection objects
+        for child in parent_coll.children:
+            if child == child_coll:
+                return True
+
+        # Check recursively through all descendants
+        for child in parent_coll.children:
+            if self.is_parent_of(child, child_coll):
+                return True
+
+        return False
+
+    def execute(self, context):
+        # Force OBJECT mode
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Get active object
+        active_obj = context.active_object
+        if not active_obj:
+            self.report({'WARNING'}, "No object selected")
+            return {'CANCELLED'}
+
+        # Find the immediate collection containing this object
+        target_collection = self.find_immediate_collection(active_obj)
+
+        if not target_collection:
+            self.report({'WARNING'}, f"Object '{active_obj.name}' is not in any collection")
+            return {'CANCELLED'}
+
+        # Find or create export item for this collection
+        props = context.scene.mass_exporter_props
+        export_item = None
+        for item in props.collection_items:
+            if item.collection == target_collection:
+                export_item = item
+                break
+
+        # If not in export list, we need an export path from somewhere
+        if not export_item:
+            # Try to find a parent collection in the export list and use its settings
+            parent_export_item = self.find_parent_export_item(target_collection, props)
+
+            if not parent_export_item:
+                self.report({'WARNING'}, f"Collection '{target_collection.name}' is not in export list and no parent collection found")
+                return {'CANCELLED'}
+
+            if not parent_export_item.export_path:
+                self.report({'WARNING'}, f"No export path set for collection hierarchy")
+                return {'CANCELLED'}
+
+            # Create temporary export item with parent's settings
+            export_item = props.collection_items.add()
+            export_item.collection = target_collection
+            export_item.export_enabled = True
+            export_item.export_path = parent_export_item.export_path
+            export_item.merge_to_single = parent_export_item.merge_to_single
+            export_item.export_subcollections_as_single = parent_export_item.export_subcollections_as_single
+            export_item.use_empty_origins = parent_export_item.use_empty_origins
+            export_item.center_parent_empties = parent_export_item.center_parent_empties
+            export_item.move_empties_to_origin_on_export = parent_export_item.move_empties_to_origin_on_export
+            export_item.join_empty_children = parent_export_item.join_empty_children
+            export_item.apply_modifiers_before_join = parent_export_item.apply_modifiers_before_join
+            export_item.apply_only_visible = parent_export_item.apply_only_visible
+
+            temp_created = True
+        else:
+            if not export_item.export_path:
+                self.report({'WARNING'}, f"No export path set for collection '{target_collection.name}'")
+                return {'CANCELLED'}
+            temp_created = False
+
+        # Store original selection
+        original_selection = context.selected_objects.copy()
+        original_active = context.active_object
+
+        try:
+            # Export this collection using the existing export logic
+            # Temporarily disable export_subcollections_as_single to export the collection as a whole
+            original_export_subcollections = export_item.export_subcollections_as_single
+            export_item.export_subcollections_as_single = False
+
+            # Call the method as an unbound method from the class
+            if MASSEXPORTER_OT_export_all.export_collection(self, context, props, export_item):
+                self.report({'INFO'}, f"Exported collection '{target_collection.name}'")
+                result = {'FINISHED'}
+            else:
+                self.report({'ERROR'}, f"Failed to export collection '{target_collection.name}'")
+                result = {'CANCELLED'}
+
+            # Restore original setting if not temp_created
+            if not temp_created:
+                export_item.export_subcollections_as_single = original_export_subcollections
+
+            return result
+        finally:
+            # Remove temporary item if created
+            if temp_created:
+                index = len(props.collection_items) - 1
+                props.collection_items.remove(index)
+
+            # Restore selection
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in original_selection:
+                if obj.name in bpy.data.objects:
+                    obj.select_set(True)
+            if original_active and original_active.name in bpy.data.objects:
+                context.view_layer.objects.active = original_active
+
+    def find_parent_export_item(self, collection, props):
+        """Find a parent collection in the export list"""
+        for item in props.collection_items:
+            if item.collection and self.is_parent_of(item.collection, collection):
+                return item
+        return None
+
+class MASSEXPORTER_OT_export_selected_subcollections(Operator):
+    """Export sub-collections of currently selected object's collection"""
+    bl_idname = "massexporter.export_selected_subcollections"
+    bl_label = "Export Sub-Collections of Selected"
+    bl_description = "Export each sub-collection of the collection containing the selected object, using the collection's configured export settings"
+
+    def find_immediate_collection(self, obj):
+        """Find the immediate (lowest-level) collection containing the object"""
+        # Start with all collections that contain this object
+        containing_collections = []
+        for collection in bpy.data.collections:
+            if obj.name in collection.objects:
+                containing_collections.append(collection)
+
+        if not containing_collections:
+            return None
+
+        # If only one collection, return it
+        if len(containing_collections) == 1:
+            return containing_collections[0]
+
+        # Find the most specific (deepest) collection by checking which collections
+        # are children of other collections in the list
+        # A collection is "immediate" if it's not a parent of any other collection in the list
+        immediate_collection = None
+        for coll in containing_collections:
+            is_parent = False
+            for other_coll in containing_collections:
+                if coll != other_coll and self.is_parent_of(coll, other_coll):
+                    is_parent = True
+                    break
+
+            # If this collection is not a parent of any other, it's more immediate
+            if not is_parent:
+                immediate_collection = coll
+                break
+
+        return immediate_collection if immediate_collection else containing_collections[0]
+
+    def is_parent_of(self, parent_coll, child_coll):
+        """Check if parent_coll is a parent (or ancestor) of child_coll"""
+        # Check direct children by comparing collection objects
+        for child in parent_coll.children:
+            if child == child_coll:
+                return True
+
+        # Check recursively through all descendants
+        for child in parent_coll.children:
+            if self.is_parent_of(child, child_coll):
+                return True
+
+        return False
+
+    def find_parent_export_item(self, collection, props):
+        """Find a parent collection in the export list"""
+        for item in props.collection_items:
+            if item.collection and self.is_parent_of(item.collection, collection):
+                return item
+        return None
+
+    def execute(self, context):
+        # Force OBJECT mode
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Get active object
+        active_obj = context.active_object
+        if not active_obj:
+            self.report({'WARNING'}, "No object selected")
+            return {'CANCELLED'}
+
+        # Find the immediate collection containing this object
+        target_collection = self.find_immediate_collection(active_obj)
+
+        if not target_collection:
+            self.report({'WARNING'}, f"Object '{active_obj.name}' is not in any collection")
+            return {'CANCELLED'}
+
+        # Check if collection has sub-collections
+        if not target_collection.children:
+            self.report({'WARNING'}, f"Collection '{target_collection.name}' has no sub-collections")
+            return {'CANCELLED'}
+
+        # Find or get export settings
+        props = context.scene.mass_exporter_props
+        export_item = None
+        for item in props.collection_items:
+            if item.collection == target_collection:
+                export_item = item
+                break
+
+        # If not in export list, try to find parent collection settings
+        if not export_item:
+            parent_export_item = self.find_parent_export_item(target_collection, props)
+
+            if not parent_export_item:
+                self.report({'WARNING'}, f"Collection '{target_collection.name}' is not in export list and no parent collection found")
+                return {'CANCELLED'}
+
+            if not parent_export_item.export_path:
+                self.report({'WARNING'}, f"No export path set for collection hierarchy")
+                return {'CANCELLED'}
+
+            # Use parent's settings as reference
+            reference_item = parent_export_item
+        else:
+            if not export_item.export_path:
+                self.report({'WARNING'}, f"No export path set for collection '{target_collection.name}'")
+                return {'CANCELLED'}
+            reference_item = export_item
+
+        # Store original selection
+        original_selection = context.selected_objects.copy()
+        original_active = context.active_object
+
+        try:
+            # Export each sub-collection
+            exported_count = 0
+            temp_items_created = []
+
+            for sub_collection in target_collection.children:
+                # Create a temporary export item for this sub-collection
+                temp_item = props.collection_items.add()
+                temp_item.collection = sub_collection
+                temp_item.export_enabled = True
+                temp_item.export_path = reference_item.export_path
+                temp_item.merge_to_single = reference_item.merge_to_single
+                temp_item.export_subcollections_as_single = reference_item.export_subcollections_as_single
+                temp_item.use_empty_origins = reference_item.use_empty_origins
+                temp_item.center_parent_empties = reference_item.center_parent_empties
+                temp_item.move_empties_to_origin_on_export = reference_item.move_empties_to_origin_on_export
+                temp_item.join_empty_children = reference_item.join_empty_children
+                temp_item.apply_modifiers_before_join = reference_item.apply_modifiers_before_join
+                temp_item.apply_only_visible = reference_item.apply_only_visible
+
+                temp_items_created.append(len(props.collection_items) - 1)
+
+                # Call the method as an unbound method from the class
+                if MASSEXPORTER_OT_export_all.export_collection(self, context, props, temp_item):
+                    exported_count += 1
+
+            # Remove temporary items in reverse order
+            for index in reversed(temp_items_created):
+                props.collection_items.remove(index)
+
+            if exported_count > 0:
+                self.report({'INFO'}, f"Exported {exported_count} sub-collections from '{target_collection.name}'")
+                return {'FINISHED'}
+            else:
+                self.report({'ERROR'}, "No sub-collections were exported")
+                return {'CANCELLED'}
+        finally:
+            # Restore selection
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in original_selection:
+                if obj.name in bpy.data.objects:
+                    obj.select_set(True)
+            if original_active and original_active.name in bpy.data.objects:
+                context.view_layer.objects.active = original_active
+
 # Panels
+class MASSEXPORTER_OT_export_selected_objects(Operator):
+    """Export collections of selected objects using their configured export settings"""
+    bl_idname = "massexporter.export_selected_objects"
+    bl_label = "Export Selected Object(s)"
+    bl_description = "Export the collections containing selected objects, using each collection's configured export settings (merge, sub-collections, etc.)"
+
+    def find_immediate_collection(self, obj):
+        """Find the immediate (lowest-level) collection containing the object"""
+        # Start with all collections that contain this object
+        containing_collections = []
+        for collection in bpy.data.collections:
+            if obj.name in collection.objects:
+                containing_collections.append(collection)
+
+        if not containing_collections:
+            return None
+
+        # If only one collection, return it
+        if len(containing_collections) == 1:
+            return containing_collections[0]
+
+        # Find the most specific (deepest) collection
+        immediate_collection = None
+        for coll in containing_collections:
+            is_parent = False
+            for other_coll in containing_collections:
+                if coll != other_coll and self.is_parent_of(coll, other_coll):
+                    is_parent = True
+                    break
+
+            if not is_parent:
+                immediate_collection = coll
+                break
+
+        return immediate_collection if immediate_collection else containing_collections[0]
+
+    def is_parent_of(self, parent_coll, child_coll):
+        """Check if parent_coll is a parent (or ancestor) of child_coll"""
+        for child in parent_coll.children:
+            if child == child_coll:
+                return True
+
+        for child in parent_coll.children:
+            if self.is_parent_of(child, child_coll):
+                return True
+
+        return False
+
+    def find_parent_export_item(self, collection, props):
+        """Find a parent collection in the export list"""
+        for item in props.collection_items:
+            if item.collection and self.is_parent_of(item.collection, collection):
+                return item
+        return None
+
+    def execute(self, context):
+        # Force OBJECT mode
+        if bpy.ops.object.mode_set.poll():
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        # Get selected objects
+        selected_objects = context.selected_objects.copy()
+        if not selected_objects:
+            self.report({'WARNING'}, "No objects selected")
+            return {'CANCELLED'}
+
+        # Find all unique collections from selected objects
+        unique_collections = set()
+        for obj in selected_objects:
+            coll = self.find_immediate_collection(obj)
+            if coll:
+                unique_collections.add(coll)
+
+        if not unique_collections:
+            self.report({'WARNING'}, "Selected objects are not in any collections")
+            return {'CANCELLED'}
+
+        # Store original selection
+        original_selection = context.selected_objects.copy()
+        original_active = context.active_object
+
+        props = context.scene.mass_exporter_props
+        exported_count = 0
+        temp_items_created = []
+
+        try:
+            # Export each unique collection
+            for collection in unique_collections:
+                # Find or create export item for this collection
+                export_item = None
+                for item in props.collection_items:
+                    if item.collection == collection:
+                        export_item = item
+                        break
+
+                # If not in export list, try to find parent collection settings
+                if not export_item:
+                    parent_export_item = self.find_parent_export_item(collection, props)
+
+                    if not parent_export_item:
+                        self.report({'WARNING'}, f"Collection '{collection.name}' is not in export list and no parent collection found - skipping")
+                        continue
+
+                    if not parent_export_item.export_path:
+                        self.report({'WARNING'}, f"No export path set for collection hierarchy - skipping '{collection.name}'")
+                        continue
+
+                    # Create temporary export item with parent's settings
+                    temp_item = props.collection_items.add()
+                    temp_item.collection = collection
+                    temp_item.export_enabled = True
+                    temp_item.export_path = parent_export_item.export_path
+                    temp_item.merge_to_single = parent_export_item.merge_to_single
+                    temp_item.export_subcollections_as_single = parent_export_item.export_subcollections_as_single
+                    temp_item.use_empty_origins = parent_export_item.use_empty_origins
+                    temp_item.center_parent_empties = parent_export_item.center_parent_empties
+                    temp_item.move_empties_to_origin_on_export = parent_export_item.move_empties_to_origin_on_export
+                    temp_item.join_empty_children = parent_export_item.join_empty_children
+                    temp_item.apply_modifiers_before_join = parent_export_item.apply_modifiers_before_join
+                    temp_item.apply_only_visible = parent_export_item.apply_only_visible
+
+                    temp_items_created.append(len(props.collection_items) - 1)
+                    export_item = temp_item
+                else:
+                    if not export_item.export_path:
+                        self.report({'WARNING'}, f"No export path set for collection '{collection.name}' - skipping")
+                        continue
+
+                # Export this collection using the existing export logic
+                if MASSEXPORTER_OT_export_all.export_collection(self, context, props, export_item):
+                    exported_count += 1
+
+            # Remove temporary items in reverse order
+            for index in reversed(temp_items_created):
+                props.collection_items.remove(index)
+
+            if exported_count > 0:
+                collection_names = ", ".join([c.name for c in list(unique_collections)[:3]])
+                if len(unique_collections) > 3:
+                    collection_names += f", ... ({len(unique_collections)} total)"
+                self.report({'INFO'}, f"Exported {exported_count} collection(s): {collection_names}")
+                return {'FINISHED'}
+            else:
+                self.report({'ERROR'}, "No collections were exported")
+                return {'CANCELLED'}
+        finally:
+            # Restore selection
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in original_selection:
+                if obj.name in bpy.data.objects:
+                    obj.select_set(True)
+            if original_active and original_active.name in bpy.data.objects:
+                context.view_layer.objects.active = original_active
+
+
 class MASSEXPORTER_PT_main_panel(Panel):
     """Main Mass Exporter Panel"""
-    bl_label = "Mass Collection Exporter v12"
+    bl_label = "Mass Collection Exporter v12.2"
     bl_idname = "MASSEXPORTER_PT_main_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -1564,6 +2036,21 @@ class MASSEXPORTER_PT_main_panel(Panel):
 
         # Export button
         layout.operator("massexporter.export_all", text="Export All Collections", icon='EXPORT')
+
+        layout.separator()
+
+        # Export selected buttons
+        box = layout.box()
+        box.label(text="Quick Export from Selection:", icon='RESTRICT_SELECT_OFF')
+        row = box.row()
+        row.scale_y = 1.2
+        row.operator("massexporter.export_selected_objects", icon='OBJECT_DATA')
+        row = box.row()
+        row.scale_y = 1.2
+        row.operator("massexporter.export_selected_collection", icon='OUTLINER_COLLECTION')
+        row = box.row()
+        row.scale_y = 1.2
+        row.operator("massexporter.export_selected_subcollections", icon='OUTLINER_OB_GROUP_INSTANCE')
 
         layout.separator()
 
@@ -1748,6 +2235,9 @@ classes = [
     MASSEXPORTER_OT_select_folder,
     MASSEXPORTER_OT_refresh_collections,
     MASSEXPORTER_OT_export_all,
+    MASSEXPORTER_OT_export_selected_collection,
+    MASSEXPORTER_OT_export_selected_subcollections,
+    MASSEXPORTER_OT_export_selected_objects,
     MASSEXPORTER_PT_main_panel,
     MASSEXPORTER_PT_debug,
     MASSEXPORTER_PT_collections,

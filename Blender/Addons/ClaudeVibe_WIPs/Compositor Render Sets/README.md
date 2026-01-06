@@ -1,7 +1,7 @@
 # Compositor Render Sets
 
-![Version](https://img.shields.io/badge/version-1.9.0-blue)
-![Blender](https://img.shields.io/badge/blender-4.0+-orange)
+![Version](https://img.shields.io/badge/version-1.7.1-blue)
+![Blender](https://img.shields.io/badge/blender-4.0%20%7C%205.0+-orange)
 
 **Author:** Claude AI + Stephan Viranyi
 **Category:** Render
@@ -30,6 +30,8 @@ Compositor Render Sets automates this entire workflow:
 - ✅ Controls **collection visibility** per set with Show/Hide/Solo tools
 - ✅ **Restores** compositor settings after rendering
 - ✅ **Logs** all render operations for tracking
+- ✅ **Blender 5.0 compatible** - automatic version detection for new filename field
+- ✅ **Performance optimized** - selective modifier syncing for faster renders
 
 ---
 
@@ -237,6 +239,43 @@ When enabled, the addon syncs `hide_render` to match `hide_viewport` for all col
 - The addon only controls viewport visibility
 - Render visibility is not modified
 - Use this if you have custom render visibility setups
+
+#### Sync Modifier Viewport Visibility to Render
+
+**Default:** Enabled
+
+When enabled, the addon syncs modifier `show_render` to match `show_viewport` for all modifiers before rendering.
+
+**Effect:**
+- Modifiers visible in viewport will be rendered
+- Modifiers hidden in viewport won't be rendered
+- What You See Is What You Get (WYSIWYG) for modifiers
+
+**Sub-Option: Only Sync Modifiers in Render Set**
+
+**Default:** Enabled
+
+When enabled, only syncs modifiers on objects that are part of the render set collections.
+
+**Benefits:**
+- **Performance:** Faster rendering by only processing relevant modifiers
+- **Less Debug Output:** Cleaner console with fewer modifier sync messages
+- **Efficiency:** Doesn't modify objects outside the render set
+
+**When Disabled:**
+- Syncs modifiers on ALL objects in the scene
+- Useful if you have cross-collection dependencies
+- May produce more debug output
+
+#### Sync Objects to Viewport
+
+**Default:** Enabled
+
+When enabled, the addon syncs object render settings to match viewport settings before rendering.
+
+**Effect:**
+- Similar to visibility and modifier syncing
+- Ensures objects render as they appear in viewport
 
 #### Enable Log
 
@@ -532,7 +571,19 @@ Potential features for future versions:
 
 ## 📜 Version History
 
-### Version 1.9.0 (Current)
+### Version 1.7.1 (Current - 2025-12-09)
+- **Blender 5.0 Compatibility:** Added support for Blender 5.0's new File Output node `filename` field
+  - Automatic version detection: uses `filename` field in Blender 5.0+, prefix replacement in Blender 4.x
+  - File output nodes properly reset after each render set
+  - Backward compatible with Blender 4.x
+- **Performance Optimization:** Modifier sync filtering
+  - New option: "Only Sync Modifiers in Render Set" (enabled by default)
+  - Only syncs modifiers on objects in render set collections (not all scene objects)
+  - Significantly reduces debug output and improves render performance
+  - UI: Filter checkbox appears as sub-option when modifier sync is enabled
+- **Bug Fix:** Fixed syntax error preventing addon installation (property definition at line 316)
+
+### Version 1.9.0
 - **Bug Fix:** Override Output Node Settings now correctly uses the specified File Output node
   - Per-set override nodes are now properly found and configured
   - Override node name and prefix are correctly applied during rendering
