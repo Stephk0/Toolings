@@ -1,0 +1,116 @@
+# Example Material Remap Rule Configuration
+# Copy these settings when creating a new Material Remap Rule for character models
+
+## How to Use This Template:
+## 1. In Unity, right-click in Project window
+## 2. Create > Stephko > Model Import Rules > Material Remap Rule
+## 3. Name it: "Character Material Remap Rule"
+## 4. Copy the settings below into the Inspector
+
+# ============================================
+# RULE SETTINGS
+# ============================================
+
+Enabled: TRUE
+Priority: 50
+
+# ============================================
+# PATH MATCHING
+# ============================================
+
+Path Patterns (Array):
+  Element 0: "Assets/Models/Characters/**"
+  Element 1: "Assets/Art/Characters/**"
+
+Use Regex: FALSE
+
+# ============================================
+# MATERIAL IMPORT SETTINGS
+# ============================================
+
+Material Import Mode: ImportViaMaterialDescription
+  # Options:
+  # - None: Don't import materials
+  # - ImportStandard: Legacy standard import
+  # - ImportViaMaterialDescription: Modern material preprocessing
+
+Material Location: External
+  # Options:
+  # - External: Use external materials (search project)
+  # - InPrefab: Embed materials in the imported asset
+
+# ============================================
+# MATERIAL REMAPPING
+# ============================================
+
+Enable Search And Remap: TRUE
+
+Material Name Mode: BasedOnMaterialName
+  # Options:
+  # - BasedOnTextureName (0): Uses <textureName>.mat or <materialName>.mat
+  # - BasedOnMaterialName (1): Uses <materialName>.mat
+  # - BasedOnModelNameAndMaterialName (2): Uses <modelName>-<materialName>.mat
+  # - BasedOnTextureName_Or_ModelNameAndMaterialName (3): Obsolete fallback
+
+Material Search Mode: RecursiveUp
+  # Options:
+  # - Local (0): Search only in local Materials folder
+  # - RecursiveUp (1): Search up through Materials folders to Assets root
+  # - Everywhere (2): Search anywhere in Assets folder
+
+# ============================================
+# ADVANCED OPTIONS
+# ============================================
+
+Import Materials: TRUE
+Verbose Logging: FALSE (set to TRUE for debugging)
+
+# ============================================
+# EXPECTED BEHAVIOR
+# ============================================
+
+# When a model is imported to:
+#   Assets/Models/Characters/Hero/hero.fbx
+#
+# This rule will:
+# 1. Match the path pattern "Assets/Models/Characters/**"
+# 2. Enable material import via MaterialDescription
+# 3. Search for external materials named after the materials in the FBX
+# 4. Search recursively up from Assets/Models/Characters/Hero/Materials/
+#   through Assets/Models/Characters/Materials/
+#   through Assets/Models/Materials/
+#   up to Assets/Materials/
+# 5. Remap found materials to the imported model
+
+# ============================================
+# FOLDER STRUCTURE EXAMPLE
+# ============================================
+
+# For this rule to work best, organize your materials like:
+#
+# Assets/
+#   Models/
+#     Characters/
+#       Hero/
+#         hero.fbx (contains materials: "Body", "Head", "Armor")
+#         Materials/
+#           Body.mat  (will be automatically remapped)
+#           Head.mat  (will be automatically remapped)
+#           Armor.mat (will be automatically remapped)
+#   Materials/
+#     Characters/
+#       (fallback location for shared character materials)
+
+# ============================================
+# TESTING
+# ============================================
+
+# To test this rule:
+# 1. Select a character model in the Project window
+# 2. Menu: Tools > Stephko > Model Import Processor > Test Rules on Selected Asset
+# 3. Check Console output to verify the rule matches
+#
+# To debug remapping:
+# 1. Enable "Verbose Logging"
+# 2. Reimport the model (right-click > Reimport)
+# 3. Check Console for detailed remapping information

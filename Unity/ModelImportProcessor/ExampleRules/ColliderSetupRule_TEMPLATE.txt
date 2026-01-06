@@ -1,0 +1,147 @@
+# Example Collider Setup Rule Configuration
+# Copy these settings when creating a new Collider Setup Rule
+
+## How to Use This Template:
+## 1. In Unity, right-click in Project window
+## 2. Create > Stephko > Model Import Rules > Collider Setup Rule
+## 3. Name it: "Auto Collider Setup Rule"
+## 4. Copy the settings below into the Inspector
+
+# ============================================
+# RULE SETTINGS
+# ============================================
+
+Enabled: TRUE
+Priority: 50
+
+# ============================================
+# PATH MATCHING
+# ============================================
+
+Path Patterns (Array):
+  Element 0: "Assets/**"
+  # This will apply to all models in the project
+  # You can restrict to specific folders like:
+  # "Assets/Models/**"
+  # "Assets/Environments/**"
+
+Use Regex: FALSE
+
+# ============================================
+# COLLIDER SUFFIX PATTERNS
+# ============================================
+
+Mesh Collider Suffix: "_COL"
+  # Example: "tree_COL" will add a MeshCollider
+
+Box Collider Suffixes (Array):
+  Element 0: "_COLCUBE"
+  Element 1: "_COLBOX"
+  # Examples: "platform_COLCUBE", "wall_COLBOX" will add BoxColliders
+
+Sphere Collider Suffixes (Array):
+  Element 0: "_COLSPHERE"
+  Element 1: "_COLSPH"
+  # Examples: "ball_COLSPHERE", "orb_COLSPH" will add SphereColliders
+
+Capsule Collider Suffixes (Array):
+  Element 0: "_COLCAPSULE"
+  Element 1: "_COLCAP"
+  # Examples: "pillar_COLCAPSULE", "pole_COLCAP" will add CapsuleColliders
+
+# ============================================
+# MESH COLLIDER SETTINGS
+# ============================================
+
+Mesh Collider Convex: TRUE
+  # TRUE: Convex mesh colliders (required for Rigidbody collision)
+  # FALSE: Non-convex mesh colliders (static collision only)
+
+Mesh Collider Cooking Options: TRUE
+  # Enable collision cooking for better performance
+
+# ============================================
+# MESH HANDLING
+# ============================================
+
+Hide Collision Mesh: TRUE
+  # TRUE: Disables MeshRenderer on collision meshes (invisible but collider still works)
+  # FALSE: Leaves collision mesh visible
+
+Remove Collision Mesh GameObject: FALSE
+  # TRUE: Removes the collision mesh GameObject entirely (destructive!)
+  # FALSE: Keeps the GameObject in hierarchy (recommended)
+  # NOTE: If you remove the GameObject, the collider is transferred to parent!
+
+# ============================================
+# ADVANCED OPTIONS
+# ============================================
+
+Case Insensitive: TRUE
+  # TRUE: "_COL", "_col", "_Col" all match
+  # FALSE: Must match exactly
+
+Verbose Logging: FALSE
+  # TRUE: Logs every collider added
+  # FALSE: Only logs totals
+
+# ============================================
+# EXPECTED BEHAVIOR
+# ============================================
+
+# Example FBX with this hierarchy:
+#
+# MyModel.fbx
+#   ├─ Visual_Mesh        (no collider added)
+#   ├─ Wall_COLCUBE       (BoxCollider added, mesh hidden)
+#   ├─ Floor_COL          (MeshCollider added, mesh hidden)
+#   ├─ Pillar_COLCAPSULE  (CapsuleCollider added, mesh hidden)
+#   └─ Orb_COLSPHERE      (SphereCollider added, mesh hidden)
+
+# ============================================
+# BLENDER WORKFLOW
+# ============================================
+
+# 1. Create your visual mesh in Blender
+# 2. Create simplified collision meshes with suffix naming:
+#    - "platform_COLCUBE" for box collider
+#    - "tree_COL" for mesh collider
+#    - "ball_COLSPHERE" for sphere collider
+# 3. Export FBX with all meshes
+# 4. Import to Unity - colliders are automatically added!
+
+# ============================================
+# UNREAL ENGINE COMPATIBILITY
+# ============================================
+
+# This system is inspired by Unreal Engine naming conventions:
+# - UCX_[Name] → Box Collider (use _COLBOX)
+# - UBX_[Name] → Box Collider (use _COLBOX)
+# - USP_[Name] → Sphere Collider (use _COLSPHERE)
+# - UCP_[Name] → Capsule Collider (use _COLCAPSULE)
+# - You can add these prefixes as additional suffixes if needed!
+
+# ============================================
+# TESTING
+# ============================================
+
+# To test this rule:
+# 1. Create a simple cube in Blender named "test_COLCUBE"
+# 2. Export as FBX
+# 3. Import to Unity
+# 4. Select the imported model
+# 5. Check that BoxCollider was added to "test_COLCUBE" child
+#
+# To debug:
+# 1. Enable "Verbose Logging"
+# 2. Reimport the model
+# 3. Check Console for detailed logs
+
+# ============================================
+# PERFORMANCE NOTES
+# ============================================
+
+# - Hide Collision Mesh: Recommended (saves rendering performance)
+# - Remove Collision Mesh GameObject: NOT recommended unless you know what you're doing
+# - Convex Mesh Colliders: Use for dynamic objects (rigidbodies)
+# - Non-Convex Mesh Colliders: Use for static environment (better accuracy)
