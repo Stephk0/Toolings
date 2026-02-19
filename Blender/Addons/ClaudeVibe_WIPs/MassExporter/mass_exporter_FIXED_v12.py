@@ -1,10 +1,10 @@
 bl_info = {
     "name": "Mass Collection Exporter",
-    "author": "Claude AI",
-    "version": (12, 2, 0),  # v12.2 - Added export selected objects feature
+    "author": "Claude AI, Stephko",
+    "version": (12, 3, 0),  # v12.3 - Added suffix grouping for collision/LOD exports
     "blender": (3, 0, 0),
     "location": "3D View > N-Panel > Mass Exporter",
-    "description": "Export collections with on-demand join during export - joins ALL empties together",
+    "description": "Export collections with suffix grouping (e.g., _COL for collision meshes)",
     "category": "Import-Export",
 }
 
@@ -394,6 +394,143 @@ def join_empty_children_core_logic(context, report_func=None, apply_modifiers=Fa
     return {'FINISHED'}
 
 # Property Groups
+
+class SuffixItem(PropertyGroup):
+    """Individual suffix definition for grouping exports"""
+    suffix: StringProperty(
+        name="Suffix",
+        description="Suffix to look for (e.g., _COL, _LOD0, _UCX)",
+        default="_COL"
+    )
+
+    enabled: BoolProperty(
+        name="Enabled",
+        description="Enable this suffix for grouping",
+        default=True
+    )
+
+    description: StringProperty(
+        name="Description",
+        description="Description of what this suffix represents",
+        default="Collision"
+    )
+
+
+# ============================================================================
+# Suffix Grouping Helper Functions
+# ============================================================================
+
+def get_base_name_without_suffix(name, suffix_items):
+    """
+    Get the base name by removing any matching suffix.
+    Returns (base_name, matched_suffix) or (name, None) if no suffix matched.
+    """
+    name_lower = name.lower()
+    for item in suffix_items:
+        if item.enabled:
+            suffix_lower = item.suffix.lower()
+            if name_lower.endswith(suffix_lower):
+                return name[:-len(item.suffix)], item.suffix
+    return name, None
+
+
+def find_suffix_groups(objects, suffix_items, debug=False):
+    """
+    Group objects by their base name (without suffix).
+    Returns a dict: {base_name: [(obj, suffix_or_None), ...]}
+
+    Objects without any suffix are grouped under their own name.
+    Objects with suffixes are grouped with their base name counterparts.
+    """
+    groups = {}
+
+    for obj in objects:
+        base_name, suffix = get_base_name_without_suffix(obj.name, suffix_items)
+
+        if base_name not in groups:
+            groups[base_name] = []
+
+        groups[base_name].append((obj, suffix))
+
+        if debug:
+            if suffix:
+                print(f"  Object '{obj.name}' -> base '{base_name}' (suffix: {suffix})")
+            else:
+                print(f"  Object '{obj.name}' -> base '{base_name}' (no suffix)")
+
+    return groups
+
+
+def find_suffix_groups_in_collection(collection, suffix_items, include_subcollections=True, debug=False):
+    """
+    Find all objects in a collection and group them by base name.
+    Works with parent empties and sub-collections.
+
+    Returns dict: {base_name: {'objects': [(obj, suffix)], 'empties': [empty], 'subcollections': [coll]}}
+    """
+    groups = {}
+
+    def add_to_group(base_name, obj, suffix, source_type='object', source=None):
+        if base_name not in groups:
+            groups[base_name] = {'objects': [], 'empties': [], 'subcollections': []}
+
+        if source_type == 'object':
+            groups[base_name]['objects'].append((obj, suffix))
+        elif source_type == 'empty':
+            if source and source not in groups[base_name]['empties']:
+                groups[base_name]['empties'].append(source)
+        elif source_type == 'subcollection':
+            if source and source not in groups[base_name]['subcollections']:
+                groups[base_name]['subcollections'].append(source)
+
+    def process_collection(coll, depth=0):
+        indent = "  " * depth
+        if debug:
+            print(f"{indent}Processing collection: {coll.name}")
+
+        # Process objects directly in collection
+        for obj in coll.objects:
+            if obj.type == 'MESH':
+                base_name, suffix = get_base_name_without_suffix(obj.name, suffix_items)
+                add_to_group(base_name, obj, suffix, 'object')
+                if debug:
+                    print(f"{indent}  Mesh '{obj.name}' -> '{base_name}'")
+
+            elif obj.type == 'EMPTY':
+                # Check the empty's name for suffix matching
+                empty_base, empty_suffix = get_base_name_without_suffix(obj.name, suffix_items)
+
+                # Get all mesh children
+                children = [child for child in obj.children if child.type == 'MESH']
+                if children:
+                    # Add children under the empty's base name
+                    for child in children:
+                        add_to_group(empty_base, child, empty_suffix, 'empty', obj)
+                    if debug:
+                        print(f"{indent}  Empty '{obj.name}' ({len(children)} children) -> '{empty_base}'")
+
+        # Process sub-collections
+        if include_subcollections:
+            for sub_coll in coll.children:
+                sub_base, sub_suffix = get_base_name_without_suffix(sub_coll.name, suffix_items)
+
+                # Get all mesh objects in sub-collection
+                sub_objects = []
+                for obj in sub_coll.all_objects:
+                    if obj.type == 'MESH':
+                        sub_objects.append(obj)
+
+                if sub_objects:
+                    for obj in sub_objects:
+                        add_to_group(sub_base, obj, sub_suffix, 'subcollection', sub_coll)
+                    if debug:
+                        print(f"{indent}  Sub-collection '{sub_coll.name}' ({len(sub_objects)} meshes) -> '{sub_base}'")
+
+    process_collection(collection)
+
+    return groups
+
+
 class CollectionExportItem(PropertyGroup):
     """Individual collection export settings"""
     collection: PointerProperty(
@@ -451,8 +588,26 @@ class CollectionExportItem(PropertyGroup):
     )
 
     apply_only_visible: BoolProperty(
+
+    apply_modifiers: BoolProperty(
+        name="Apply Modifiers",
+        description="Apply all modifiers before export (works for all export types)",
+        default=False
+    )
+
+    move_to_center: BoolProperty(
+        name="Move to Center",
+        description="Temporarily move objects to world origin (0,0,0) during export",
+        default=True
+    )
         name="Only Visible Modifiers",
         description="Skip modifiers disabled in viewport",
+        default=False
+    )
+
+    use_suffix_grouping: BoolProperty(
+        name="Group by Suffix",
+        description="Group objects with matching names but different suffixes (e.g., sm_cube and sm_cube_COL) into single exports",
         default=False
     )
 
@@ -489,6 +644,17 @@ class MassExporterProperties(PropertyGroup):
 
     active_collection_index: IntProperty(
         name="Active Collection Index",
+        default=0
+    )
+
+    # Suffix Grouping Options
+    suffix_items: CollectionProperty(
+        type=SuffixItem,
+        name="Export Suffixes"
+    )
+
+    active_suffix_index: IntProperty(
+        name="Active Suffix Index",
         default=0
     )
 
@@ -688,6 +854,111 @@ class MASSEXPORTER_OT_remove_collection(Operator):
             props.active_collection_index = max(0, props.active_collection_index - 1)
         return {'FINISHED'}
 
+
+# ============================================================================
+# Suffix Management Operators
+# ============================================================================
+
+class MASSEXPORTER_OT_add_suffix(Operator):
+    """Add a new suffix to the grouping list"""
+    bl_idname = "massexporter.add_suffix"
+    bl_label = "Add Suffix"
+    bl_description = "Add a new suffix for grouping exports (e.g., _COL for collision)"
+
+    suffix: StringProperty(
+        name="Suffix",
+        default="_COL"
+    )
+
+    description: StringProperty(
+        name="Description",
+        default="Collision"
+    )
+
+    def execute(self, context):
+        props = context.scene.mass_exporter_props
+        item = props.suffix_items.add()
+        item.suffix = self.suffix
+        item.description = self.description
+        item.enabled = True
+        props.active_suffix_index = len(props.suffix_items) - 1
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, "suffix")
+        layout.prop(self, "description")
+
+
+class MASSEXPORTER_OT_remove_suffix(Operator):
+    """Remove suffix from grouping list"""
+    bl_idname = "massexporter.remove_suffix"
+    bl_label = "Remove Suffix"
+    bl_description = "Remove selected suffix from grouping list"
+
+    def execute(self, context):
+        props = context.scene.mass_exporter_props
+        if props.suffix_items:
+            props.suffix_items.remove(props.active_suffix_index)
+            props.active_suffix_index = max(0, props.active_suffix_index - 1)
+        return {'FINISHED'}
+
+
+class MASSEXPORTER_OT_add_default_suffixes(Operator):
+    """Add common default suffixes"""
+    bl_idname = "massexporter.add_default_suffixes"
+    bl_label = "Add Default Suffixes"
+    bl_description = "Add common suffixes like _COL (collision), _LOD0, _UCX (Unreal collision)"
+
+    def execute(self, context):
+        props = context.scene.mass_exporter_props
+
+        # Common game development suffixes
+        defaults = [
+            ("_COL", "Collision"),
+            ("_col", "Collision (lowercase)"),
+            ("_UCX", "Unreal Convex Collision"),
+            ("_LOD0", "LOD Level 0"),
+            ("_LOD1", "LOD Level 1"),
+            ("_LOD2", "LOD Level 2"),
+            ("_LOD3", "LOD Level 3"),
+        ]
+
+        added_count = 0
+        existing_suffixes = [item.suffix.lower() for item in props.suffix_items]
+
+        for suffix, desc in defaults:
+            if suffix.lower() not in existing_suffixes:
+                item = props.suffix_items.add()
+                item.suffix = suffix
+                item.description = desc
+                item.enabled = True
+                added_count += 1
+
+        if added_count > 0:
+            props.active_suffix_index = len(props.suffix_items) - 1
+            self.report({'INFO'}, f"Added {added_count} default suffix(es)")
+        else:
+            self.report({'INFO'}, "All default suffixes already exist")
+
+        return {'FINISHED'}
+
+
+class MASSEXPORTER_UL_suffixes(UIList):
+    """UIList for suffix items"""
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row(align=True)
+            row.prop(item, "enabled", text="")
+            row.prop(item, "suffix", text="", emboss=False)
+            row.label(text=f"({item.description})")
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.prop(item, "enabled", text="")
+
 class MASSEXPORTER_OT_select_folder(Operator, ExportHelper):
     """Select folder for export path"""
     bl_idname = "massexporter.select_folder"
@@ -737,6 +1008,7 @@ class MASSEXPORTER_OT_export_all(Operator):
             
         props = context.scene.mass_exporter_props
         exported_count = 0
+        exported_collection_names = []  # NEW: Track exported collection names
 
         # Store original selection and active object
         original_selection = context.selected_objects.copy()
@@ -781,6 +1053,7 @@ class MASSEXPORTER_OT_export_all(Operator):
                 if item.export_enabled and item.collection and item.export_path:
                     if self.export_collection(context, props, item):
                         exported_count += 1
+                        exported_collection_names.append(item.collection.name)  # NEW: Track name
         except Exception as e:
             self.report({'ERROR'}, f"Export failed: {str(e)}")
             return {'CANCELLED'}
@@ -810,7 +1083,15 @@ class MASSEXPORTER_OT_export_all(Operator):
             if props.debug_mode:
                 print("=== ALL POSITIONS RESTORED ===")
 
-        self.report({'INFO'}, f"Exported {exported_count} collections")
+        # NEW: Report exported collection names
+        if exported_count > 0:
+            names_str = ", ".join(exported_collection_names[:3])  # Show first 3
+            if len(exported_collection_names) > 3:
+                names_str += f", ... ({len(exported_collection_names)} total)"
+            self.report({'INFO'}, f"Exported {exported_count} collections: {names_str}")
+        else:
+            self.report({'WARNING'}, "No collections were exported")
+            
         return {'FINISHED'}
 
     def export_collection(self, context, props, item):
@@ -829,7 +1110,10 @@ class MASSEXPORTER_OT_export_all(Operator):
                 return False
 
         # Handle different export modes
-        if item.export_subcollections_as_single:
+        # NEW: Suffix grouping takes priority if enabled
+        if item.use_suffix_grouping and len(props.suffix_items) > 0:
+            return MASSEXPORTER_OT_export_all.export_with_suffix_grouping(self, context, props, item)
+        elif item.export_subcollections_as_single:
             return MASSEXPORTER_OT_export_all.export_subcollections_as_single(self, context, props, item)
         elif item.use_empty_origins:
             return MASSEXPORTER_OT_export_all.export_with_empty_origins(self, context, props, item)
@@ -877,6 +1161,88 @@ class MASSEXPORTER_OT_export_all(Operator):
                 if sub_objects:
                     if MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, sub_objects, sub_collection.name, export_path):
                         success_count += 1
+
+        return success_count > 0
+
+    def export_with_suffix_grouping(self, context, props, item):
+        """
+        Export with suffix grouping enabled.
+        Groups objects/empties/subcollections by base name and exports them together.
+        Example: sm_cube_4x4 and sm_cube_4x4_COL are exported as single file 'sm_cube_4x4.fbx'
+        """
+        collection = item.collection
+        export_path = item.export_path
+        success_count = 0
+
+        if props.debug_mode:
+            print(f"\n=== SUFFIX GROUPING EXPORT: {collection.name} ===")
+            print(f"Enabled suffixes: {[s.suffix for s in props.suffix_items if s.enabled]}")
+
+        # Find all groups based on suffix matching
+        groups = find_suffix_groups_in_collection(
+            collection,
+            props.suffix_items,
+            include_subcollections=True,
+            debug=props.debug_mode
+        )
+
+        if not groups:
+            self.report({'WARNING'}, f"No objects found in collection: {collection.name}")
+            return False
+
+        if props.debug_mode:
+            print(f"\nFound {len(groups)} export group(s):")
+            for base_name, group_data in groups.items():
+                obj_count = len(group_data['objects'])
+                empty_count = len(group_data['empties'])
+                coll_count = len(group_data['subcollections'])
+                print(f"  '{base_name}': {obj_count} objects, {empty_count} empties, {coll_count} subcollections")
+
+        # Export each group
+        for base_name, group_data in groups.items():
+            # Collect all mesh objects from this group
+            all_meshes = []
+
+            # Add direct objects
+            for obj, suffix in group_data['objects']:
+                if obj.type == 'MESH':
+                    all_meshes.append(obj)
+
+            # Add children from empties
+            for empty in group_data['empties']:
+                for child in empty.children:
+                    if child.type == 'MESH' and child not in all_meshes:
+                        all_meshes.append(child)
+
+            # Add objects from subcollections
+            for subcoll in group_data['subcollections']:
+                for obj in subcoll.all_objects:
+                    if obj.type == 'MESH' and obj not in all_meshes:
+                        all_meshes.append(obj)
+
+            if not all_meshes:
+                if props.debug_mode:
+                    print(f"  Skipping '{base_name}' - no mesh objects found")
+                continue
+
+            if props.debug_mode:
+                print(f"\n  Exporting group '{base_name}' with {len(all_meshes)} mesh(es):")
+                for mesh in all_meshes:
+                    print(f"    - {mesh.name}")
+
+            # Export this group as a single file
+            if MASSEXPORTER_OT_export_all.export_objects_as_single(
+                self, context, props, all_meshes, base_name, export_path
+            ):
+                success_count += 1
+                if props.debug_mode:
+                    print(f"  ✓ Successfully exported '{base_name}'")
+            else:
+                if props.debug_mode:
+                    print(f"  ✗ Failed to export '{base_name}'")
+
+        if props.debug_mode:
+            print(f"\n=== SUFFIX GROUPING COMPLETE: {success_count}/{len(groups)} groups exported ===")
 
         return success_count > 0
 
@@ -1922,96 +2288,111 @@ class MASSEXPORTER_OT_export_selected_objects(Operator):
                 return item
         return None
 
+
+    def find_parent_collection(self, collection):
+        """Find the direct parent collection of the given collection"""
+        for coll in bpy.data.collections:
+            if collection in coll.children:
+                return coll
+        return None
+
     def execute(self, context):
+        """Export ONLY the selected objects, not entire collections"""
         # Force OBJECT mode
         if bpy.ops.object.mode_set.poll():
             bpy.ops.object.mode_set(mode='OBJECT')
 
         # Get selected objects
-        selected_objects = context.selected_objects.copy()
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         if not selected_objects:
-            self.report({'WARNING'}, "No objects selected")
+            self.report({'WARNING'}, "No mesh objects selected")
             return {'CANCELLED'}
 
-        # Find all unique collections from selected objects
-        unique_collections = set()
-        for obj in selected_objects:
-            coll = self.find_immediate_collection(obj)
-            if coll:
-                unique_collections.add(coll)
-
-        if not unique_collections:
-            self.report({'WARNING'}, "Selected objects are not in any collections")
-            return {'CANCELLED'}
-
+        props = context.scene.mass_exporter_props
+        
         # Store original selection
         original_selection = context.selected_objects.copy()
         original_active = context.active_object
 
-        props = context.scene.mass_exporter_props
-        exported_count = 0
-        temp_items_created = []
+        # Group selected objects by their immediate collection
+        collection_groups = {}
+        for obj in selected_objects:
+            coll = self.find_immediate_collection(obj)
+            if coll:
+                if coll not in collection_groups:
+                    collection_groups[coll] = []
+                collection_groups[coll].append(obj)
 
+        if not collection_groups:
+            self.report({'WARNING'}, "Selected objects are not in any collections")
+            return {'CANCELLED'}
+
+        exported_count = 0
+        
         try:
-            # Export each unique collection
-            for collection in unique_collections:
-                # Find or create export item for this collection
+            # Export each collection group
+            for collection, objects in collection_groups.items():
+                # Find export item for this collection or its parent
                 export_item = None
                 for item in props.collection_items:
                     if item.collection == collection:
                         export_item = item
                         break
 
-                # If not in export list, try to find parent collection settings
+                # If not found, check parent collections
                 if not export_item:
                     parent_export_item = self.find_parent_export_item(collection, props)
-
                     if not parent_export_item:
-                        self.report({'WARNING'}, f"Collection '{collection.name}' is not in export list and no parent collection found - skipping")
+                        self.report({'WARNING'}, f"Collection '{collection.name}' not in export list - skipping")
                         continue
+                    
+                    # Use parent settings
+                    export_item = parent_export_item
 
-                    if not parent_export_item.export_path:
-                        self.report({'WARNING'}, f"No export path set for collection hierarchy - skipping '{collection.name}'")
-                        continue
+                if not export_item.export_path:
+                    self.report({'WARNING'}, f"No export path for collection '{collection.name}' - skipping")
+                    continue
 
-                    # Create temporary export item with parent's settings
-                    temp_item = props.collection_items.add()
-                    temp_item.collection = collection
-                    temp_item.export_enabled = True
-                    temp_item.export_path = parent_export_item.export_path
-                    temp_item.merge_to_single = parent_export_item.merge_to_single
-                    temp_item.export_subcollections_as_single = parent_export_item.export_subcollections_as_single
-                    temp_item.use_empty_origins = parent_export_item.use_empty_origins
-                    temp_item.center_parent_empties = parent_export_item.center_parent_empties
-                    temp_item.move_empties_to_origin_on_export = parent_export_item.move_empties_to_origin_on_export
-                    temp_item.join_empty_children = parent_export_item.join_empty_children
-                    temp_item.apply_modifiers_before_join = parent_export_item.apply_modifiers_before_join
-                    temp_item.apply_only_visible = parent_export_item.apply_only_visible
-
-                    temp_items_created.append(len(props.collection_items) - 1)
-                    export_item = temp_item
+                # Check if this is a subcollection and should be exported as a whole
+                parent_coll = self.find_parent_collection(collection)
+                parent_item = None
+                if parent_coll:
+                    for item in props.collection_items:
+                        if item.collection == parent_coll:
+                            parent_item = item
+                            break
+                
+                # If parent has "export subcollections as single" enabled, export entire subcollection
+                if parent_item and parent_item.export_subcollections_as_single:
+                    if props.debug_mode:
+                        print(f"Exporting entire subcollection '{collection.name}' (parent has subcollections-as-single enabled)")
+                    
+                    # Export entire subcollection
+                    sub_objects = MASSEXPORTER_OT_export_all.get_collection_objects(self, collection)
+                    if MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, sub_objects, collection.name, export_item.export_path):
+                        exported_count += 1
                 else:
-                    if not export_item.export_path:
-                        self.report({'WARNING'}, f"No export path set for collection '{collection.name}' - skipping")
-                        continue
-
-                # Export this collection using the existing export logic
-                if MASSEXPORTER_OT_export_all.export_collection(self, context, props, export_item):
-                    exported_count += 1
-
-            # Remove temporary items in reverse order
-            for index in reversed(temp_items_created):
-                props.collection_items.remove(index)
+                    # Export only the selected objects from this collection
+                    if props.debug_mode:
+                        print(f"Exporting {len(objects)} selected objects from '{collection.name}'")
+                    
+                    if len(objects) == 1:
+                        # Single object - export individually
+                        if MASSEXPORTER_OT_export_all.export_single_object(self, context, props, objects[0], export_item.export_path):
+                            exported_count += 1
+                    else:
+                        # Multiple objects - export as group
+                        group_name = f"{collection.name}_selected"
+                        if MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, objects, group_name, export_item.export_path):
+                            exported_count += 1
 
             if exported_count > 0:
-                collection_names = ", ".join([c.name for c in list(unique_collections)[:3]])
-                if len(unique_collections) > 3:
-                    collection_names += f", ... ({len(unique_collections)} total)"
-                self.report({'INFO'}, f"Exported {exported_count} collection(s): {collection_names}")
+                self.report({'INFO'}, f"Exported {exported_count} object(s)")
                 return {'FINISHED'}
             else:
-                self.report({'ERROR'}, "No collections were exported")
+                self.report({'ERROR'}, "No objects were exported")
                 return {'CANCELLED'}
+                
         finally:
             # Restore selection
             bpy.ops.object.select_all(action='DESELECT')
@@ -2223,27 +2604,83 @@ class MASSEXPORTER_PT_export(Panel):
             info_box.label(text="• Apply Transform: Enable for clean imports")
             info_box.label(text="• Default: -Z Forward, Y Up for Unity")
 
+class MASSEXPORTER_PT_suffix_grouping(Panel):
+    """Suffix Grouping Panel"""
+    bl_label = "Suffix Grouping"
+    bl_idname = "MASSEXPORTER_PT_suffix_grouping"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Mass Exporter"
+    bl_parent_id = "MASSEXPORTER_PT_main_panel"
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.mass_exporter_props
+
+        # Info box explaining the feature
+        info_box = layout.box()
+        info_box.label(text="Group objects by base name + suffix", icon='INFO')
+        info_box.label(text="Example: cube + cube_COL = cube.fbx")
+
+        layout.separator()
+
+        # Suffix list with add/remove buttons
+        row = layout.row()
+        row.template_list("MASSEXPORTER_UL_suffixes", "", props, "suffix_items",
+                         props, "active_suffix_index", rows=4)
+
+        col = row.column(align=True)
+        col.operator("massexporter.add_suffix", icon='ADD', text="")
+        col.operator("massexporter.remove_suffix", icon='REMOVE', text="")
+
+        # Show description for active suffix
+        if props.suffix_items and len(props.suffix_items) > props.active_suffix_index:
+            active_suffix = props.suffix_items[props.active_suffix_index]
+            layout.separator()
+            box = layout.box()
+            box.label(text=f"Description: {active_suffix.description}", icon='TEXT')
+
+        layout.separator()
+
+        # Add default suffixes button
+        layout.operator("massexporter.add_default_suffixes",
+                       text="Add Default Suffixes",
+                       icon='PRESET')
+
 # Registration
 classes = [
+    # Property Groups (must be registered first)
+    SuffixItem,
     CollectionExportItem,
     MassExporterProperties,
+
+    # UI Lists
     MASSEXPORTER_UL_collections,
+    MASSEXPORTER_UL_suffixes,
+
+    # Operators
     MASSEXPORTER_OT_move_empties_to_origin,
     MASSEXPORTER_OT_join_empties,
     MASSEXPORTER_OT_add_collection,
     MASSEXPORTER_OT_remove_collection,
     MASSEXPORTER_OT_select_folder,
     MASSEXPORTER_OT_refresh_collections,
+    MASSEXPORTER_OT_add_suffix,
+    MASSEXPORTER_OT_remove_suffix,
+    MASSEXPORTER_OT_add_default_suffixes,
     MASSEXPORTER_OT_export_all,
     MASSEXPORTER_OT_export_selected_collection,
     MASSEXPORTER_OT_export_selected_subcollections,
     MASSEXPORTER_OT_export_selected_objects,
+
+    # Panels
     MASSEXPORTER_PT_main_panel,
     MASSEXPORTER_PT_debug,
     MASSEXPORTER_PT_collections,
     MASSEXPORTER_PT_transform,
     MASSEXPORTER_PT_materials,
     MASSEXPORTER_PT_export,
+    MASSEXPORTER_PT_suffix_grouping,
 ]
 
 def register():

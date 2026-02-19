@@ -1,9 +1,9 @@
 bl_info = {
     "name": "Synced Modifiers",
-    "author": "Amandeep",
+    "author": "Amandeep, Stephko",
     "description": "Add modifiers to multiple objects and sync them using Drivers (now with Geometry Nodes support!)",
     "blender": (2, 91, 0),
-    "version": (2, 4, 0),
+    "version": (2, 5, 0),
     "location": "N-Panel > Item > Synced Modifiers",
     "warning": "",
     "category": "Object",
@@ -26,7 +26,114 @@ import bpy
 import os
 import inspect
 import re as regex
+import uuid
+import hashlib
 from .properties_data_modifiers import *
+
+# ============================================================================
+# Sync ID and Source Modifier Helpers
+# ============================================================================
+
+SOURCE_SUFFIX_PATTERN = regex.compile(r'\s*\(Source(?::([a-zA-Z0-9]+))?\)$')
+
+def generate_sync_id():
+    """Generate a short unique sync ID for identifying linked modifiers"""
+    return hashlib.md5(uuid.uuid4().bytes).hexdigest()[:6]
+
+def get_source_suffix(sync_id=None):
+    """Get the source suffix string"""
+    if sync_id:
+        return f" (Source:{sync_id})"
+    return " (Source)"
+
+def parse_source_suffix(modifier_name):
+    """Parse the source suffix from modifier name. Returns (base_name, sync_id) or (name, None) if not source"""
+    match = SOURCE_SUFFIX_PATTERN.search(modifier_name)
+    if match:
+        base_name = modifier_name[:match.start()]
+        sync_id = match.group(1)  # May be None for old "(Source)" format
+        return base_name, sync_id
+    return modifier_name, None
+
+def is_source_modifier(modifier_name):
+    """Check if modifier name indicates it's a source modifier"""
+    return SOURCE_SUFFIX_PATTERN.search(modifier_name) is not None
+
+def get_source_object_and_modifier(obj, modifier):
+    """
+    Find the source object and modifier for a synced modifier.
+    Returns (source_object, source_modifier, sync_id) or (None, None, None) if not synced.
+    """
+    if not obj.animation_data or not obj.animation_data.drivers:
+        # Check if this IS the source
+        if is_source_modifier(modifier.name):
+            _, sync_id = parse_source_suffix(modifier.name)
+            return obj, modifier, sync_id
+        return None, None, None
+
+    # Look for drivers on this modifier
+    for driver in obj.animation_data.drivers:
+        if f'modifiers["{modifier.name}"]' in driver.data_path:
+            # Found a driver - get the source
+            try:
+                var = driver.driver.variables[0]
+                source_obj = var.targets[0].id
+                source_path = var.targets[0].data_path
+                # Extract modifier name from path like 'modifiers["ModName"]["Input_2"]'
+                mod_match = regex.search(r'modifiers\["([^"]+)"\]', source_path)
+                if mod_match and source_obj:
+                    source_mod_name = mod_match.group(1)
+                    if source_mod_name in [m.name for m in source_obj.modifiers]:
+                        source_mod = source_obj.modifiers[source_mod_name]
+                        _, sync_id = parse_source_suffix(source_mod_name)
+                        return source_obj, source_mod, sync_id
+            except (IndexError, AttributeError):
+                pass
+            break
+
+    return None, None, None
+
+def find_synced_modifiers_by_sync_id(sync_id, node_group=None):
+    """Find all modifiers that share a sync ID"""
+    results = []
+    if not sync_id:
+        return results
+
+    for obj in bpy.data.objects:
+        for mod in obj.modifiers:
+            # Check if this is the source with matching sync ID
+            _, mod_sync_id = parse_source_suffix(mod.name)
+            if mod_sync_id == sync_id:
+                results.append((obj, mod, True))  # True = is source
+                continue
+
+            # Check if it's driven by a source with this sync ID
+            if obj.animation_data and obj.animation_data.drivers:
+                for driver in obj.animation_data.drivers:
+                    if f'modifiers["{mod.name}"]' in driver.data_path:
+                        try:
+                            var = driver.driver.variables[0]
+                            source_path = var.targets[0].data_path
+                            if f"(Source:{sync_id})" in source_path:
+                                results.append((obj, mod, False))  # False = is target
+                                break
+                        except (IndexError, AttributeError):
+                            pass
+
+    return results
+
+def force_modifier_update(obj, modifier):
+    """Force viewport update for a modifier by toggling its display"""
+    if modifier and modifier.name in [m.name for m in obj.modifiers]:
+        original_show = modifier.show_viewport
+        modifier.show_viewport = not original_show
+        modifier.show_viewport = original_show
+
+def force_object_update(obj):
+    """Force an object update using depsgraph"""
+    obj.update_tag()
+    if bpy.context.view_layer:
+        bpy.context.view_layer.update()
 def get_collection(name):
     if name not in bpy.data.collections:
         bpy.data.collections.new(name)
@@ -233,7 +340,7 @@ def add_geonode_driver(target_modifier, source_modifier, source_object, socket_i
     except Exception as e:
         print(f"Failed to add driver for {identifier}: {e}")
 
-def sync_geometry_nodes_modifiers(source_modifier, source_object, target_modifiers):
+def sync_geometry_nodes_modifiers(source_modifier, source_object, target_modifiers, sync_id=None):
     """
     Sync geometry nodes modifiers using drivers.
 
@@ -241,9 +348,44 @@ def sync_geometry_nodes_modifiers(source_modifier, source_object, target_modifie
         source_modifier: NodesModifier on source object
         source_object: Source object
         target_modifiers: List of (object, modifier) tuples to sync to
+        sync_id: Optional sync ID to use. If None, will generate one or use existing.
     """
     # Get all input sockets from the node group
     sockets = get_geonode_input_sockets(source_modifier.node_group)
+
+    # Generate or retrieve sync ID
+    if sync_id is None:
+        # Check if source modifier already has a sync ID
+        _, existing_sync_id = parse_source_suffix(source_modifier.name)
+        if existing_sync_id:
+            sync_id = existing_sync_id
+        else:
+            sync_id = generate_sync_id()
+
+    # Add (Source:ID) suffix to source modifier if not already present
+    if not is_source_modifier(source_modifier.name):
+        base_name = source_modifier.name
+        # Remove old-style "(Source)" suffix if present
+        if base_name.endswith(" (Source)"):
+            base_name = base_name[:-9]
+        new_name = base_name + get_source_suffix(sync_id)
+        source_modifier.name = new_name
+        # Update tracking on source object
+        for info in source_object.SyncedModifierInfo:
+            if info.name == base_name or info.name == base_name + " (Source)":
+                info.name = new_name
+                break
+    elif "(Source)" in source_modifier.name and f"(Source:{sync_id})" not in source_modifier.name:
+        # Upgrade old-style "(Source)" to new "(Source:ID)" format
+        base_name, _ = parse_source_suffix(source_modifier.name)
+        old_name = source_modifier.name
+        new_name = base_name + get_source_suffix(sync_id)
+        source_modifier.name = new_name
+        # Update tracking
+        for info in source_object.SyncedModifierInfo:
+            if info.name == old_name:
+                info.name = new_name
+                break
 
     for target_obj, target_mod in target_modifiers:
         # Verify same node group
@@ -263,7 +405,17 @@ def sync_geometry_nodes_modifiers(source_modifier, source_object, target_modifie
             info = target_obj.SyncedModifierInfo.add()
             info.name = target_mod.name
             info.object = source_object
+            info.is_synced = True
             target_obj.SyncedModifierIndex = len(target_obj.SyncedModifierInfo) - 1
+        else:
+            # Update existing tracking entry
+            for info in target_obj.SyncedModifierInfo:
+                if info.name == target_mod.name:
+                    info.is_synced = True
+                    info.object = source_object
+                    break
+
+    return sync_id
 
 def desync_geonode_modifier(obj, modifier):
     """Remove all drivers from a geometry nodes modifier"""
@@ -462,40 +614,51 @@ class RTOOLS_OT_SyncedPanel(bpy.types.Operator):
     bl_label = "Synced Modifiers Panel"
     bl_description = "Synced Modifiers Panel"
     bl_options = {'REGISTER', 'UNDO'}
-    def draw(self,context):
-        layout= self.layout
-        layout.menu("RTOOLS_MT_Synced_Mods_Add_Menu",icon="MODIFIER")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.menu("RTOOLS_MT_Synced_Mods_Add_Menu", icon="MODIFIER")
         layout.operator("rtools.syncexistingmodifiers")
 
-        # Add button to select all synced objects
-        layout.operator("rtools.select_synced_objects", text="Select All Synced", icon="RESTRICT_SELECT_OFF")
+        # Row with scan and select all buttons (compact)
+        row = layout.row(align=True)
+        row.operator("rtools.scan_syncable_modifiers", text="Scan", icon="VIEWZOOM")
+        row.operator("rtools.select_synced_objects", text="Select All", icon="RESTRICT_SELECT_OFF")
 
-        column=layout
-        ob=context.active_object
-
+        ob = context.active_object
 
         if ob:
-            # Add scan for syncable button
-            layout.operator("rtools.scan_syncable_modifiers", text="Scan for Syncable", icon="VIEWZOOM")
-
-            # Modifier list with new sync buttons
+            # Modifier list with sidebar buttons - use split for better proportions
             row = layout.row()
-            column = row.column()
-            column.template_list("RTOOLS_UL_Synced_Mods_List", "", ob, "SyncedModifierInfo",ob, "SyncedModifierIndex",item_dyntip_propname='name',sort_reverse=False)
+            # Give more space to the list (85%) and less to buttons (15%)
+            split = row.split(factor=0.85)
 
-            # Sidebar buttons
-            column = row.column(align=True)
-            column.label(text="")
-            column.operator("rtools.refreshsyncedmodifiers",text="",icon="FILE_REFRESH")
-            column.operator("rtools.desyncmodifiers",text="",icon="UNLINKED")
-            column.operator("rtools.remove_synced_modifier",text="",icon="X")
-            column.separator()
-            column.operator("rtools.clearunuseddrivers",text="",icon="TRASH")
+            # List column - wider
+            list_col = split.column()
+            list_col.template_list("RTOOLS_UL_Synced_Mods_List", "", ob, "SyncedModifierInfo",
+                                  ob, "SyncedModifierIndex", item_dyntip_propname='name',
+                                  sort_reverse=False, rows=4)
 
-            # Add sync selected and sync all buttons
+            # Sidebar buttons - narrower, icon-only
+            btn_col = split.column(align=True)
+            btn_col.scale_x = 0.8
+            btn_col.operator("rtools.refreshsyncedmodifiers", text="", icon="FILE_REFRESH")
+            btn_col.operator("rtools.desyncmodifiers", text="", icon="UNLINKED")
+            btn_col.operator("rtools.remove_synced_modifier", text="", icon="X")
+            btn_col.separator()
+            btn_col.operator("rtools.resync_modifier", text="", icon="UV_SYNC_SELECT")
+            btn_col.operator("rtools.select_source_object", text="", icon="OBJECT_DATA")
+            btn_col.separator()
+            btn_col.operator("rtools.clearunuseddrivers", text="", icon="TRASH")
+
+            # Sync buttons row
             row = layout.row(align=True)
             row.operator("rtools.sync_selected_modifier", text="Sync Selected", icon="LINKED")
             row.operator("rtools.sync_all_modifiers", text="Sync All", icon="LINKED")
+
+            # Sync from source button (for syncing via already-synced objects)
+            if len(context.selected_objects) > 1:
+                layout.operator("rtools.sync_from_source", text="Sync From Original Source", icon="TRACKING_FORWARDS")
 
             if ob.SyncedModifierIndex>=0 and ob.SyncedModifierIndex<len(ob.SyncedModifierInfo) and ob.SyncedModifierInfo[ob.SyncedModifierIndex].name in [mod.name for mod in ob.modifiers]:
                 m=ob.modifiers[ob.SyncedModifierInfo[ob.SyncedModifierIndex].name]
@@ -531,41 +694,51 @@ class RTOOLS_PT_SM_Addon(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Item"
-    
+
     def draw(self, context):
-        layout= self.layout
-        layout.menu("RTOOLS_MT_Synced_Mods_Add_Menu",icon="MODIFIER")
+        layout = self.layout
+        layout.menu("RTOOLS_MT_Synced_Mods_Add_Menu", icon="MODIFIER")
         layout.operator("rtools.syncexistingmodifiers")
 
-        # Add button to select all synced objects
-        layout.operator("rtools.select_synced_objects", text="Select All Synced", icon="RESTRICT_SELECT_OFF")
+        # Row with scan and select all buttons (compact)
+        row = layout.row(align=True)
+        row.operator("rtools.scan_syncable_modifiers", text="Scan", icon="VIEWZOOM")
+        row.operator("rtools.select_synced_objects", text="Select All", icon="RESTRICT_SELECT_OFF")
 
-        column=layout
-        ob=context.active_object
-
+        ob = context.active_object
 
         if ob:
-            # Add scan for syncable button
-            layout.operator("rtools.scan_syncable_modifiers", text="Scan for Syncable", icon="VIEWZOOM")
-
-            # Modifier list with new sync buttons
+            # Modifier list with sidebar buttons - use split for better proportions
             row = layout.row()
-            column = row.column()
-            column.template_list("RTOOLS_UL_Synced_Mods_List", "", ob, "SyncedModifierInfo",ob, "SyncedModifierIndex",item_dyntip_propname='name',sort_reverse=False)
+            # Give more space to the list (85%) and less to buttons (15%)
+            split = row.split(factor=0.85)
 
-            # Sidebar buttons
-            column = row.column(align=True)
-            column.label(text="")
-            column.operator("rtools.refreshsyncedmodifiers",text="",icon="FILE_REFRESH")
-            column.operator("rtools.desyncmodifiers",text="",icon="UNLINKED")
-            column.operator("rtools.remove_synced_modifier",text="",icon="X")
-            column.separator()
-            column.operator("rtools.clearunuseddrivers",text="",icon="TRASH")
+            # List column - wider
+            list_col = split.column()
+            list_col.template_list("RTOOLS_UL_Synced_Mods_List", "", ob, "SyncedModifierInfo",
+                                  ob, "SyncedModifierIndex", item_dyntip_propname='name',
+                                  sort_reverse=False, rows=4)
 
-            # Add sync selected and sync all buttons
+            # Sidebar buttons - narrower, icon-only
+            btn_col = split.column(align=True)
+            btn_col.scale_x = 0.8
+            btn_col.operator("rtools.refreshsyncedmodifiers", text="", icon="FILE_REFRESH")
+            btn_col.operator("rtools.desyncmodifiers", text="", icon="UNLINKED")
+            btn_col.operator("rtools.remove_synced_modifier", text="", icon="X")
+            btn_col.separator()
+            btn_col.operator("rtools.resync_modifier", text="", icon="UV_SYNC_SELECT")
+            btn_col.operator("rtools.select_source_object", text="", icon="OBJECT_DATA")
+            btn_col.separator()
+            btn_col.operator("rtools.clearunuseddrivers", text="", icon="TRASH")
+
+            # Sync buttons row
             row = layout.row(align=True)
             row.operator("rtools.sync_selected_modifier", text="Sync Selected", icon="LINKED")
             row.operator("rtools.sync_all_modifiers", text="Sync All", icon="LINKED")
+
+            # Sync from source button (for syncing via already-synced objects)
+            if len(context.selected_objects) > 1:
+                layout.operator("rtools.sync_from_source", text="Sync From Original Source", icon="TRACKING_FORWARDS")
             
             if ob.SyncedModifierIndex>=0 and ob.SyncedModifierIndex<len(ob.SyncedModifierInfo) and ob.SyncedModifierInfo[ob.SyncedModifierIndex].name in [mod.name for mod in ob.modifiers]:
                 m=ob.modifiers[ob.SyncedModifierInfo[ob.SyncedModifierIndex].name]
@@ -815,8 +988,12 @@ class RTOOLS_OT_Add_Modifiers(bpy.types.Operator):
                     while( f'modifiers["{name}"]' in  driver.data_path):
                         name=ogname+f"_{i}"
                         i=i+1
-            
-            mod=active.modifiers.new(type=self.type,name=name+("(Source)" if len(context.selected_objects)>1 else ""))
+
+            # Generate sync ID if we have multiple objects
+            sync_id = generate_sync_id() if len(context.selected_objects) > 1 else None
+            source_suffix = get_source_suffix(sync_id) if sync_id else ""
+
+            mod=active.modifiers.new(type=self.type,name=name + source_suffix)
             if mod:
                 t=active.SyncedModifierInfo.add()
                 
@@ -1141,8 +1318,14 @@ class RTOOLS_OT_Add_Synced_GeoNodes(bpy.types.Operator):
         active = context.active_object
         selected = [obj for obj in context.selected_objects if obj != active]
 
-        # Create modifier on active object
-        mod_name = node_group.name + (" (Source)" if selected else "")
+        # Generate sync ID upfront if we have targets
+        sync_id = generate_sync_id() if selected else None
+
+        # Create modifier on active object with sync ID in name
+        if selected and sync_id:
+            mod_name = node_group.name + get_source_suffix(sync_id)
+        else:
+            mod_name = node_group.name
         source_mod = active.modifiers.new(name=mod_name, type='NODES')
         source_mod.node_group = node_group
 
@@ -1150,6 +1333,7 @@ class RTOOLS_OT_Add_Synced_GeoNodes(bpy.types.Operator):
         info = active.SyncedModifierInfo.add()
         info.name = source_mod.name
         info.object = active
+        info.is_synced = True if selected else False
         active.SyncedModifierIndex = len(active.SyncedModifierInfo) - 1
 
         # Create and sync on selected objects
@@ -1160,8 +1344,8 @@ class RTOOLS_OT_Add_Synced_GeoNodes(bpy.types.Operator):
                 target_mod.node_group = node_group
                 target_modifiers.append((obj, target_mod))
 
-            # Sync them
-            sync_geometry_nodes_modifiers(source_mod, active, target_modifiers)
+            # Sync them with the sync ID
+            sync_geometry_nodes_modifiers(source_mod, active, target_modifiers, sync_id)
 
         self.report({'INFO'}, f"Added synced Geometry Nodes modifier with '{node_group.name}'")
         return {'FINISHED'}
@@ -1201,6 +1385,7 @@ class RTOOLS_OT_Sync_GeoNode_Input(bpy.types.Operator):
 
         # Apply to all objects with same geometry nodes modifier
         synced_count = 0
+        synced_objects = []
         for obj in bpy.data.objects:
             for mod in obj.modifiers:
                 if mod.type == 'NODES' and mod.node_group == source_mod.node_group:
@@ -1209,8 +1394,18 @@ class RTOOLS_OT_Sync_GeoNode_Input(bpy.types.Operator):
                         try:
                             mod[self.identifier] = source_value
                             synced_count += 1
+                            synced_objects.append((obj, mod))
                         except:
                             pass  # Input might not exist on this version
+
+        # Force viewport update for all synced modifiers
+        # This is needed because object/collection/material fields don't auto-update viewport
+        for obj, mod in synced_objects:
+            force_modifier_update(obj, mod)
+
+        # Also trigger a general depsgraph update
+        if synced_objects:
+            context.view_layer.update()
 
         self.report({'INFO'}, f"Synced '{self.identifier}' to {synced_count} modifier(s)")
         return {'FINISHED'}
@@ -1371,6 +1566,237 @@ class RTOOLS_OT_Sync_All_Modifiers(bpy.types.Operator):
         self.report({'INFO'}, f"Synced {synced_count} modifier(s) to {len(selected)} object(s)")
         return {'FINISHED'}
 
+
+class RTOOLS_OT_Select_Source_Object(bpy.types.Operator):
+    bl_idname = "rtools.select_source_object"
+    bl_label = "Select Source Object"
+    bl_description = "Select the source object that drives this synced modifier"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        if not ob:
+            return False
+        if not ob.SyncedModifierInfo or ob.SyncedModifierIndex < 0:
+            return False
+        if ob.SyncedModifierIndex >= len(ob.SyncedModifierInfo):
+            return False
+        return True
+
+    def execute(self, context):
+        ob = context.active_object
+        mod_info = ob.SyncedModifierInfo[ob.SyncedModifierIndex]
+        mod_name = mod_info.name
+
+        if mod_name not in [m.name for m in ob.modifiers]:
+            self.report({'WARNING'}, f"Modifier '{mod_name}' not found")
+            return {'CANCELLED'}
+
+        modifier = ob.modifiers[mod_name]
+
+        # Find the source object and modifier
+        source_obj, source_mod, sync_id = get_source_object_and_modifier(ob, modifier)
+
+        if source_obj is None:
+            # This might be the source itself
+            if is_source_modifier(modifier.name):
+                self.report({'INFO'}, "This object IS the source")
+                return {'FINISHED'}
+            else:
+                self.report({'WARNING'}, "Could not find source object for this modifier")
+                return {'CANCELLED'}
+
+        if source_obj == ob:
+            self.report({'INFO'}, "This object IS the source")
+            return {'FINISHED'}
+
+        # Deselect all and select the source object
+        deselect_all()
+        source_obj.select_set(True)
+        context.view_layer.objects.active = source_obj
+
+        self.report({'INFO'}, f"Selected source object: {source_obj.name}")
+        return {'FINISHED'}
+
+
+class RTOOLS_OT_Resync_Modifier(bpy.types.Operator):
+    bl_idname = "rtools.resync_modifier"
+    bl_label = "Resync Modifier"
+    bl_description = "Re-sync modifier to add missing drivers for new inputs and update source naming"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        if not ob:
+            return False
+        if not ob.SyncedModifierInfo or ob.SyncedModifierIndex < 0:
+            return False
+        if ob.SyncedModifierIndex >= len(ob.SyncedModifierInfo):
+            return False
+        return True
+
+    def execute(self, context):
+        ob = context.active_object
+        mod_info = ob.SyncedModifierInfo[ob.SyncedModifierIndex]
+        mod_name = mod_info.name
+
+        if mod_name not in [m.name for m in ob.modifiers]:
+            self.report({'WARNING'}, f"Modifier '{mod_name}' not found")
+            return {'CANCELLED'}
+
+        modifier = ob.modifiers[mod_name]
+
+        # Find the source object and modifier
+        source_obj, source_mod, sync_id = get_source_object_and_modifier(ob, modifier)
+
+        if source_obj is None:
+            self.report({'WARNING'}, "Could not find source for this modifier. It may not be synced.")
+            return {'CANCELLED'}
+
+        # If this is the source, we need to find all targets and resync them
+        if source_obj == ob and is_source_modifier(modifier.name):
+            source_mod = modifier
+            sync_id = parse_source_suffix(modifier.name)[1]
+
+            # Ensure the source has the proper (Source:ID) naming
+            if sync_id is None:
+                sync_id = generate_sync_id()
+                base_name, _ = parse_source_suffix(modifier.name)
+                new_name = base_name + get_source_suffix(sync_id)
+                old_name = modifier.name
+                modifier.name = new_name
+                # Update tracking
+                for info in ob.SyncedModifierInfo:
+                    if info.name == old_name:
+                        info.name = new_name
+                        break
+                mod_name = new_name
+
+        # Handle geometry nodes modifiers
+        if is_geometry_nodes_modifier(source_mod):
+            # Find all objects with synced modifiers using this source
+            target_modifiers = []
+
+            for scene_obj in bpy.data.objects:
+                if scene_obj == source_obj:
+                    continue
+
+                for mod in scene_obj.modifiers:
+                    if mod.type != 'NODES' or mod.node_group != source_mod.node_group:
+                        continue
+
+                    # Check if this modifier is driven by our source
+                    obj_source, obj_source_mod, obj_sync_id = get_source_object_and_modifier(scene_obj, mod)
+
+                    if obj_source == source_obj and obj_source_mod == source_mod:
+                        target_modifiers.append((scene_obj, mod))
+
+            # Resync all targets
+            if target_modifiers:
+                sync_geometry_nodes_modifiers(source_mod, source_obj, target_modifiers, sync_id)
+                self.report({'INFO'}, f"Resynced {len(target_modifiers)} modifier(s) with source '{source_mod.name}'")
+            else:
+                # Just update the source naming
+                if not is_source_modifier(source_mod.name):
+                    if sync_id is None:
+                        sync_id = generate_sync_id()
+                    new_name = source_mod.name + get_source_suffix(sync_id)
+                    old_name = source_mod.name
+                    source_mod.name = new_name
+                    for info in source_obj.SyncedModifierInfo:
+                        if info.name == old_name:
+                            info.name = new_name
+                            break
+                self.report({'INFO'}, "Updated source modifier naming")
+
+            return {'FINISHED'}
+
+        else:
+            # For vanilla modifiers, just report - we don't have the same resync capability
+            self.report({'INFO'}, "Resync for vanilla modifiers not yet implemented. Use desync and re-sync instead.")
+            return {'FINISHED'}
+
+
+class RTOOLS_OT_Sync_From_Source(bpy.types.Operator):
+    bl_idname = "rtools.sync_from_source"
+    bl_label = "Sync from Original Source"
+    bl_description = "When syncing from an already-synced object, find and use the original source"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        # Need at least 2 selected objects
+        if len(context.selected_objects) < 2:
+            return False
+        if not context.active_object:
+            return False
+        return True
+
+    def execute(self, context):
+        active = context.active_object
+        selected = [obj for obj in context.selected_objects if obj != active]
+
+        if not selected:
+            self.report({'WARNING'}, "No target objects selected")
+            return {'CANCELLED'}
+
+        # Get the selected modifier from the active object
+        if not active.SyncedModifierInfo or active.SyncedModifierIndex < 0:
+            self.report({'WARNING'}, "No modifier selected in the synced list")
+            return {'CANCELLED'}
+
+        mod_info = active.SyncedModifierInfo[active.SyncedModifierIndex]
+        mod_name = mod_info.name
+
+        if mod_name not in [m.name for m in active.modifiers]:
+            self.report({'WARNING'}, f"Modifier '{mod_name}' not found")
+            return {'CANCELLED'}
+
+        modifier = active.modifiers[mod_name]
+
+        # Check if the active object's modifier is driven by another source
+        source_obj, source_mod, sync_id = get_source_object_and_modifier(active, modifier)
+
+        if source_obj is None:
+            # Active object is the source, use it directly
+            source_obj = active
+            source_mod = modifier
+            _, sync_id = parse_source_suffix(modifier.name)
+
+        # If we found a different source, use that instead
+        if source_obj != active:
+            self.report({'INFO'}, f"Using original source: {source_obj.name}")
+
+        # Handle geometry nodes
+        if is_geometry_nodes_modifier(source_mod):
+            target_modifiers = []
+            for obj in selected:
+                # Check if target already has a matching modifier
+                matching_mod = None
+                for mod in obj.modifiers:
+                    if mod.type == 'NODES' and mod.node_group == source_mod.node_group:
+                        matching_mod = mod
+                        break
+
+                if matching_mod is None:
+                    # Create new modifier
+                    matching_mod = obj.modifiers.new(name=source_mod.node_group.name, type='NODES')
+                    matching_mod.node_group = source_mod.node_group
+
+                target_modifiers.append((obj, matching_mod))
+
+            # Sync with original source
+            sync_geometry_nodes_modifiers(source_mod, source_obj, target_modifiers, sync_id)
+
+            self.report({'INFO'}, f"Synced {len(target_modifiers)} object(s) with source '{source_obj.name}'")
+        else:
+            self.report({'WARNING'}, "This operation currently only supports Geometry Nodes modifiers")
+            return {'CANCELLED'}
+
+        return {'FINISHED'}
+
 def drawIntoAddMenu(self, context):
     layout= self.layout
     layout.menu("RTOOLS_MT_Synced_Mods_Add_Menu")
@@ -1430,7 +1856,10 @@ classes = (
     RTOOLS_OT_Sync_GeoNode_Input,
     RTOOLS_OT_Scan_Syncable_Modifiers,
     RTOOLS_OT_Sync_Selected_Modifier,
-    RTOOLS_OT_Sync_All_Modifiers
+    RTOOLS_OT_Sync_All_Modifiers,
+    RTOOLS_OT_Select_Source_Object,
+    RTOOLS_OT_Resync_Modifier,
+    RTOOLS_OT_Sync_From_Source,
 )
 
 icon_collection={}
