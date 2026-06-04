@@ -1,0 +1,3 @@
+# No distributable zip built yet.
+# On the next change to this addon, build a versioned installable zip here
+# and move any prior zip into ./archive/. See ../../_TOOLING_STRUCTURE.md
