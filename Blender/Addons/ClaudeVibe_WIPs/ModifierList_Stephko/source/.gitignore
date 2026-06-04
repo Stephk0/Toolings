@@ -1,0 +1,5 @@
+/local
+/.vscode
+__pycache__/
+*.pyc
+.favorites.json

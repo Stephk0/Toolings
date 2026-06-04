@@ -1,0 +1,21 @@
+schema_version = "1.0.0"
+
+id = "ModifierList_Stephko"
+version = "1.9.89"
+name = "Modifier List (Stephko fork)"
+tagline = "Enhanced Modifier UI with Input Attribute Toggle shown for all attribute-capable sockets"
+maintainer = "Stephan Viranyi (fork of work by Antti Tikka, Draise, Dan-Gry)"
+type = "add-on"
+
+website = "https://blenderartists.org/t/modifier-list-for-blender-4-2-addon-fork/1512291"
+
+tags = ["Modeling", "User Interface"]
+
+blender_version_min = "4.2.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+[permissions]
+files = "Save Add-on Prefrences"
