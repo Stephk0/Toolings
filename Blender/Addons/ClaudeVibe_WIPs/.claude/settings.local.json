@@ -24,7 +24,22 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(cmd /c echo %APPDATA%)",
-      "Bash(powershell -Command \"Write-Host $env:APPDATA\")"
+      "Bash(powershell -Command \"Write-Host $env:APPDATA\")",
+      "mcp__blender__execute_blender_code",
+      "mcp__blender__get_scene_info",
+      "PowerShell(Join-Path *)",
+      "PowerShell($zip = 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\QuickAnimationExport_v1.0.0.zip'; Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::OpenRead\\($zip\\).Entries | Select-Object FullName,Length)",
+      "PowerShell($zip = 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\QuickAnimationExport_v1.0.0.zip'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $z = [System.IO.Compression.ZipFile]::OpenRead\\($zip\\); $z.Entries | ForEach-Object { Write-Output \\('{0,8} {1}' -f $_.Length, $_.FullName\\) }; $z.Dispose\\(\\))",
+      "PowerShell($zip = 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\QuickAnimationExport_v1.0.1.zip'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $z = [System.IO.Compression.ZipFile]::OpenRead\\($zip\\); $z.Entries | ForEach-Object { Write-Output \\('{0,8} {1}' -f $_.Length, $_.FullName\\) }; $z.Dispose\\(\\))",
+      "PowerShell($files = @\\(\"QuickAnimationExport\\\\properties.py\", \"QuickAnimationExport\\\\operators.py\", \"QuickAnimationExport\\\\ui.py\", \"QuickAnimationExport\\\\__init__.py\", \"QuickAnimationExport\\\\al_bridge.py\"\\); foreach \\($f in $files\\) { python -m py_compile $f; if \\($LASTEXITCODE -ne 0\\) { \"FAIL: $f\" } else { \"OK:   $f\" } })",
+      "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $z = [System.IO.Compression.ZipFile]::OpenRead\\(\"$pwd\\\\QuickAnimationExport_v1.0.6.zip\"\\); $z.Entries | ForEach-Object { \"{0,7}  {1}\" -f $_.Length, $_.FullName }; $z.Dispose\\(\\))",
+      "mcp__blender__get_viewport_screenshot",
+      "PowerShell($ErrorActionPreference = 'Stop'; $src = 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\QuickAnimationExport'; foreach \\($f in @\\('__init__.py','properties.py','operators.py','ui.py','al_bridge.py'\\)\\) { python -c \"import py_compile, sys; py_compile.compile\\(r'$src\\\\$f', doraise=True\\); print\\('OK $f'\\)\" })",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-Item *)",
+      "PowerShell($path = 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\MassExporter_v12.4\\\\__init__.py'; py -c \"import ast,sys; ast.parse\\(open\\(r'$path', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "PowerShell(py *)",
+      "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\); $zip.Entries | Select-Object FullName, Length; $zip.Dispose\\(\\); \\(Get-Item 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\).Length)"
     ],
     "deny": [],
     "ask": []

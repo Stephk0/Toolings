@@ -1,0 +1,29 @@
+# Claude Code temporary files
+tmpclaude-*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Blender
+*.blend1
+*.blend2
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor/backup files
+*~
+
+# Local test exports
+**/__alqe_test_exports/

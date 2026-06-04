@@ -16,6 +16,10 @@
 - Addons may occasionally reference other addons within the same folder structure
 - When working on one addon, treat it as its own project with its own scope
 - Do not assume shared dependencies or unified architecture between addons
+- **Standard tool layout (2026-05-31):** every tool under `Blender/Addons/ClaudeVibe_WIPs/`
+  is its own folder containing `README.md` + `source/` (code) + `distribution/` (current zip,
+  older builds in `distribution/archive/`) + optional `assets/` (screenshots). See
+  `Blender/Addons/ClaudeVibe_WIPs/_TOOLING_STRUCTURE.md` for the full convention and release steps.
 
 ## Repository Structure
 
@@ -24,6 +28,7 @@ Stephko_Tooling/
 ├── Blender/
 │   ├── Addons/ClaudeVibe_WIPs/     # Python addons
 │   │   ├── MassExporter/            # Collection batch export tool
+│   │   ├── SyncedModifiers/         # Multi-object modifier synchronization
 │   │   ├── Smart Crease/            # Edge crease management
 │   │   ├── Smart Collapse/          # Context-aware mesh collapse
 │   │   ├── Smart Set Orientation/   # Transform orientation helper
@@ -103,14 +108,61 @@ Stephko_Tooling/
 - Document all properties and operators
 - Provide troubleshooting section
 
+**C# Formatting (Unity Projects):**
+- Based on project `.editorconfig`
+- **Brace Style:** K&R (opening brace on same line) - `csharp_new_line_before_open_brace = none`
+- **No newlines before:** `else`, `catch`, `finally`, object initializer members
+- **Space after cast:** `(int) value` not `(int)value`
+- **Always use braces:** Required for all control structures (if, for, foreach, while, do-while, using, lock, fixed)
+- **Indentation:** 4 spaces (no tabs)
+- **Trailing whitespace:** Trim (except .asset files)
+- **Final newline:** Always insert
+
+**XML Documentation (.NET Languages: C#, VB.NET, F#, C++/CLI):**
+- Applies to all .NET languages (same tags, different comment delimiters: `///` for C#/F#/C++, `'''` for VB.NET)
+- XML doc content is interpreted as HTML - whitespace (spaces, line breaks) collapses to single space
+- Plain text blocks will render as one continuous paragraph
+- To format properly:
+  - Wrap each paragraph in `<p>...</p>` tags
+  - Add `<br/>` at end of lines for non-paragraph line breaks
+  - Use `<list type="bullet|number|table">` for structured lists (preferred over HTML tags)
+- Reference: [Recommended XML documentation tags](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/recommended-tags)
+- Example with `<list>` tag:
+  ```xml
+  /// <summary>
+  /// <p>First paragraph explaining the method.</p>
+  /// <p>Second paragraph with more details.</p>
+  /// <list type="bullet">
+  ///   <item><description>First list item</description></item>
+  ///   <item><description>Second list item</description></item>
+  /// </list>
+  /// </summary>
+  ```
+- Table list example:
+  ```xml
+  /// <list type="table">
+  ///   <listheader>
+  ///     <term>Parameter</term>
+  ///     <description>Description</description>
+  ///   </listheader>
+  ///   <item>
+  ///     <term>value</term>
+  ///     <description>The input value to process</description>
+  ///   </item>
+  /// </list>
+  ```
+
 ## Key Features to Understand
 
-### Mass Collection Exporter v12.1
-**File:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/mass_exporter_FIXED_v12.py`
+### Mass Collection Exporter v12.5.1
+**File:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/source/__init__.py` (internally v13.6.0)
+**Package:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/` (latest zip; older builds in `distribution/archive/`)
 
 **Core Functionality:**
 - Batch export multiple collections
 - Batch collection management (add/remove collections from export list)
+- **Export Selected Objects** - Export ONLY selected objects respecting collection settings (FIXED in v12.4.1)
+- **Suffix grouping system** - Group objects by base name + suffix for single-file exports
 - Smart parent-child relationship handling
 - Empty parent preservation/removal options
 - Automatic mesh joining
@@ -120,6 +172,36 @@ Stephko_Tooling/
 - Debug logging system
 - Apply Only Visible modifiers option
 - Quick export from selection (export collection or sub-collections of selected object)
+- Status bar feedback showing exported collection names
+
+**Export Selected Objects (v12.4.1, v12.5.1):**
+- Exports ONLY the selected objects, not entire collections
+- Respects collection's export settings in priority order:
+  1. **Suffix Grouping** (v12.5.1): Groups selected objects by base name and joins into single mesh
+  2. **Merge to Single**: Merges all selected objects into one file (CollectionName.fbx)
+  3. **Individual**: Each selected object exports individually (Cube.fbx, Torus.fbx)
+- Respects parent's `export_subcollections_as_single` setting:
+  - If enabled, exports entire subcollection when object from subcollection is selected
+- Smart handling for single vs multiple object selection
+- Example with suffix grouping: Select `cube`, `cube_COL`, `cube_LOD0` → exports as single `cube.fbx` (all meshes joined)
+
+**Suffix Grouping Feature (v12.3.0, FIXED in v12.5.1):**
+- Define custom suffixes (e.g., _COL for collision, _LOD0 for level of detail)
+- Group objects with matching base names into a single export file
+- Example: `sm_cube_4x4` and `sm_cube_4x4_COL` export as `sm_cube_4x4.fbx` containing both as separate meshes
+- FIXED in v12.5.1: Exports multiple separate meshes to one file (not joined into single mesh)
+- Perfect for game engines expecting collision/LOD meshes in same file as main mesh
+- Works agnostically with meshes, parent empties, and subcollections
+- Case-insensitive suffix matching
+- Enable/disable per collection via `use_suffix_grouping` property
+- Default suffixes: _COL, _col, _UCX, _LOD0, _LOD1, _LOD2, _LOD3
+- UI panel for managing suffix definitions
+- Checkbox appears in collection list and enhanced options panel
+
+**Per-Collection Properties (v12.4.0, COMPLETE in v12.5.0):**
+- `apply_modifiers` - Apply all modifiers before export (default: OFF)
+- `move_to_center` - Temporarily move objects to world origin during export (default: ON)
+- COMPLETE in v12.5.0: Full integration throughout ALL export paths (individual, merged, suffix grouping, subcollections, quick export)
 
 **Important Implementation Details:**
 - Uses temporary collections for non-destructive operations
@@ -130,6 +212,50 @@ Stephko_Tooling/
 - Undo-safe operations
 - Unbound method pattern for cross-operator method sharing (Blender operator compatibility)
 - Quick export buttons find immediate collection from selected object and use configured settings
+- Suffix grouping uses `find_suffix_groups_in_collection()` helper function
+- Groups are exported via `export_objects_as_single()` method as separate meshes in one file (v12.5.1)
+- All export methods accept `item` parameter for property access (v12.5.0)
+- Status bar displays exported collection names (first 3, with count if more)
+
+### Synced Modifiers v2.5.0
+**File:** `Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers/source/__init__.py`
+
+**Core Functionality:**
+- Add modifiers to multiple objects simultaneously
+- Keep modifiers synchronized using Blender's driver system
+- Geometry Nodes modifier support with dynamic input syncing
+- Trace back to original source through driver chains
+- Resync modifiers when geometry node inputs change
+
+**Sync ID System (v2.5.0):**
+- Source modifiers tagged with unique ID: `ModifierName (Source:abc123)`
+- 6-character MD5 hash for reliable identification
+- Helper functions: `generate_sync_id()`, `parse_source_suffix()`, `get_source_object_and_modifier()`
+- Automatically upgrades old `(Source)` format to new `(Source:ID)` format
+
+**Key Features:**
+- **Driver-Based Sync:** Target modifier properties driven by source modifier
+- **Geometry Nodes Support:** Syncs drivable inputs (Float, Vector, Color, etc.)
+- **Reference Field Sync:** Manual sync buttons for Object/Collection/Material fields (cannot be driven)
+- **Viewport Update Fix:** Forces viewport refresh after syncing reference fields
+- **Find Original Source:** Traces through driver chain to find the original source modifier
+- **Resync Capability:** Updates drivers when new geometry node inputs are added
+- **Source Navigation:** Select and navigate to the source object driving a modifier
+
+**User Interface:**
+- N-panel in 3D View sidebar under "Item" category
+- 85/15 split layout (wider list, narrower buttons)
+- Compact icon-only sidebar buttons
+- Template list showing all synced modifiers on active object
+- Quick access operators: Resync, Select Source, Remove
+
+**Important Implementation Details:**
+- Uses Blender's driver system with data path references
+- Handles array properties (vectors) with component-wise drivers
+- Excludes object reference fields and read-only properties from driver sync
+- Supports vanilla modifiers and Geometry Nodes modifiers
+- Modifier categories: Modify, Generate, Deform (Physics partially supported)
+- Helper functions for viewport updates: `force_modifier_update()`, `force_object_update()`
 
 ### Compositor Render Sets v1.7.4
 **File:** `Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/`
@@ -255,9 +381,86 @@ Stephko_Tooling/
 
 ## Recent Changes & Context
 
-### Latest Updates (2025-12-11)
+### Latest Updates (2026-01-13)
 
-1. **Add Bounds To Name v1.1.3** - Smart Float Formatting
+1. **Mass Exporter v12.5.1** - Export Selected Objects with Suffix Grouping
+   - **NEW:** "Export Selected Objects" now respects suffix grouping settings
+   - **FIXED:** Suffix grouping exports multiple separate meshes to one file (not joined)
+   - **FIXED:** Added missing "Group by Suffix" checkbox to UI
+   - Selected objects with matching base names are exported to same file as separate mesh objects
+   - Priority order: Suffix Grouping > Merge to Single > Individual exports
+   - Example: Select `cube`, `cube_COL`, `cube_LOD0` → exports as single `cube.fbx` containing 3 separate meshes
+   - Perfect for game engines expecting collision/LOD meshes with main mesh
+   - Packaged as `MassExporter_v12.5.1.zip` (24KB)
+
+### Previous Updates (2026-01-12)
+
+2. **Mass Exporter v12.5.0** - Complete Property Integration & Suffix Grouping Fix
+   - **COMPLETE:** Full integration of `apply_modifiers` and `move_to_center` properties throughout ALL export paths
+   - **FIXED:** Suffix grouping now actually joins meshes into single mesh object (not just multiple meshes in one file)
+   - Created `export_objects_joined()` helper method for proper mesh joining workflow
+   - Refactored all export methods to accept `item` parameter for consistent property access
+   - All export modes now consistently respect per-collection settings:
+     - Individual object exports
+     - Merged collection exports
+     - Suffix-grouped exports
+     - Subcollection exports
+     - Quick export buttons
+   - Updated method signatures: `export_objects_as_single()`, `export_single_object()`
+   - Updated all method calls throughout codebase (5 locations updated)
+   - Packaged as `MassExporter_v12.5.zip` (23KB)
+
+### Previous Updates (2026-01-11)
+
+3. **Mass Exporter v12.4.1** - Export Selected Objects Fix & New Properties
+   - **FIXED:** "Export Selected Objects" now exports ONLY selected objects (not entire collections)
+   - **FIXED:** Respects collection's `merge_to_single` setting:
+     - merge_to_single OFF: Exports each selected object individually (Cube.fbx, Torus.fbx)
+     - merge_to_single ON: Merges all selected objects into one file (CollectionName.fbx)
+   - **FIXED:** Respects parent's `export_subcollections_as_single` setting
+   - **NEW:** Status bar feedback showing exported collection names
+   - **NEW:** Per-collection `apply_modifiers` property (default OFF)
+   - **NEW:** Per-collection `move_to_center` property (default ON)
+   - **NEW:** Proper installable addon structure with `__init__.py`
+   - **NEW:** `blender_manifest.toml` for Blender 4.2+ compatibility
+   - **NEW:** Packaged as `MassExporter_v12.4.zip` for drag-and-drop installation
+   - Fixed TypeError in `find_parent_collection()` (collection name comparison)
+   - Status bar displays first 3 collection names with total count if more
+
+### Previous Updates (2026-01-07)
+
+4. **Mass Exporter v12.3.0** - Suffix Grouping System
+   - **NEW:** Suffix grouping feature for collision/LOD exports
+   - Define custom suffixes (e.g., _COL, _UCX, _LOD0-3)
+   - Objects with matching base names + different suffixes export to single file
+   - Example: `cube` + `cube_COL` → `cube.fbx` (both meshes included)
+   - Works with meshes, parent empties, and sub-collections
+   - Case-insensitive suffix matching
+   - Enable per-collection with `use_suffix_grouping` checkbox
+   - New UI panel "Suffix Grouping" for managing suffix definitions
+   - Add default suffixes button (_COL, _col, _UCX, _LOD0-3)
+   - Helper functions: `get_base_name_without_suffix()`, `find_suffix_groups_in_collection()`
+   - Export method: `export_with_suffix_grouping()`
+   - New PropertyGroup: `SuffixItem` (suffix, enabled, description)
+   - New operators: add_suffix, remove_suffix, add_default_suffixes
+   - New UIList: `MASSEXPORTER_UL_suffixes`
+
+5. **Synced Modifiers v2.5.0** - Enhanced Sync System
+   - **NEW:** Sync ID system with format `ModifierName (Source:abc123)`
+   - Viewport update fix for geometry nodes reference fields
+   - Force modifier/object update after syncing Object/Collection/Material fields
+   - Find original source: Trace back through driver chain to original source
+   - New operators:
+     - `Select Source Object` - Navigate to driving source object
+     - `Resync Modifier` - Add missing drivers for new geometry node inputs
+     - `Sync From Source` - Auto-detect and use original source when syncing
+   - UI improvements: 85/15 split (wider list, narrower buttons)
+   - Helper functions for sync ID management and source tracing
+   - Upgrade old `(Source)` naming to new `(Source:ID)` format
+
+### Previous Updates (2025-12-11)
+
+6. **Add Bounds To Name v1.1.3** - Smart Float Formatting
    - **NEW:** Omit Decimal Zero option for clean float output (1x1.5x1 instead of 1.0x1.5x1.0)
    - **v1.1.2:** Simplified axis swizzle UI labels (X/Y/Z instead of 1st/2nd/3rd)
    - **v1.1.1:** 2D pattern detection support (detects both `1x2` and `1x2x3` formats)
@@ -274,7 +477,7 @@ Stephko_Tooling/
 
 ### Previous Updates (2025-12-10)
 
-2. **Compositor Render Sets v1.7.3-1.7.4** - Batch Render Overhaul
+7. **Compositor Render Sets v1.7.3-1.7.4** - Batch Render Overhaul
    - Complete rewrite of batch rendering system using synchronous rendering
    - Fixed batch render with override output node settings (only outputting one file)
    - Removed complex async modal/handler system
@@ -286,7 +489,7 @@ Stephko_Tooling/
 
 ### Previous Updates (2025-12-09)
 
-3. **Compositor Render Sets v1.7.1** - Blender 5 Compatibility & Performance
+8. **Compositor Render Sets v1.7.1** - Blender 5 Compatibility & Performance
    - Fixed syntax error preventing addon installation (line 316 property definition)
    - Added Blender 5.0 file output node support (new `filename` field)
    - Implemented automatic version detection for file output nodes
@@ -298,14 +501,14 @@ Stephko_Tooling/
 
 ### Previous Updates (2025-12-03)
 
-4. **Blender MCP Integration** - ✅ Successfully Connected
+9. **Blender MCP Integration** - ✅ Successfully Connected
    - Integrated Blender MCP server (`blender-mcp`) with Claude Code
    - Direct control of Blender through natural language
    - Socket-based communication on localhost:9876
    - Tested with object creation (icosphere, cylinder)
    - Scripts: `send_to_blender.py` for direct socket communication
 
-5. **Procedural Tree Generator v1.0** - Phase 1 MVP Complete
+10. **Procedural Tree Generator v1.0** - Phase 1 MVP Complete
    - Full Geometry Nodes implementation based on 90-page specification
    - 5 organized node frames (Input, Attributes, Branch Generation, Growth Direction, Geometry Builder)
    - Iterative branch generation using Repeat Zones
@@ -314,13 +517,13 @@ Stephko_Tooling/
    - Complete documentation in `TreeGenDocu/` folder
    - Ready for Phase 2 development (gravity, sun, wind forces)
 
-6. **Mass Exporter v12.1** - Fixed critical AttributeError bugs
+11. **Mass Exporter v12.1** - Fixed critical AttributeError bugs
    - Fixed unbound method calls across operators (MASSEXPORTER_OT_export_selected_collection and MASSEXPORTER_OT_export_selected_subcollections)
    - Fixed "Export Collection of Selected" button removing unwanted "_main" suffix
    - Improved quick export buttons to properly use configured export settings
    - Updated UI labels for clarity ("Quick Export from Selection")
 
-7. **Earlier Updates (Branch: optimistic-dewdney)**
+12. **Earlier Updates (Branch: optimistic-dewdney)**
    - **Commit 4a8e61b** - Add batch collection management and Create Node Setup features
    - **Commit 79ffbc1** - Add 'Mute Unused File Output Nodes' feature to Compositor Render Sets
    - **Commit 4693fca** - Refactor Compositor Render Sets v1.7.0 - UI improvements and fixes
@@ -330,10 +533,10 @@ Stephko_Tooling/
    - **Commit 80264e5** - Add 'Apply Only Visible' modifier feature to mass exporter v12
 
 ### Active Development Areas
+- **Mass Exporter v12.5.1** - Export Selected Objects with suffix grouping (complete)
+- **Synced Modifiers v2.5.0** - Enhanced sync system with ID tracking (complete)
 - **Procedural Tree Generator Phase 2** - Natural growth forces (gravity, sun, wind)
 - **MCP-Enhanced Workflows** - AI-assisted Blender control and iteration
-- Mass Exporter bug fixes and stability improvements
-- Quick export functionality refinement
 - Compositor Render Sets v1.7.4 - Batch rendering complete, stable and reliable
 - Geometry node library expansion
 - Compositor workflow integration
@@ -506,8 +709,8 @@ if __name__ == "__main__":
 
 ---
 
-**Last Updated:** 2025-12-11
-**Documentation Version:** 1.7
+**Last Updated:** 2026-01-13
+**Documentation Version:** 2.1
 **Primary Branch:** main
 **Active Worktree:** optimistic-dewdney
 **MCP Status:** ✅ Connected (blender-mcp on localhost:9876)
