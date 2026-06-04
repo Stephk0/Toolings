@@ -1,0 +1,3275 @@
+[
+  {
+    "name": "Group Input",
+    "label": "",
+    "type": "GROUP_INPUT",
+    "bl_idname": "NodeGroupInput",
+    "location": [
+      -1938.9447021484375,
+      29.973430633544922
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Thickness Decay",
+        "to_node": "Math.002",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Length Decay",
+        "to_node": "Math.008",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Brench Length Max",
+        "to_node": "Random Value.003",
+        "to_socket": "Max"
+      },
+      {
+        "socket_name": "Brench Length Min",
+        "to_node": "Random Value.003",
+        "to_socket": "Min"
+      },
+      {
+        "socket_name": "Spawn Probability",
+        "to_node": "Math.001",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Branch Spawn Min Height",
+        "to_node": "Compare.001",
+        "to_socket": "B"
+      },
+      {
+        "socket_name": "Seed",
+        "to_node": "Random Value",
+        "to_socket": "Seed"
+      },
+      {
+        "socket_name": "Seed",
+        "to_node": "Random Value.001",
+        "to_socket": "Seed"
+      },
+      {
+        "socket_name": "Iterations",
+        "to_node": "Repeat Input.001",
+        "to_socket": "Iterations"
+      },
+      {
+        "socket_name": "Main Branch",
+        "to_node": "Mesh to Curve",
+        "to_socket": "Mesh"
+      },
+      {
+        "socket_name": "Bounces",
+        "to_node": "Easing.002",
+        "to_socket": "Bounces"
+      },
+      {
+        "socket_name": "Size",
+        "to_node": "Easing.002",
+        "to_socket": "Size"
+      },
+      {
+        "socket_name": "Base",
+        "to_node": "Easing.002",
+        "to_socket": "Base"
+      },
+      {
+        "socket_name": "Exponent",
+        "to_node": "Easing.002",
+        "to_socket": "Exponent"
+      },
+      {
+        "socket_name": "To Max",
+        "to_node": "Easing.002",
+        "to_socket": "To Max"
+      },
+      {
+        "socket_name": "To Min",
+        "to_node": "Easing.002",
+        "to_socket": "To Min"
+      },
+      {
+        "socket_name": "From Max",
+        "to_node": "Easing.002",
+        "to_socket": "From Max"
+      },
+      {
+        "socket_name": "From Min",
+        "to_node": "Easing.002",
+        "to_socket": "From Min"
+      },
+      {
+        "socket_name": "InOut",
+        "to_node": "Easing.002",
+        "to_socket": "InOut"
+      },
+      {
+        "socket_name": "Type",
+        "to_node": "Easing.002",
+        "to_socket": "Type"
+      }
+    ]
+  },
+  {
+    "name": "Group Output",
+    "label": "",
+    "type": "GROUP_OUTPUT",
+    "bl_idname": "NodeGroupOutput",
+    "location": [
+      6821.02587890625,
+      111.43558502197266
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Switch",
+        "from_socket": "Output"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Object Info",
+    "label": "",
+    "type": "OBJECT_INFO",
+    "bl_idname": "GeometryNodeObjectInfo",
+    "location": [
+      -1718.2835693359375,
+      324.37408447265625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "Resample Curve",
+    "label": "",
+    "type": "RESAMPLE_CURVE",
+    "bl_idname": "GeometryNodeResampleCurve",
+    "location": [
+      -1309.09130859375,
+      236.66552734375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Mesh to Curve",
+        "from_socket": "Curve"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Store Named Attribute",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      -748.6107177734375,
+      332.87109375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Resample Curve",
+        "from_socket": "Curve"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.001",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.001",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      -720.6107177734375,
+      132.87109375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Easing.002",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.002",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.002",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      -716.0634765625,
+      -67.12889862060547
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.001",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.005",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Curve to Points",
+    "label": "",
+    "type": "CURVE_TO_POINTS",
+    "bl_idname": "GeometryNodeCurveToPoints",
+    "location": [
+      584.8565063476562,
+      363.89385986328125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Points",
+        "to_node": "Delete Geometry",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      399.6815490722656,
+      69.90597534179688
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Compare",
+        "to_socket": "A"
+      },
+      {
+        "socket_name": "Attribute",
+        "to_node": "Math.008",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Compare",
+    "label": "",
+    "type": "COMPARE",
+    "bl_idname": "FunctionNodeCompare",
+    "location": [
+      627.9999389648438,
+      100.0
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "A",
+        "from_node": "Named Attribute",
+        "from_socket": "Attribute"
+      },
+      {
+        "socket_name": "B",
+        "from_node": "Math",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Result",
+        "to_node": "Boolean Math",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Random Value",
+    "label": "",
+    "type": "RANDOM_VALUE",
+    "bl_idname": "FunctionNodeRandomValue",
+    "location": [
+      392.6255798339844,
+      -263.9789123535156
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Seed",
+        "from_node": "Group Input",
+        "from_socket": "Seed"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.001",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.001",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      600.8193359375,
+      -191.79727172851562
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Random Value",
+        "from_socket": "Value"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Group Input",
+        "from_socket": "Spawn Probability"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Boolean Math",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      783.4825439453125,
+      -100.0
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Compare",
+        "from_socket": "Result"
+      },
+      {
+        "socket_name": "Boolean",
+        "from_node": "Math.001",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Boolean Math.004",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Delete Geometry",
+    "label": "",
+    "type": "DELETE_GEOMETRY",
+    "bl_idname": "GeometryNodeDeleteGeometry",
+    "location": [
+      1246.869384765625,
+      151.4196014404297
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Curve to Points",
+        "from_socket": "Points"
+      },
+      {
+        "socket_name": "Selection",
+        "from_node": "Boolean NOT",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.010",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Curve Line",
+    "label": "",
+    "type": "CURVE_PRIMITIVE_LINE",
+    "bl_idname": "GeometryNodeCurvePrimitiveLine",
+    "location": [
+      1147.8048095703125,
+      726.1716918945312
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "Named Attribute.001",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      2057.387939453125,
+      -161.25228881835938
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Math.002",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.002",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      3685.065673828125,
+      12.143304824829102
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Named Attribute.001",
+        "from_socket": "Attribute"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Group Input",
+        "from_socket": "Thickness Decay"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.003",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Random Value.001",
+    "label": "",
+    "type": "RANDOM_VALUE",
+    "bl_idname": "FunctionNodeRandomValue",
+    "location": [
+      830.5960083007812,
+      173.01632690429688
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Seed",
+        "from_node": "Group Input",
+        "from_socket": "Seed"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Vector Math.001",
+        "to_socket": "Vector"
+      }
+    ]
+  },
+  {
+    "name": "Instance on Points",
+    "label": "",
+    "type": "INSTANCE_ON_POINTS",
+    "bl_idname": "GeometryNodeInstanceOnPoints",
+    "location": [
+      2219.853515625,
+      441.90679931640625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Points",
+        "from_node": "Duplicate Elements",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Selection",
+        "from_node": "Boolean Math.001",
+        "from_socket": "Boolean"
+      },
+      {
+        "socket_name": "Instance",
+        "from_node": "Store Named Attribute.008",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Rotation",
+        "from_node": "Vector Math.001",
+        "from_socket": "Vector"
+      },
+      {
+        "socket_name": "Scale",
+        "from_node": "Vector Math",
+        "from_socket": "Vector"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Instances",
+        "to_node": "Realize Instances",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Realize Instances",
+    "label": "",
+    "type": "REALIZE_INSTANCES",
+    "bl_idname": "GeometryNodeRealizeInstances",
+    "location": [
+      2376.762939453125,
+      194.17088317871094
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Instance on Points",
+        "from_socket": "Instances"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Set Position",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.003",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      3638.661865234375,
+      205.074951171875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Resample Curve.003",
+        "from_socket": "Curve"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Math",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.004",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.004",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      4557.94580078125,
+      172.98214721679688
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.003",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Math.005",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Resample Curve.001",
+        "to_socket": "Curve"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Join Geometry",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute.003",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      4564.30419921875,
+      -124.57393646240234
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Math.013",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Attribute",
+        "to_node": "Reroute",
+        "to_socket": "Input"
+      }
+    ]
+  },
+  {
+    "name": "Set Curve Radius.001",
+    "label": "",
+    "type": "SET_CURVE_RADIUS",
+    "bl_idname": "GeometryNodeSetCurveRadius",
+    "location": [
+      5476.22802734375,
+      -101.47523498535156
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Repeat Output.001",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Radius",
+        "from_node": "Reroute",
+        "from_socket": "Output"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Curve to Mesh.001",
+        "to_socket": "Curve"
+      }
+    ]
+  },
+  {
+    "name": "Curve Circle.001",
+    "label": "",
+    "type": "CURVE_PRIMITIVE_CIRCLE",
+    "bl_idname": "GeometryNodeCurvePrimitiveCircle",
+    "location": [
+      5041.9091796875,
+      -472.0728454589844
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Curve to Mesh.001",
+        "to_socket": "Profile Curve"
+      }
+    ]
+  },
+  {
+    "name": "Curve to Mesh.001",
+    "label": "",
+    "type": "CURVE_TO_MESH",
+    "bl_idname": "GeometryNodeCurveToMesh",
+    "location": [
+      5754.19189453125,
+      -158.9939422607422
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Set Curve Radius.001",
+        "from_socket": "Curve"
+      },
+      {
+        "socket_name": "Profile Curve",
+        "from_node": "Curve Circle.001",
+        "from_socket": "Curve"
+      },
+      {
+        "socket_name": "Scale",
+        "from_node": "Reroute",
+        "from_socket": "Output"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Mesh",
+        "to_node": "Merge by Distance",
+        "to_socket": "Geometry"
+      },
+      {
+        "socket_name": "Mesh",
+        "to_node": "Set Shade Smooth.001",
+        "to_socket": "Mesh"
+      },
+      {
+        "socket_name": "Mesh",
+        "to_node": "Viewer.002",
+        "to_socket": "Mesh"
+      }
+    ]
+  },
+  {
+    "name": "Set Shade Smooth.001",
+    "label": "",
+    "type": "SET_SHADE_SMOOTH",
+    "bl_idname": "GeometryNodeSetShadeSmooth",
+    "location": [
+      6114.76318359375,
+      -31.71938133239746
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Mesh",
+        "from_node": "Curve to Mesh.001",
+        "from_socket": "Mesh"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Mesh",
+        "to_node": "Join Geometry.001",
+        "to_socket": "Geometry"
+      },
+      {
+        "socket_name": "Mesh",
+        "to_node": "Switch",
+        "to_socket": "False"
+      }
+    ]
+  },
+  {
+    "name": "Math",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      408.5192565917969,
+      -70.32867431640625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Iteration"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Store Named Attribute.003",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Value",
+        "to_node": "Compare",
+        "to_socket": "B"
+      }
+    ]
+  },
+  {
+    "name": "Boolean NOT",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      1049.396728515625,
+      51.175987243652344
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Boolean Math.004",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Delete Geometry",
+        "to_socket": "Selection"
+      }
+    ]
+  },
+  {
+    "name": "Repeat Input.001",
+    "label": "",
+    "type": "REPEAT_INPUT",
+    "bl_idname": "GeometryNodeRepeatInput",
+    "location": [
+      20.830106735229492,
+      454.1676330566406
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Iterations",
+        "from_node": "Group Input",
+        "from_socket": "Iterations"
+      },
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.009",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Iteration",
+        "to_node": "Math",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Iteration",
+        "to_node": "Math.010",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Iteration",
+        "to_node": "Math.009",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Iteration",
+        "to_node": "Math.006",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Iteration",
+        "to_node": "Math.017",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Curve to Points",
+        "to_socket": "Curve"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Join Geometry",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Repeat Output.001",
+    "label": "",
+    "type": "REPEAT_OUTPUT",
+    "bl_idname": "GeometryNodeRepeatOutput",
+    "location": [
+      5190.13037109375,
+      446.94512939453125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Join Geometry",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Set Curve Radius.001",
+        "to_socket": "Curve"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Viewer.003",
+        "to_socket": "Geometry"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Curve to Points.001",
+        "to_socket": "Curve"
+      }
+    ]
+  },
+  {
+    "name": "Mesh to Curve",
+    "label": "",
+    "type": "MESH_TO_CURVE",
+    "bl_idname": "GeometryNodeMeshToCurve",
+    "location": [
+      -1484.477294921875,
+      235.8004150390625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Mesh",
+        "from_node": "Group Input",
+        "from_socket": "Main Branch"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Resample Curve",
+        "to_socket": "Curve"
+      }
+    ]
+  },
+  {
+    "name": "Join Geometry",
+    "label": "",
+    "type": "JOIN_GEOMETRY",
+    "bl_idname": "GeometryNodeJoinGeometry",
+    "location": [
+      5001.76416015625,
+      440.7516174316406
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.004",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Repeat Output.001",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Spiral",
+    "label": "",
+    "type": "CURVE_PRIMITIVE_SPIRAL",
+    "bl_idname": "GeometryNodeCurveSpiral",
+    "location": [
+      1161.2384033203125,
+      367.984375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Resample Curve.002",
+        "to_socket": "Curve"
+      }
+    ]
+  },
+  {
+    "name": "Resample Curve.001",
+    "label": "",
+    "type": "RESAMPLE_CURVE",
+    "bl_idname": "GeometryNodeResampleCurve",
+    "location": [
+      4826.56591796875,
+      319.37762451171875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Store Named Attribute.004",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Duplicate Elements",
+    "label": "",
+    "type": "DUPLICATE_ELEMENTS",
+    "bl_idname": "GeometryNodeDuplicateElements",
+    "location": [
+      1935.6279296875,
+      124.25447082519531
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Capture Attribute",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Amount",
+        "from_node": "Random Value.002",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Instance on Points",
+        "to_socket": "Points"
+      }
+    ]
+  },
+  {
+    "name": "Random Value.002",
+    "label": "",
+    "type": "RANDOM_VALUE",
+    "bl_idname": "FunctionNodeRandomValue",
+    "location": [
+      1238.0299072265625,
+      -68.14105224609375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Duplicate Elements",
+        "to_socket": "Amount"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.005",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      -709.7392578125,
+      -252.04922485351562
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.002",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Endpoint Selection.001",
+        "from_socket": "Selection"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.007",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Endpoint Selection.001",
+    "label": "",
+    "type": "CURVE_ENDPOINT_SELECTION",
+    "bl_idname": "GeometryNodeCurveEndpointSelection",
+    "location": [
+      -941.1609497070312,
+      -346.28533935546875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Selection",
+        "to_node": "Store Named Attribute.005",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute.002",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      1784.366943359375,
+      805.242431640625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Boolean Math.002",
+        "to_socket": "Boolean"
+      },
+      {
+        "socket_name": "Attribute",
+        "to_node": "Boolean Math.003",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math.001",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      2050.20068359375,
+      458.2276306152344
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Boolean Math.002",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Instance on Points",
+        "to_socket": "Selection"
+      },
+      {
+        "socket_name": "Boolean",
+        "to_node": "Store Named Attribute.010",
+        "to_socket": "Selection"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.006",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      1576.667724609375,
+      479.9189453125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Resample Curve.002",
+        "from_socket": "Curve"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Endpoint Selection.002",
+        "from_socket": "Selection"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.008",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Endpoint Selection.002",
+    "label": "",
+    "type": "CURVE_ENDPOINT_SELECTION",
+    "bl_idname": "GeometryNodeCurveEndpointSelection",
+    "location": [
+      1323.04052734375,
+      628.3125610351562
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Selection",
+        "to_node": "Store Named Attribute.006",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Viewer.001",
+    "label": "",
+    "type": "VIEWER",
+    "bl_idname": "GeometryNodeViewer",
+    "location": [
+      3431.98486328125,
+      578.4796142578125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Store Named Attribute.011",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Sample Index",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Spline Parameter.001",
+    "label": "",
+    "type": "SPLINE_PARAMETER",
+    "bl_idname": "GeometryNodeSplineParameter",
+    "location": [
+      2095.36376953125,
+      -329.54229736328125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Factor",
+        "to_node": "Easing.001",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Factor",
+        "to_node": "Easing.003",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.003",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      3913.0546875,
+      -10.390643119812012
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.002",
+        "from_socket": "Value"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Math.004",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Clamp.001",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.004",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      2754.806640625,
+      -149.04940795898438
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Easing.001",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.003",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Resample Curve.002",
+    "label": "",
+    "type": "RESAMPLE_CURVE",
+    "bl_idname": "GeometryNodeResampleCurve",
+    "location": [
+      1343.2509765625,
+      358.3020324707031
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Spiral",
+        "from_socket": "Curve"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Store Named Attribute.006",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Clamp.001",
+    "label": "",
+    "type": "CLAMP",
+    "bl_idname": "ShaderNodeClamp",
+    "location": [
+      4022.89404296875,
+      21.286245346069336
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.003",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Result",
+        "to_node": "Math.005",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Spline Parameter.002",
+    "label": "",
+    "type": "SPLINE_PARAMETER",
+    "bl_idname": "GeometryNodeSplineParameter",
+    "location": [
+      -1196.5377197265625,
+      -3.007974147796631
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Factor",
+        "to_node": "Easing.002",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.005",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      4294.4853515625,
+      64.28007507324219
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Clamp.001",
+        "from_socket": "Result"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Boolean Math.003",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Store Named Attribute.004",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.007",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      -702.2747192382812,
+      -448.11688232421875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.005",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Endpoint Selection.003",
+        "from_socket": "Selection"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.009",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Endpoint Selection.003",
+    "label": "",
+    "type": "CURVE_ENDPOINT_SELECTION",
+    "bl_idname": "GeometryNodeCurveEndpointSelection",
+    "location": [
+      -942.5545043945312,
+      -535.2608032226562
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Selection",
+        "to_node": "Store Named Attribute.007",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.008",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      1785.232177734375,
+      482.606201171875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.006",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Endpoint Selection.004",
+        "from_socket": "Selection"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Instance on Points",
+        "to_socket": "Instance"
+      }
+    ]
+  },
+  {
+    "name": "Endpoint Selection.004",
+    "label": "",
+    "type": "CURVE_ENDPOINT_SELECTION",
+    "bl_idname": "GeometryNodeCurveEndpointSelection",
+    "location": [
+      1576.0201416015625,
+      632.5083618164062
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Selection",
+        "to_node": "Store Named Attribute.008",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math.002",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      1994.7603759765625,
+      688.1424560546875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Named Attribute.002",
+        "from_socket": "Attribute"
+      },
+      {
+        "socket_name": "Boolean",
+        "from_node": "Named Attribute.004",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Boolean Math.001",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute.004",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      1782.6051025390625,
+      660.7015991210938
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Boolean Math.002",
+        "to_socket": "Boolean"
+      },
+      {
+        "socket_name": "Attribute",
+        "to_node": "Boolean Math.005",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math.003",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      3537.71728515625,
+      866.4801025390625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Named Attribute.002",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Math.005",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Vector Math",
+    "label": "",
+    "type": "VECT_MATH",
+    "bl_idname": "ShaderNodeVectorMath",
+    "location": [
+      2021.291015625,
+      -73.1252670288086
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Scale",
+        "from_node": "Math.015",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Vector",
+        "to_node": "Instance on Points",
+        "to_socket": "Scale"
+      }
+    ]
+  },
+  {
+    "name": "Random Value.003",
+    "label": "",
+    "type": "RANDOM_VALUE",
+    "bl_idname": "FunctionNodeRandomValue",
+    "location": [
+      1429.720947265625,
+      -77.65389251708984
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Min",
+        "from_node": "Group Input",
+        "from_socket": "Brench Length Min"
+      },
+      {
+        "socket_name": "Max",
+        "from_node": "Group Input",
+        "from_socket": "Brench Length Max"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.015",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Rotation",
+    "label": "",
+    "type": "INPUT_ROTATION",
+    "bl_idname": "FunctionNodeInputRotation",
+    "location": [
+      386.4822998046875,
+      290.8393859863281
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "Rotation.001",
+    "label": "",
+    "type": "INPUT_ROTATION",
+    "bl_idname": "FunctionNodeInputRotation",
+    "location": [
+      389.8529052734375,
+      185.03692626953125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "Vector Math.001",
+    "label": "",
+    "type": "VECT_MATH",
+    "bl_idname": "ShaderNodeVectorMath",
+    "location": [
+      1821.0941162109375,
+      268.5469970703125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Vector",
+        "from_node": "Random Value.001",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Vector",
+        "to_node": "Instance on Points",
+        "to_socket": "Rotation"
+      }
+    ]
+  },
+  {
+    "name": "Math.007",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      1558.9613037109375,
+      -263.7767333984375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.008",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.015",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.008",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      1384.266357421875,
+      -252.3509979248047
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Named Attribute",
+        "from_socket": "Attribute"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Group Input",
+        "from_socket": "Length Decay"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.007",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Merge by Distance",
+    "label": "",
+    "type": "MERGE_BY_DISTANCE",
+    "bl_idname": "GeometryNodeMergeByDistance",
+    "location": [
+      5945.94677734375,
+      -252.62850952148438
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Curve to Mesh.001",
+        "from_socket": "Mesh"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Position",
+    "label": "",
+    "type": "POSITION",
+    "bl_idname": "GeometryNodeInputPosition",
+    "location": [
+      461.0213928222656,
+      -515.6683959960938
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Position",
+        "to_node": "Separate XYZ",
+        "to_socket": "Vector"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math.004",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      969.4117431640625,
+      -126.66573333740234
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Boolean Math",
+        "from_socket": "Boolean"
+      },
+      {
+        "socket_name": "Boolean",
+        "from_node": "Compare.001",
+        "from_socket": "Result"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Boolean NOT",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Separate XYZ",
+    "label": "",
+    "type": "SEPXYZ",
+    "bl_idname": "ShaderNodeSeparateXYZ",
+    "location": [
+      582.3133544921875,
+      -420.8445739746094
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Vector",
+        "from_node": "Position",
+        "from_socket": "Position"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Z",
+        "to_node": "Compare.001",
+        "to_socket": "A"
+      }
+    ]
+  },
+  {
+    "name": "Compare.001",
+    "label": "",
+    "type": "COMPARE",
+    "bl_idname": "FunctionNodeCompare",
+    "location": [
+      871.4068603515625,
+      -394.19940185546875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "A",
+        "from_node": "Separate XYZ",
+        "from_socket": "Z"
+      },
+      {
+        "socket_name": "B",
+        "from_node": "Group Input",
+        "from_socket": "Branch Spawn Min Height"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Result",
+        "to_node": "Boolean Math.004",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Math.009",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      656.2127685546875,
+      764.5676879882812
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Iteration"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.011",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Value",
+        "to_node": "Math.012",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.010",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      476.2544860839844,
+      760.17578125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Iteration"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Math.011",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      924.4572143554688,
+      738.6480712890625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.009",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Math.012",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      911.7179565429688,
+      569.2276611328125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.009",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Reroute",
+    "label": "",
+    "type": "REROUTE",
+    "bl_idname": "NodeReroute",
+    "location": [
+      5082.4765625,
+      -161.96864318847656
+    ],
+    "width": 12.5,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Input",
+        "from_node": "Named Attribute.003",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Output",
+        "to_node": "Set Curve Radius.001",
+        "to_socket": "Radius"
+      },
+      {
+        "socket_name": "Output",
+        "to_node": "Curve to Mesh.001",
+        "to_socket": "Scale"
+      }
+    ]
+  },
+  {
+    "name": "Math.013",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      4854.5986328125,
+      -76.11659240722656
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Named Attribute.003",
+        "from_socket": "Attribute"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Math.014",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Noise Texture",
+    "label": "",
+    "type": "TEX_NOISE",
+    "bl_idname": "ShaderNodeTexNoise",
+    "location": [
+      3062.239013671875,
+      -430.26123046875
+    ],
+    "width": 145.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Factor",
+        "to_node": "Vector Math.002",
+        "to_socket": "Vector"
+      }
+    ]
+  },
+  {
+    "name": "Math.014",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      3427.19091796875,
+      -401.9728698730469
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Vector Math.002",
+        "from_socket": "Vector"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.013",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Vector Math.002",
+    "label": "",
+    "type": "VECT_MATH",
+    "bl_idname": "ShaderNodeVectorMath",
+    "location": [
+      3247.147705078125,
+      -471.3876037597656
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Vector",
+        "from_node": "Noise Texture",
+        "from_socket": "Factor"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Vector",
+        "to_node": "Math.014",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.015",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      1780.0068359375,
+      -239.3475799560547
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.007",
+        "from_socket": "Value"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Random Value.003",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Vector Math",
+        "to_socket": "Scale"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.009",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      -703.6154174804688,
+      -633.1923828125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.007",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Repeat Input.001",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.010",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      1434.47314453125,
+      124.00682067871094
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Delete Geometry",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Selection",
+        "from_node": "Boolean Math.001",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Capture Attribute",
+        "to_socket": "Geometry"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Sample Index",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute.006",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      2527.81103515625,
+      585.4412231445312
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "Viewer.002",
+    "label": "",
+    "type": "VIEWER",
+    "bl_idname": "GeometryNodeViewer",
+    "location": [
+      6042.95263671875,
+      253.7742156982422
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Mesh",
+        "from_node": "Curve to Mesh.001",
+        "from_socket": "Mesh"
+      },
+      {
+        "socket_name": "Attribute",
+        "from_node": "Named Attribute.007",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Named Attribute.007",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      5653.46484375,
+      285.2030029296875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Viewer.002",
+        "to_socket": "Attribute"
+      }
+    ]
+  },
+  {
+    "name": "Capture Attribute",
+    "label": "",
+    "type": "CAPTURE_ATTRIBUTE",
+    "bl_idname": "GeometryNodeCaptureAttribute",
+    "location": [
+      1653.36962890625,
+      122.02294921875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.010",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Position",
+        "from_node": "Position.001",
+        "from_socket": "Position"
+      },
+      {
+        "socket_name": "Boolean",
+        "from_node": "Boolean",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Duplicate Elements",
+        "to_socket": "Geometry"
+      },
+      {
+        "socket_name": "Boolean",
+        "to_node": "Sample Index",
+        "to_socket": "Value"
+      },
+      {
+        "socket_name": "Boolean",
+        "to_node": "Store Named Attribute.011",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Position.001",
+    "label": "",
+    "type": "POSITION",
+    "bl_idname": "GeometryNodeInputPosition",
+    "location": [
+      1588.102294921875,
+      -69.98812103271484
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Position",
+        "to_node": "Capture Attribute",
+        "to_socket": "Position"
+      }
+    ]
+  },
+  {
+    "name": "Boolean",
+    "label": "",
+    "type": "INPUT_BOOL",
+    "bl_idname": "FunctionNodeInputBool",
+    "location": [
+      1735.175537109375,
+      -69.68580627441406
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Capture Attribute",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Store Named Attribute.011",
+    "label": "",
+    "type": "STORE_NAMED_ATTRIBUTE",
+    "bl_idname": "GeometryNodeStoreNamedAttribute",
+    "location": [
+      3112.223876953125,
+      277.7336730957031
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Set Position",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Capture Attribute",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Viewer.001",
+        "to_socket": "Curve"
+      },
+      {
+        "socket_name": "Geometry",
+        "to_node": "Resample Curve.003",
+        "to_socket": "Curve"
+      }
+    ]
+  },
+  {
+    "name": "Sample Index",
+    "label": "",
+    "type": "SAMPLE_INDEX",
+    "bl_idname": "GeometryNodeSampleIndex",
+    "location": [
+      2957.737060546875,
+      656.906982421875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Store Named Attribute.010",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Capture Attribute",
+        "from_socket": "Boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Viewer.001",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Easing.001",
+    "label": "",
+    "type": "GROUP",
+    "bl_idname": "GeometryNodeGroup",
+    "location": [
+      2361.3037109375,
+      -527.30224609375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Spline Parameter.001",
+        "from_socket": "Factor"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.004",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Easing.002",
+    "label": "",
+    "type": "GROUP",
+    "bl_idname": "GeometryNodeGroup",
+    "location": [
+      -972.447265625,
+      16.087656021118164
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Type",
+        "from_node": "Group Input",
+        "from_socket": "Type"
+      },
+      {
+        "socket_name": "InOut",
+        "from_node": "Group Input",
+        "from_socket": "InOut"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Spline Parameter.002",
+        "from_socket": "Factor"
+      },
+      {
+        "socket_name": "From Min",
+        "from_node": "Group Input",
+        "from_socket": "From Min"
+      },
+      {
+        "socket_name": "From Max",
+        "from_node": "Group Input",
+        "from_socket": "From Max"
+      },
+      {
+        "socket_name": "To Min",
+        "from_node": "Group Input",
+        "from_socket": "To Min"
+      },
+      {
+        "socket_name": "To Max",
+        "from_node": "Group Input",
+        "from_socket": "To Max"
+      },
+      {
+        "socket_name": "Exponent",
+        "from_node": "Group Input",
+        "from_socket": "Exponent"
+      },
+      {
+        "socket_name": "Base",
+        "from_node": "Group Input",
+        "from_socket": "Base"
+      },
+      {
+        "socket_name": "Size",
+        "from_node": "Group Input",
+        "from_socket": "Size"
+      },
+      {
+        "socket_name": "Bounces",
+        "from_node": "Group Input",
+        "from_socket": "Bounces"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Store Named Attribute.001",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute.005",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      5160.404296875,
+      737.9293212890625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Viewer.003",
+        "to_socket": "Attribute"
+      },
+      {
+        "socket_name": "Attribute",
+        "to_node": "Instance on Points.001",
+        "to_socket": "Selection"
+      }
+    ]
+  },
+  {
+    "name": "Viewer.003",
+    "label": "",
+    "type": "VIEWER",
+    "bl_idname": "GeometryNodeViewer",
+    "location": [
+      5544.96923828125,
+      780.3721313476562
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Repeat Output.001",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Attribute",
+        "from_node": "Named Attribute.005",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Instance on Points.001",
+    "label": "",
+    "type": "INSTANCE_ON_POINTS",
+    "bl_idname": "GeometryNodeInstanceOnPoints",
+    "location": [
+      5951.57861328125,
+      713.3763427734375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Points",
+        "from_node": "Curve to Points.001",
+        "from_socket": "Points"
+      },
+      {
+        "socket_name": "Selection",
+        "from_node": "Named Attribute.005",
+        "from_socket": "Attribute"
+      },
+      {
+        "socket_name": "Instance",
+        "from_node": "Ico Sphere",
+        "from_socket": "Mesh"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Instances",
+        "to_node": "Viewer",
+        "to_socket": "Instances"
+      },
+      {
+        "socket_name": "Instances",
+        "to_node": "Join Geometry.001",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Curve to Points.001",
+    "label": "",
+    "type": "CURVE_TO_POINTS",
+    "bl_idname": "GeometryNodeCurveToPoints",
+    "location": [
+      5652.99365234375,
+      603.849853515625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Repeat Output.001",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Points",
+        "to_node": "Instance on Points.001",
+        "to_socket": "Points"
+      }
+    ]
+  },
+  {
+    "name": "Ico Sphere",
+    "label": "",
+    "type": "MESH_PRIMITIVE_ICO_SPHERE",
+    "bl_idname": "GeometryNodeMeshIcoSphere",
+    "location": [
+      5707.73095703125,
+      842.9754028320312
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Mesh",
+        "to_node": "Instance on Points.001",
+        "to_socket": "Instance"
+      }
+    ]
+  },
+  {
+    "name": "Viewer",
+    "label": "",
+    "type": "VIEWER",
+    "bl_idname": "GeometryNodeViewer",
+    "location": [
+      6260.63037109375,
+      722.8081665039062
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Instances",
+        "from_node": "Instance on Points.001",
+        "from_socket": "Instances"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Join Geometry.001",
+    "label": "",
+    "type": "JOIN_GEOMETRY",
+    "bl_idname": "GeometryNodeJoinGeometry",
+    "location": [
+      6444.70751953125,
+      207.68032836914062
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Instance on Points.001",
+        "from_socket": "Instances"
+      },
+      {
+        "socket_name": "Geometry",
+        "from_node": "Set Shade Smooth.001",
+        "from_socket": "Mesh"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Switch",
+        "to_socket": "True"
+      }
+    ]
+  },
+  {
+    "name": "Math.006",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      540.3585815429688,
+      552.4495849609375
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Iteration"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Math.016",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      982.3814697265625,
+      382.46661376953125
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Math.017",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Resample Curve.003",
+    "label": "",
+    "type": "RESAMPLE_CURVE",
+    "bl_idname": "GeometryNodeResampleCurve",
+    "location": [
+      3313.771728515625,
+      219.8671875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Curve",
+        "from_node": "Store Named Attribute.011",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Curve",
+        "to_node": "Store Named Attribute.003",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Switch",
+    "label": "",
+    "type": "SWITCH",
+    "bl_idname": "GeometryNodeSwitch",
+    "location": [
+      6667.45068359375,
+      264.6097106933594
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "False",
+        "from_node": "Set Shade Smooth.001",
+        "from_socket": "Mesh"
+      },
+      {
+        "socket_name": "True",
+        "from_node": "Join Geometry.001",
+        "from_socket": "Geometry"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Output",
+        "to_node": "Group Output",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Math.017",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      802.4000244140625,
+      378.78192138671875
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Repeat Input.001",
+        "from_socket": "Iteration"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.016",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Set Position",
+    "label": "",
+    "type": "SET_POSITION",
+    "bl_idname": "GeometryNodeSetPosition",
+    "location": [
+      2884.261474609375,
+      236.10140991210938
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Geometry",
+        "from_node": "Realize Instances",
+        "from_socket": "Geometry"
+      },
+      {
+        "socket_name": "Selection",
+        "from_node": "Boolean Math.006",
+        "from_socket": "Boolean"
+      },
+      {
+        "socket_name": "Offset",
+        "from_node": "Vector Math.003",
+        "from_socket": "Vector"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Geometry",
+        "to_node": "Store Named Attribute.011",
+        "to_socket": "Geometry"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math.005",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      2302.634521484375,
+      687.0411987304688
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Named Attribute.004",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "Endpoint Selection",
+    "label": "",
+    "type": "CURVE_ENDPOINT_SELECTION",
+    "bl_idname": "GeometryNodeCurveEndpointSelection",
+    "location": [
+      2416.399169921875,
+      432.2845153808594
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Selection",
+        "to_node": "Boolean Math.006",
+        "to_socket": "Boolean"
+      }
+    ]
+  },
+  {
+    "name": "Boolean Math.006",
+    "label": "",
+    "type": "BOOLEAN_MATH",
+    "bl_idname": "FunctionNodeBooleanMath",
+    "location": [
+      2617.7412109375,
+      408.4360656738281
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Boolean",
+        "from_node": "Endpoint Selection",
+        "from_socket": "Selection"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Boolean",
+        "to_node": "Set Position",
+        "to_socket": "Selection"
+      }
+    ]
+  },
+  {
+    "name": "Vector Math.003",
+    "label": "",
+    "type": "VECT_MATH",
+    "bl_idname": "ShaderNodeVectorMath",
+    "location": [
+      2715.028564453125,
+      160.84170532226562
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Scale",
+        "from_node": "Math.018",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Vector",
+        "to_node": "Set Position",
+        "to_socket": "Offset"
+      }
+    ]
+  },
+  {
+    "name": "Math.018",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      2488.767578125,
+      -5.621218681335449
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Easing.003",
+        "from_socket": "Value"
+      },
+      {
+        "socket_name": "Value",
+        "from_node": "Math.019",
+        "from_socket": "Value"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Vector Math.003",
+        "to_socket": "Scale"
+      }
+    ]
+  },
+  {
+    "name": "Easing.003",
+    "label": "",
+    "type": "GROUP",
+    "bl_idname": "GeometryNodeGroup",
+    "location": [
+      2308.7041015625,
+      -200.11920166015625
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Spline Parameter.001",
+        "from_socket": "Factor"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.018",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Named Attribute.008",
+    "label": "",
+    "type": "INPUT_ATTRIBUTE",
+    "bl_idname": "GeometryNodeInputNamedAttribute",
+    "location": [
+      2128.28564453125,
+      70.63240051269531
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [],
+    "outputs": [
+      {
+        "socket_name": "Attribute",
+        "to_node": "Math.019",
+        "to_socket": "Value"
+      }
+    ]
+  },
+  {
+    "name": "Math.019",
+    "label": "",
+    "type": "MATH",
+    "bl_idname": "ShaderNodeMath",
+    "location": [
+      2307.52099609375,
+      44.62665557861328
+    ],
+    "width": 140.0,
+    "height": 100.0,
+    "parent": null,
+    "inputs": [
+      {
+        "socket_name": "Value",
+        "from_node": "Named Attribute.008",
+        "from_socket": "Attribute"
+      }
+    ],
+    "outputs": [
+      {
+        "socket_name": "Value",
+        "to_node": "Math.018",
+        "to_socket": "Value"
+      }
+    ]
+  }
+]

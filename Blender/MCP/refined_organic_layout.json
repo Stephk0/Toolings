@@ -1,0 +1,1031 @@
+{
+  "positions": {
+    "Math.001": [
+      877.7427715630198,
+      -4676.2613029344175
+    ],
+    "Group Input": [
+      1006.6081079546609,
+      -4597.860320777966
+    ],
+    "Math.007": [
+      347.8437712871337,
+      -5613.958932382766
+    ],
+    "Random Value": [
+      751.2841738218196,
+      -4685.088207398946
+    ],
+    "Compare.001": [
+      755.4128166641437,
+      -4565.613218675922
+    ],
+    "Separate XYZ": [
+      906.5496001385958,
+      -4380.6088260126835
+    ],
+    "Boolean Math.004": [
+      886.5544217885187,
+      -4615.790901649318
+    ],
+    "Random Value.003": [
+      1049.0635598409865,
+      -4134.88008192908
+    ],
+    "Math.015": [
+      994.8273436040099,
+      -4972.596466968339
+    ],
+    "Mesh to Curve": [
+      963.2892500724868,
+      -4517.450895198394
+    ],
+    "Math.008": [
+      825.3496093495398,
+      -4795.0313002519515
+    ],
+    "Vector Math.001": [
+      1101.5315325280603,
+      -5524.95702257868
+    ],
+    "Random Value.001": [
+      827.0211006637843,
+      -5259.175324282569
+    ],
+    "Spline Parameter.002": [
+      811.1223516293704,
+      -4486.4939721026085
+    ],
+    "Easing.002": [
+      983.5989022869513,
+      -4635.8672219948185
+    ],
+    "Named Attribute.001": [
+      759.5705700438838,
+      -5356.296123565655
+    ],
+    "Clamp.001": [
+      1095.6963207577144,
+      -5397.237467424195
+    ],
+    "Math.003": [
+      844.1897617408014,
+      -5482.312206789929
+    ],
+    "Math.004": [
+      1106.0198595853115,
+      -5748.596545756426
+    ],
+    "Math.002": [
+      756.0437630501024,
+      -5220.2803321062565
+    ],
+    "Boolean NOT": [
+      755.095958644653,
+      -4997.092308136139
+    ],
+    "Math.010": [
+      910.3319692251453,
+      -5041.003322645866
+    ],
+    "Math.009": [
+      788.9370296598092,
+      -4872.478743899935
+    ],
+    "Math.011": [
+      729.0113517400894,
+      -4820.017368095276
+    ],
+    "Delete Geometry": [
+      1066.997669659736,
+      -5256.955598214115
+    ],
+    "Math.017": [
+      989.444402810917,
+      -5033.987868666099
+    ],
+    "Repeat Input.001": [
+      1206.760593481513,
+      -4982.103070201219
+    ],
+    "Math.012": [
+      713.8133763151887,
+      -4893.031572885362
+    ],
+    "Curve to Points": [
+      831.2226192621403,
+      -5133.643245302456
+    ],
+    "Math.006": [
+      821.8983195461798,
+      -4932.137484574252
+    ],
+    "Store Named Attribute.001": [
+      2244.0588226500904,
+      -4558.922594151178
+    ],
+    "Store Named Attribute": [
+      2224.9101741162012,
+      -4431.358721775597
+    ],
+    "Resample Curve": [
+      2077.4627759575696,
+      -4443.292110470415
+    ],
+    "Compare": [
+      2171.7441982935175,
+      -4812.389800559612
+    ],
+    "Boolean Math": [
+      1926.2009307722756,
+      -4668.607778417513
+    ],
+    "Named Attribute": [
+      2059.1578271318367,
+      -4773.687370879228
+    ],
+    "Store Named Attribute.003": [
+      2405.078944564643,
+      -5344.025947474704
+    ],
+    "Resample Curve.003": [
+      2459.1431433110542,
+      -5630.08552147908
+    ],
+    "Math": [
+      2132.290962823974,
+      -5120.851175678624
+    ],
+    "Store Named Attribute.007": [
+      2400.409530976865,
+      -4818.40228094326
+    ],
+    "Store Named Attribute.009": [
+      2152.8276135863102,
+      -4898.93434155642
+    ],
+    "Endpoint Selection.003": [
+      2281.3748868903053,
+      -4851.918663842114
+    ],
+    "Position": [
+      2053.9884140146282,
+      -4236.69885203986
+    ],
+    "Math.016": [
+      2041.239879384875,
+      -4984.998247314561
+    ],
+    "Math.005": [
+      3432.2343579497983,
+      -5252.015877130733
+    ],
+    "Store Named Attribute.004": [
+      3557.8207686400015,
+      -5277.184517941955
+    ],
+    "Join Geometry": [
+      3456.565574938959,
+      -5311.897862838338
+    ],
+    "Boolean Math.003": [
+      3861.523925963381,
+      -5326.211354664952
+    ],
+    "Resample Curve.001": [
+      3716.0532094684872,
+      -5243.196094573494
+    ],
+    "Endpoint Selection.001": [
+      3724.836900004228,
+      -4658.673310989504
+    ],
+    "Store Named Attribute.002": [
+      3532.4458221964237,
+      -4592.817584048136
+    ],
+    "Store Named Attribute.005": [
+      3572.533434259326,
+      -4703.674032352575
+    ],
+    "Store Named Attribute.008": [
+      3871.1360908408124,
+      -5817.464720174122
+    ],
+    "Random Value.002": [
+      3734.173802511533,
+      -5874.841801345899
+    ],
+    "Boolean Math.001": [
+      3830.7339682935935,
+      -5715.783146724804
+    ],
+    "Vector Math": [
+      3403.7225403592524,
+      -5444.254376226801
+    ],
+    "Endpoint Selection.004": [
+      3793.8093808804992,
+      -5551.804933686256
+    ],
+    "Realize Instances": [
+      3901.184859034151,
+      -5993.861646763779
+    ],
+    "Instance on Points": [
+      3543.597156295683,
+      -5708.75054822988
+    ],
+    "Duplicate Elements": [
+      3696.3083379168984,
+      -5807.438850440684
+    ],
+    "Repeat Output.001": [
+      3897.0605180392417,
+      -5518.150167880553
+    ],
+    "Curve to Points.001": [
+      3955.1679374673818,
+      -5654.422055272261
+    ],
+    "Named Attribute.005": [
+      3942.612326952262,
+      -5752.6876795645
+    ],
+    "Viewer.003": [
+      3811.614371118998,
+      -5617.553124177925
+    ],
+    "Easing.001": [
+      3437.9613394428075,
+      -6131.231273779485
+    ],
+    "Spline Parameter.001": [
+      3871.810153661773,
+      -6421.019789455413
+    ],
+    "Capture Attribute": [
+      3681.3742754848854,
+      -6051.321680614092
+    ],
+    "Store Named Attribute.010": [
+      3449.569484201288,
+      -5799.878635749036
+    ],
+    "Viewer.001": [
+      3722.6024898724545,
+      -6244.763038838309
+    ],
+    "Sample Index": [
+      3620.34385492929,
+      -6109.067712345833
+    ],
+    "Store Named Attribute.011": [
+      3775.4754140956816,
+      -6158.045609752909
+    ],
+    "Boolean": [
+      3657.6310651720246,
+      -6172.469883763326
+    ],
+    "Position.001": [
+      3767.708792758871,
+      -6054.75149170235
+    ],
+    "Curve to Mesh.001": [
+      5374.7585128930095,
+      -5755.766499307861
+    ],
+    "Set Curve Radius.001": [
+      5117.487506985189,
+      -5588.338212806674
+    ],
+    "Named Attribute.003": [
+      5429.798227822604,
+      -5553.126387731281
+    ],
+    "Merge by Distance": [
+      5281.451082084159,
+      -5757.2853639983
+    ],
+    "Curve Circle.001": [
+      5284.823851914798,
+      -5656.248038788883
+    ],
+    "Reroute": [
+      5274.309708325567,
+      -5567.189341299812
+    ],
+    "Ico Sphere": [
+      5222.60954805633,
+      -5988.527161473344
+    ],
+    "Viewer": [
+      5236.330254257886,
+      -5908.789560662886
+    ],
+    "Instance on Points.001": [
+      5108.501637072257,
+      -5869.446833458443
+    ],
+    "Resample Curve.002": [
+      5202.278005287192,
+      -6242.15082254144
+    ],
+    "Endpoint Selection.002": [
+      5211.410391679399,
+      -6150.257649441825
+    ],
+    "Spiral": [
+      5276.038657629131,
+      -6234.5130236966115
+    ],
+    "Store Named Attribute.006": [
+      5074.051988842504,
+      -6102.602561040984
+    ],
+    "Boolean Math.005": [
+      5222.414764753328,
+      -5802.7254525706085
+    ],
+    "Boolean Math.002": [
+      5046.287579738242,
+      -5654.641352647273
+    ],
+    "Named Attribute.004": [
+      5193.216455658201,
+      -5707.586493094126
+    ],
+    "Named Attribute.002": [
+      5038.005430531131,
+      -5478.18670930199
+    ],
+    "Viewer.002": [
+      5286.272655568638,
+      -6086.707555572525
+    ],
+    "Named Attribute.007": [
+      5266.835080016154,
+      -6319.752215436622
+    ],
+    "Vector Math.003": [
+      5192.323763862792,
+      -6607.4692519657065
+    ],
+    "Boolean Math.006": [
+      5215.279705646525,
+      -6522.467281552233
+    ],
+    "Math.018": [
+      5218.9869419874085,
+      -6765.691673520701
+    ],
+    "Set Position": [
+      4972.130374906874,
+      -6351.921964641024
+    ],
+    "Named Attribute.008": [
+      5243.825641761005,
+      -6998.995932200282
+    ],
+    "Math.019": [
+      5243.53138240433,
+      -6894.282976757668
+    ],
+    "Endpoint Selection": [
+      5268.719482768681,
+      -6668.473751867925
+    ],
+    "Easing.003": [
+      5063.046034648097,
+      -6656.0456029701045
+    ],
+    "Switch": [
+      6694.568705692822,
+      -5944.049857039021
+    ],
+    "Group Output": [
+      6765.096508541794,
+      -5932.715594237643
+    ],
+    "Set Shade Smooth.001": [
+      6565.408750727496,
+      -5865.745092993396
+    ],
+    "Join Geometry.001": [
+      6527.801105337471,
+      -5945.045389622217
+    ],
+    "Math.014": [
+      6725.532531127687,
+      -5587.328719340879
+    ],
+    "Math.013": [
+      6577.808052473668,
+      -5567.954633222015
+    ],
+    "Vector Math.002": [
+      6748.431457252731,
+      -5487.574557883726
+    ],
+    "Noise Texture": [
+      6748.848490446396,
+      -5393.0858493569185
+    ],
+    "Reroute_Group Input_0": [
+      -600.1078828811645,
+      26.598183250427248
+    ],
+    "Reroute_Group Input_1": [
+      -662.9961883544922,
+      -25.501266670227054
+    ],
+    "Reroute_Repeat Input.001_0": [
+      284.1584424972534,
+      428.40662384033203
+    ],
+    "Reroute_Repeat Input.001_1": [
+      374.2009084701538,
+      324.7328533172607
+    ],
+    "Reroute_Instance on Points_0": [
+      2132.1742553710938,
+      318.78212483723956
+    ],
+    "Reroute_Instance on Points_1": [
+      2086.047403971354,
+      365.57149378458655
+    ],
+    "Reroute_Curve to Mesh.001_0": [
+      5750.461344401041,
+      -69.48260593414307
+    ],
+    "Reroute_Curve to Mesh.001_1": [
+      5621.109944661459,
+      -217.1930694580078
+    ],
+    "Reroute_Capture Attribute_0": [
+      1823.403564453125,
+      179.49908828735352
+    ],
+    "Reroute_Capture Attribute_1": [
+      1957.1893717447917,
+      116.39519755045572
+    ]
+  },
+  "clusters": [
+    {
+      "id": 6,
+      "nodes": [
+        "Math.001"
+      ],
+      "center": [
+        0,
+        0
+      ],
+      "density": 0.0,
+      "layer": 0
+    },
+    {
+      "id": 5,
+      "nodes": [
+        "Group Input",
+        "Math.007",
+        "Random Value",
+        "Compare.001",
+        "Separate XYZ",
+        "Boolean Math.004",
+        "Random Value.003",
+        "Math.015",
+        "Mesh to Curve",
+        "Math.008"
+      ],
+      "center": [
+        0,
+        -500
+      ],
+      "density": 0.45454545454545453,
+      "layer": 0
+    },
+    {
+      "id": 25,
+      "nodes": [
+        "Vector Math.001",
+        "Random Value.001"
+      ],
+      "center": [
+        0,
+        -1600
+      ],
+      "density": 0.3333333333333333,
+      "layer": 0
+    },
+    {
+      "id": 72,
+      "nodes": [
+        "Spline Parameter.002",
+        "Easing.002"
+      ],
+      "center": [
+        0,
+        -2300
+      ],
+      "density": 0.3333333333333333,
+      "layer": 0
+    },
+    {
+      "id": 23,
+      "nodes": [
+        "Named Attribute.001",
+        "Clamp.001",
+        "Math.003",
+        "Math.004",
+        "Math.002"
+      ],
+      "center": [
+        0,
+        -3000
+      ],
+      "density": 0.5714285714285714,
+      "layer": 0
+    },
+    {
+      "id": 16,
+      "nodes": [
+        "Boolean NOT",
+        "Math.010",
+        "Math.009",
+        "Math.011",
+        "Delete Geometry",
+        "Math.017",
+        "Repeat Input.001",
+        "Math.012",
+        "Curve to Points",
+        "Math.006"
+      ],
+      "center": [
+        0,
+        -3900
+      ],
+      "density": 0.5625,
+      "layer": 0
+    },
+    {
+      "id": 12,
+      "nodes": [
+        "Store Named Attribute.001",
+        "Store Named Attribute",
+        "Resample Curve"
+      ],
+      "center": [
+        1500,
+        -5000
+      ],
+      "density": 0.4,
+      "layer": 1
+    },
+    {
+      "id": 20,
+      "nodes": [
+        "Compare",
+        "Boolean Math",
+        "Named Attribute"
+      ],
+      "center": [
+        1500,
+        -5700
+      ],
+      "density": 0.3333333333333333,
+      "layer": 1
+    },
+    {
+      "id": 30,
+      "nodes": [
+        "Store Named Attribute.003",
+        "Resample Curve.003",
+        "Math"
+      ],
+      "center": [
+        1500,
+        -6400
+      ],
+      "density": 0.3333333333333333,
+      "layer": 1
+    },
+    {
+      "id": 74,
+      "nodes": [
+        "Store Named Attribute.007",
+        "Store Named Attribute.009",
+        "Endpoint Selection.003"
+      ],
+      "center": [
+        1500,
+        -7100
+      ],
+      "density": 0.5,
+      "layer": 1
+    },
+    {
+      "id": 82,
+      "nodes": [
+        "Position"
+      ],
+      "center": [
+        1500,
+        -7800
+      ],
+      "density": 0.0,
+      "layer": 1
+    },
+    {
+      "id": 101,
+      "nodes": [
+        "Math.016"
+      ],
+      "center": [
+        1500,
+        -8300
+      ],
+      "density": 0.0,
+      "layer": 1
+    },
+    {
+      "id": 71,
+      "nodes": [
+        "Math.005",
+        "Store Named Attribute.004",
+        "Join Geometry",
+        "Boolean Math.003",
+        "Resample Curve.001"
+      ],
+      "center": [
+        3000,
+        -5000
+      ],
+      "density": 0.4444444444444444,
+      "layer": 2
+    },
+    {
+      "id": 58,
+      "nodes": [
+        "Endpoint Selection.001",
+        "Store Named Attribute.002",
+        "Store Named Attribute.005"
+      ],
+      "center": [
+        3000,
+        -5900
+      ],
+      "density": 0.5,
+      "layer": 2
+    },
+    {
+      "id": 27,
+      "nodes": [
+        "Store Named Attribute.008",
+        "Random Value.002",
+        "Boolean Math.001",
+        "Vector Math",
+        "Endpoint Selection.004",
+        "Realize Instances",
+        "Instance on Points",
+        "Duplicate Elements"
+      ],
+      "center": [
+        3000,
+        -6600
+      ],
+      "density": 0.5,
+      "layer": 2
+    },
+    {
+      "id": 96,
+      "nodes": [
+        "Repeat Output.001",
+        "Curve to Points.001",
+        "Named Attribute.005",
+        "Viewer.003"
+      ],
+      "center": [
+        3000,
+        -7500
+      ],
+      "density": 0.42857142857142855,
+      "layer": 2
+    },
+    {
+      "id": 67,
+      "nodes": [
+        "Easing.001",
+        "Spline Parameter.001"
+      ],
+      "center": [
+        3000,
+        -8200
+      ],
+      "density": 0.3333333333333333,
+      "layer": 2
+    },
+    {
+      "id": 89,
+      "nodes": [
+        "Capture Attribute",
+        "Store Named Attribute.010",
+        "Viewer.001",
+        "Sample Index",
+        "Store Named Attribute.011",
+        "Boolean",
+        "Position.001"
+      ],
+      "center": [
+        3000,
+        -8900
+      ],
+      "density": 0.6153846153846154,
+      "layer": 2
+    },
+    {
+      "id": 36,
+      "nodes": [
+        "Curve to Mesh.001",
+        "Set Curve Radius.001",
+        "Named Attribute.003",
+        "Merge by Distance",
+        "Curve Circle.001",
+        "Reroute"
+      ],
+      "center": [
+        4500,
+        -5000
+      ],
+      "density": 0.6,
+      "layer": 3
+    },
+    {
+      "id": 98,
+      "nodes": [
+        "Ico Sphere",
+        "Viewer",
+        "Instance on Points.001"
+      ],
+      "center": [
+        4500,
+        -5900
+      ],
+      "density": 0.4,
+      "layer": 3
+    },
+    {
+      "id": 64,
+      "nodes": [
+        "Resample Curve.002",
+        "Endpoint Selection.002",
+        "Spiral",
+        "Store Named Attribute.006"
+      ],
+      "center": [
+        4500,
+        -6600
+      ],
+      "density": 0.75,
+      "layer": 3
+    },
+    {
+      "id": 62,
+      "nodes": [
+        "Boolean Math.005",
+        "Boolean Math.002",
+        "Named Attribute.004",
+        "Named Attribute.002"
+      ],
+      "center": [
+        4500,
+        -7300
+      ],
+      "density": 0.6,
+      "layer": 3
+    },
+    {
+      "id": 90,
+      "nodes": [
+        "Viewer.002",
+        "Named Attribute.007"
+      ],
+      "center": [
+        4500,
+        -8000
+      ],
+      "density": 0.5,
+      "layer": 3
+    },
+    {
+      "id": 105,
+      "nodes": [
+        "Vector Math.003",
+        "Boolean Math.006",
+        "Math.018",
+        "Set Position",
+        "Named Attribute.008",
+        "Math.019",
+        "Endpoint Selection",
+        "Easing.003"
+      ],
+      "center": [
+        4500,
+        -8700
+      ],
+      "density": 0.7,
+      "layer": 3
+    },
+    {
+      "id": 43,
+      "nodes": [
+        "Switch",
+        "Group Output",
+        "Set Shade Smooth.001",
+        "Join Geometry.001"
+      ],
+      "center": [
+        6000,
+        -5000
+      ],
+      "density": 0.6666666666666666,
+      "layer": 4
+    },
+    {
+      "id": 86,
+      "nodes": [
+        "Math.014",
+        "Math.013",
+        "Vector Math.002",
+        "Noise Texture"
+      ],
+      "center": [
+        6000,
+        -5700
+      ],
+      "density": 0.75,
+      "layer": 4
+    }
+  ],
+  "reroute_nodes": [
+    {
+      "name": "Reroute_Group Input_0",
+      "position": [
+        -600.1078828811645,
+        26.598183250427248
+      ],
+      "source": "Group Input",
+      "targets": [
+        "Compare.001",
+        "Repeat Input.001",
+        "Math.001",
+        "Math.002",
+        "Mesh to Curve"
+      ],
+      "group": 0
+    },
+    {
+      "name": "Reroute_Group Input_1",
+      "position": [
+        -662.9961883544922,
+        -25.501266670227054
+      ],
+      "source": "Group Input",
+      "targets": [
+        "Easing.002",
+        "Random Value.001",
+        "Random Value.003",
+        "Random Value",
+        "Math.008"
+      ],
+      "group": 1
+    },
+    {
+      "name": "Reroute_Repeat Input.001_0",
+      "position": [
+        284.1584424972534,
+        428.40662384033203
+      ],
+      "source": "Repeat Input.001",
+      "targets": [
+        "Curve to Points",
+        "Math.006",
+        "Math",
+        "Math.009"
+      ],
+      "group": 0
+    },
+    {
+      "name": "Reroute_Repeat Input.001_1",
+      "position": [
+        374.2009084701538,
+        324.7328533172607
+      ],
+      "source": "Repeat Input.001",
+      "targets": [
+        "Join Geometry",
+        "Group Input",
+        "Store Named Attribute.009",
+        "Math.010",
+        "Math.017"
+      ],
+      "group": 1
+    },
+    {
+      "name": "Reroute_Instance on Points_0",
+      "position": [
+        2132.1742553710938,
+        318.78212483723956
+      ],
+      "source": "Instance on Points",
+      "targets": [
+        "Realize Instances",
+        "Vector Math.001",
+        "Duplicate Elements"
+      ],
+      "group": 0
+    },
+    {
+      "name": "Reroute_Instance on Points_1",
+      "position": [
+        2086.047403971354,
+        365.57149378458655
+      ],
+      "source": "Instance on Points",
+      "targets": [
+        "Vector Math",
+        "Store Named Attribute.008",
+        "Boolean Math.001"
+      ],
+      "group": 1
+    },
+    {
+      "name": "Reroute_Curve to Mesh.001_0",
+      "position": [
+        5750.461344401041,
+        -69.48260593414307
+      ],
+      "source": "Curve to Mesh.001",
+      "targets": [
+        "Reroute",
+        "Set Shade Smooth.001",
+        "Viewer.002"
+      ],
+      "group": 0
+    },
+    {
+      "name": "Reroute_Curve to Mesh.001_1",
+      "position": [
+        5621.109944661459,
+        -217.1930694580078
+      ],
+      "source": "Curve to Mesh.001",
+      "targets": [
+        "Merge by Distance",
+        "Set Curve Radius.001",
+        "Curve Circle.001"
+      ],
+      "group": 1
+    },
+    {
+      "name": "Reroute_Capture Attribute_0",
+      "position": [
+        1823.403564453125,
+        179.49908828735352
+      ],
+      "source": "Capture Attribute",
+      "targets": [
+        "Sample Index",
+        "Position.001",
+        "Store Named Attribute.010"
+      ],
+      "group": 0
+    },
+    {
+      "name": "Reroute_Capture Attribute_1",
+      "position": [
+        1957.1893717447917,
+        116.39519755045572
+      ],
+      "source": "Capture Attribute",
+      "targets": [
+        "Store Named Attribute.011",
+        "Duplicate Elements",
+        "Boolean"
+      ],
+      "group": 1
+    }
+  ],
+  "dimensions": {
+    "width": 7428.092696896286,
+    "height": 7427.402556040614,
+    "bounds": {
+      "min_x": -662.9961883544922,
+      "max_x": 6765.096508541794,
+      "min_y": -6998.995932200282,
+      "max_y": 428.40662384033203
+    }
+  }
+}

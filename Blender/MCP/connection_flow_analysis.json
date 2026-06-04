@@ -1,0 +1,1852 @@
+{
+  "metrics": {
+    "total_connections": 140,
+    "total_crossings": 87,
+    "average_length": 706.1046543027663,
+    "max_length": 5624.038639845782,
+    "long_connections": 16,
+    "backwards_connections": 3,
+    "angle_variance": 0.36723442685493013,
+    "visual_noise_score": 128
+  },
+  "crossings_sample": [
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Store Named Attribute.001 -> Store Named Attribute.002"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Named Attribute -> Math.008"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Compare -> Boolean Math"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Math -> Store Named Attribute.003"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Math -> Compare"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Repeat Input.001 -> Math"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Random Value.002 -> Duplicate Elements"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Vector Math -> Instance on Points"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Boolean Math.004 -> Boolean NOT"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Position.001 -> Capture Attribute"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Boolean -> Capture Attribute"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Easing.002 -> Store Named Attribute.001"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Math.018 -> Vector Math.003"
+    },
+    {
+      "from": "Group Input -> Math.002",
+      "crosses": "Math.019 -> Math.018"
+    },
+    {
+      "from": "Group Input -> Math.008",
+      "crosses": "Store Named Attribute.002 -> Store Named Attribute.005"
+    },
+    {
+      "from": "Group Input -> Math.008",
+      "crosses": "Math.001 -> Boolean Math"
+    },
+    {
+      "from": "Group Input -> Math.008",
+      "crosses": "Compare.001 -> Boolean Math.004"
+    },
+    {
+      "from": "Group Input -> Math.008",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Store Named Attribute.001 -> Store Named Attribute.002"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Named Attribute -> Math.008"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Compare -> Boolean Math"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Math -> Store Named Attribute.003"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Math -> Compare"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Repeat Input.001 -> Math"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Spline Parameter.002 -> Easing.002"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Boolean Math.004 -> Boolean NOT"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Store Named Attribute.001 -> Store Named Attribute.002"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Named Attribute -> Math.008"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Compare -> Boolean Math"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Math -> Store Named Attribute.003"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Math -> Compare"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Repeat Input.001 -> Math"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Spline Parameter.002 -> Easing.002"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Boolean Math.004 -> Boolean NOT"
+    },
+    {
+      "from": "Group Input -> Random Value.003",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Math.001",
+      "crosses": "Store Named Attribute.002 -> Store Named Attribute.005"
+    },
+    {
+      "from": "Group Input -> Math.001",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Compare.001",
+      "crosses": "Store Named Attribute.002 -> Store Named Attribute.005"
+    },
+    {
+      "from": "Group Input -> Compare.001",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Random Value",
+      "crosses": "Store Named Attribute.002 -> Store Named Attribute.005"
+    },
+    {
+      "from": "Group Input -> Random Value",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Random Value.001",
+      "crosses": "Store Named Attribute.001 -> Store Named Attribute.002"
+    },
+    {
+      "from": "Group Input -> Random Value.001",
+      "crosses": "Repeat Input.001 -> Math"
+    },
+    {
+      "from": "Group Input -> Random Value.001",
+      "crosses": "Store Named Attribute.009 -> Repeat Input.001"
+    },
+    {
+      "from": "Group Input -> Random Value.001",
+      "crosses": "Easing.002 -> Store Named Attribute.001"
+    },
+    {
+      "from": "Group Input -> Repeat Input.001",
+      "crosses": "Store Named Attribute -> Store Named Attribute.001"
+    },
+    {
+      "from": "Curve to Points -> Delete Geometry",
+      "crosses": "Random Value.001 -> Vector Math.001"
+    },
+    {
+      "from": "Named Attribute -> Math.008",
+      "crosses": "Compare -> Boolean Math"
+    }
+  ],
+  "clusters": {
+    "adjacency": {
+      "Group Input": [
+        "Compare.001",
+        "Repeat Input.001",
+        "Math.001",
+        "Math.002",
+        "Mesh to Curve",
+        "Easing.002",
+        "Random Value.001",
+        "Random Value.003",
+        "Random Value",
+        "Math.008"
+      ],
+      "Math.002": [
+        "Named Attribute.001",
+        "Group Input",
+        "Math.003"
+      ],
+      "Math.008": [
+        "Group Input",
+        "Named Attribute",
+        "Math.007"
+      ],
+      "Random Value.003": [
+        "Group Input",
+        "Math.015"
+      ],
+      "Math.001": [
+        "Random Value",
+        "Group Input",
+        "Boolean Math"
+      ],
+      "Compare.001": [
+        "Group Input",
+        "Separate XYZ",
+        "Boolean Math.004"
+      ],
+      "Random Value": [
+        "Group Input",
+        "Math.001"
+      ],
+      "Random Value.001": [
+        "Vector Math.001",
+        "Group Input"
+      ],
+      "Repeat Input.001": [
+        "Curve to Points",
+        "Math.006",
+        "Math",
+        "Math.009",
+        "Join Geometry",
+        "Group Input",
+        "Store Named Attribute.009",
+        "Math.010",
+        "Math.017"
+      ],
+      "Mesh to Curve": [
+        "Group Input",
+        "Resample Curve"
+      ],
+      "Easing.002": [
+        "Spline Parameter.002",
+        "Group Input",
+        "Store Named Attribute.001"
+      ],
+      "Resample Curve": [
+        "Store Named Attribute",
+        "Mesh to Curve"
+      ],
+      "Store Named Attribute": [
+        "Resample Curve",
+        "Store Named Attribute.001"
+      ],
+      "Store Named Attribute.001": [
+        "Store Named Attribute",
+        "Store Named Attribute.002",
+        "Easing.002"
+      ],
+      "Store Named Attribute.002": [
+        "Store Named Attribute.005",
+        "Store Named Attribute.001"
+      ],
+      "Store Named Attribute.005": [
+        "Endpoint Selection.001",
+        "Store Named Attribute.007",
+        "Store Named Attribute.002"
+      ],
+      "Curve to Points": [
+        "Repeat Input.001",
+        "Delete Geometry"
+      ],
+      "Delete Geometry": [
+        "Curve to Points",
+        "Store Named Attribute.010",
+        "Boolean NOT"
+      ],
+      "Named Attribute": [
+        "Compare",
+        "Math.008"
+      ],
+      "Compare": [
+        "Boolean Math",
+        "Math",
+        "Named Attribute"
+      ],
+      "Boolean Math": [
+        "Compare",
+        "Math.001",
+        "Boolean Math.004"
+      ],
+      "Boolean Math.004": [
+        "Compare.001",
+        "Boolean Math",
+        "Boolean NOT"
+      ],
+      "Store Named Attribute.010": [
+        "Capture Attribute",
+        "Boolean Math.001",
+        "Delete Geometry",
+        "Sample Index"
+      ],
+      "Named Attribute.001": [
+        "Math.002"
+      ],
+      "Math.003": [
+        "Math.002",
+        "Clamp.001",
+        "Math.004"
+      ],
+      "Vector Math.001": [
+        "Random Value.001",
+        "Instance on Points"
+      ],
+      "Instance on Points": [
+        "Realize Instances",
+        "Vector Math.001",
+        "Duplicate Elements",
+        "Vector Math",
+        "Store Named Attribute.008",
+        "Boolean Math.001"
+      ],
+      "Realize Instances": [
+        "Instance on Points",
+        "Set Position"
+      ],
+      "Set Position": [
+        "Vector Math.003",
+        "Realize Instances",
+        "Boolean Math.006",
+        "Store Named Attribute.011"
+      ],
+      "Store Named Attribute.003": [
+        "Store Named Attribute.004",
+        "Math",
+        "Resample Curve.003"
+      ],
+      "Store Named Attribute.004": [
+        "Math.005",
+        "Store Named Attribute.003",
+        "Join Geometry",
+        "Resample Curve.001"
+      ],
+      "Resample Curve.001": [
+        "Store Named Attribute.004"
+      ],
+      "Join Geometry": [
+        "Store Named Attribute.004",
+        "Repeat Input.001",
+        "Repeat Output.001"
+      ],
+      "Named Attribute.003": [
+        "Reroute",
+        "Math.013"
+      ],
+      "Math.013": [
+        "Math.014",
+        "Named Attribute.003"
+      ],
+      "Reroute": [
+        "Set Curve Radius.001",
+        "Named Attribute.003",
+        "Curve to Mesh.001"
+      ],
+      "Set Curve Radius.001": [
+        "Reroute",
+        "Repeat Output.001",
+        "Curve to Mesh.001"
+      ],
+      "Curve to Mesh.001": [
+        "Reroute",
+        "Set Shade Smooth.001",
+        "Viewer.002",
+        "Merge by Distance",
+        "Set Curve Radius.001",
+        "Curve Circle.001"
+      ],
+      "Curve Circle.001": [
+        "Curve to Mesh.001"
+      ],
+      "Merge by Distance": [
+        "Curve to Mesh.001"
+      ],
+      "Set Shade Smooth.001": [
+        "Join Geometry.001",
+        "Switch",
+        "Curve to Mesh.001"
+      ],
+      "Viewer.002": [
+        "Named Attribute.007",
+        "Curve to Mesh.001"
+      ],
+      "Join Geometry.001": [
+        "Switch",
+        "Set Shade Smooth.001",
+        "Instance on Points.001"
+      ],
+      "Switch": [
+        "Join Geometry.001",
+        "Group Output",
+        "Set Shade Smooth.001"
+      ],
+      "Math": [
+        "Store Named Attribute.003",
+        "Repeat Input.001",
+        "Compare"
+      ],
+      "Boolean NOT": [
+        "Delete Geometry",
+        "Boolean Math.004"
+      ],
+      "Math.010": [
+        "Repeat Input.001"
+      ],
+      "Math.009": [
+        "Repeat Input.001",
+        "Math.012",
+        "Math.011"
+      ],
+      "Math.006": [
+        "Repeat Input.001"
+      ],
+      "Math.017": [
+        "Repeat Input.001",
+        "Math.016"
+      ],
+      "Repeat Output.001": [
+        "Viewer.003",
+        "Join Geometry",
+        "Set Curve Radius.001",
+        "Curve to Points.001"
+      ],
+      "Viewer.003": [
+        "Named Attribute.005",
+        "Repeat Output.001"
+      ],
+      "Curve to Points.001": [
+        "Repeat Output.001",
+        "Instance on Points.001"
+      ],
+      "Spiral": [
+        "Resample Curve.002"
+      ],
+      "Resample Curve.002": [
+        "Store Named Attribute.006",
+        "Spiral"
+      ],
+      "Duplicate Elements": [
+        "Instance on Points",
+        "Capture Attribute",
+        "Random Value.002"
+      ],
+      "Random Value.002": [
+        "Duplicate Elements"
+      ],
+      "Store Named Attribute.007": [
+        "Endpoint Selection.003",
+        "Store Named Attribute.005",
+        "Store Named Attribute.009"
+      ],
+      "Endpoint Selection.001": [
+        "Store Named Attribute.005"
+      ],
+      "Named Attribute.002": [
+        "Boolean Math.002",
+        "Boolean Math.003"
+      ],
+      "Boolean Math.002": [
+        "Boolean Math.001",
+        "Named Attribute.004",
+        "Named Attribute.002"
+      ],
+      "Boolean Math.003": [
+        "Math.005",
+        "Named Attribute.002"
+      ],
+      "Boolean Math.001": [
+        "Instance on Points",
+        "Store Named Attribute.010",
+        "Boolean Math.002"
+      ],
+      "Store Named Attribute.006": [
+        "Store Named Attribute.008",
+        "Resample Curve.002",
+        "Endpoint Selection.002"
+      ],
+      "Store Named Attribute.008": [
+        "Instance on Points",
+        "Store Named Attribute.006",
+        "Endpoint Selection.004"
+      ],
+      "Endpoint Selection.002": [
+        "Store Named Attribute.006"
+      ],
+      "Spline Parameter.001": [
+        "Easing.001",
+        "Easing.003"
+      ],
+      "Easing.001": [
+        "Spline Parameter.001",
+        "Math.004"
+      ],
+      "Easing.003": [
+        "Math.018",
+        "Spline Parameter.001"
+      ],
+      "Clamp.001": [
+        "Math.003",
+        "Math.005"
+      ],
+      "Math.004": [
+        "Math.003",
+        "Easing.001"
+      ],
+      "Math.005": [
+        "Store Named Attribute.004",
+        "Clamp.001",
+        "Boolean Math.003"
+      ],
+      "Spline Parameter.002": [
+        "Easing.002"
+      ],
+      "Store Named Attribute.009": [
+        "Store Named Attribute.007",
+        "Repeat Input.001"
+      ],
+      "Endpoint Selection.003": [
+        "Store Named Attribute.007"
+      ],
+      "Endpoint Selection.004": [
+        "Store Named Attribute.008"
+      ],
+      "Named Attribute.004": [
+        "Boolean Math.002",
+        "Boolean Math.005"
+      ],
+      "Boolean Math.005": [
+        "Named Attribute.004"
+      ],
+      "Vector Math": [
+        "Instance on Points",
+        "Math.015"
+      ],
+      "Math.015": [
+        "Random Value.003",
+        "Vector Math",
+        "Math.007"
+      ],
+      "Math.007": [
+        "Math.015",
+        "Math.008"
+      ],
+      "Position": [
+        "Separate XYZ"
+      ],
+      "Separate XYZ": [
+        "Compare.001",
+        "Position"
+      ],
+      "Math.011": [
+        "Math.009"
+      ],
+      "Math.012": [
+        "Math.009"
+      ],
+      "Noise Texture": [
+        "Vector Math.002"
+      ],
+      "Vector Math.002": [
+        "Noise Texture",
+        "Math.014"
+      ],
+      "Math.014": [
+        "Vector Math.002",
+        "Math.013"
+      ],
+      "Capture Attribute": [
+        "Sample Index",
+        "Position.001",
+        "Store Named Attribute.010",
+        "Store Named Attribute.011",
+        "Duplicate Elements",
+        "Boolean"
+      ],
+      "Sample Index": [
+        "Store Named Attribute.010",
+        "Capture Attribute",
+        "Viewer.001"
+      ],
+      "Named Attribute.007": [
+        "Viewer.002"
+      ],
+      "Store Named Attribute.011": [
+        "Capture Attribute",
+        "Resample Curve.003",
+        "Set Position",
+        "Viewer.001"
+      ],
+      "Position.001": [
+        "Capture Attribute"
+      ],
+      "Boolean": [
+        "Capture Attribute"
+      ],
+      "Viewer.001": [
+        "Sample Index",
+        "Store Named Attribute.011"
+      ],
+      "Resample Curve.003": [
+        "Store Named Attribute.003",
+        "Store Named Attribute.011"
+      ],
+      "Named Attribute.005": [
+        "Viewer.003",
+        "Instance on Points.001"
+      ],
+      "Instance on Points.001": [
+        "Viewer",
+        "Join Geometry.001",
+        "Ico Sphere",
+        "Named Attribute.005",
+        "Curve to Points.001"
+      ],
+      "Viewer": [
+        "Instance on Points.001"
+      ],
+      "Ico Sphere": [
+        "Instance on Points.001"
+      ],
+      "Group Output": [
+        "Switch"
+      ],
+      "Math.016": [
+        "Math.017"
+      ],
+      "Endpoint Selection": [
+        "Boolean Math.006"
+      ],
+      "Boolean Math.006": [
+        "Set Position",
+        "Endpoint Selection"
+      ],
+      "Vector Math.003": [
+        "Math.018",
+        "Set Position"
+      ],
+      "Math.018": [
+        "Math.019",
+        "Vector Math.003",
+        "Easing.003"
+      ],
+      "Named Attribute.008": [
+        "Math.019"
+      ],
+      "Math.019": [
+        "Math.018",
+        "Named Attribute.008"
+      ]
+    },
+    "strong_pairs": [
+      {
+        "nodes": [
+          "Compare.001",
+          "Group Input"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Math.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Math.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Mesh to Curve"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.002",
+          "Group Input"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Random Value.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Random Value.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Random Value"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Input",
+          "Math.008"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.002",
+          "Named Attribute.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.002",
+          "Math.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.008",
+          "Named Attribute"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.007",
+          "Math.008"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.015",
+          "Random Value.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.001",
+          "Random Value"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math",
+          "Math.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Compare.001",
+          "Separate XYZ"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.004",
+          "Compare.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Random Value.001",
+          "Vector Math.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Points",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.006",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.009",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Join Geometry",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Repeat Input.001",
+          "Store Named Attribute.009"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.010",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.017",
+          "Repeat Input.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Mesh to Curve",
+          "Resample Curve"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.002",
+          "Spline Parameter.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.002",
+          "Store Named Attribute.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Resample Curve",
+          "Store Named Attribute"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute",
+          "Store Named Attribute.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.001",
+          "Store Named Attribute.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.002",
+          "Store Named Attribute.005"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Endpoint Selection.001",
+          "Store Named Attribute.005"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.005",
+          "Store Named Attribute.007"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Points",
+          "Delete Geometry"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Delete Geometry",
+          "Store Named Attribute.010"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean NOT",
+          "Delete Geometry"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Compare",
+          "Named Attribute"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math",
+          "Compare"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Compare",
+          "Math"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math",
+          "Boolean Math.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.004",
+          "Boolean NOT"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Capture Attribute",
+          "Store Named Attribute.010"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.001",
+          "Store Named Attribute.010"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Sample Index",
+          "Store Named Attribute.010"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Clamp.001",
+          "Math.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.003",
+          "Math.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points",
+          "Vector Math.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points",
+          "Realize Instances"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Duplicate Elements",
+          "Instance on Points"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points",
+          "Vector Math"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points",
+          "Store Named Attribute.008"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.001",
+          "Instance on Points"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Realize Instances",
+          "Set Position"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Set Position",
+          "Vector Math.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.006",
+          "Set Position"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Set Position",
+          "Store Named Attribute.011"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.003",
+          "Store Named Attribute.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math",
+          "Store Named Attribute.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Resample Curve.003",
+          "Store Named Attribute.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.005",
+          "Store Named Attribute.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Join Geometry",
+          "Store Named Attribute.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Resample Curve.001",
+          "Store Named Attribute.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Join Geometry",
+          "Repeat Output.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Named Attribute.003",
+          "Reroute"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.013",
+          "Named Attribute.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.013",
+          "Math.014"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Reroute",
+          "Set Curve Radius.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Mesh.001",
+          "Reroute"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Repeat Output.001",
+          "Set Curve Radius.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Mesh.001",
+          "Set Curve Radius.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Mesh.001",
+          "Set Shade Smooth.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Mesh.001",
+          "Viewer.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Mesh.001",
+          "Merge by Distance"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve Circle.001",
+          "Curve to Mesh.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Join Geometry.001",
+          "Set Shade Smooth.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Set Shade Smooth.001",
+          "Switch"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Named Attribute.007",
+          "Viewer.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Join Geometry.001",
+          "Switch"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points.001",
+          "Join Geometry.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Group Output",
+          "Switch"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.009",
+          "Math.012"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.009",
+          "Math.011"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.016",
+          "Math.017"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Repeat Output.001",
+          "Viewer.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Points.001",
+          "Repeat Output.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Named Attribute.005",
+          "Viewer.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Curve to Points.001",
+          "Instance on Points.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Resample Curve.002",
+          "Spiral"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Resample Curve.002",
+          "Store Named Attribute.006"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Capture Attribute",
+          "Duplicate Elements"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Duplicate Elements",
+          "Random Value.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Endpoint Selection.003",
+          "Store Named Attribute.007"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.007",
+          "Store Named Attribute.009"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.002",
+          "Named Attribute.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.003",
+          "Named Attribute.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.001",
+          "Boolean Math.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.002",
+          "Named Attribute.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.003",
+          "Math.005"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.006",
+          "Store Named Attribute.008"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Endpoint Selection.002",
+          "Store Named Attribute.006"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Endpoint Selection.004",
+          "Store Named Attribute.008"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.001",
+          "Spline Parameter.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.003",
+          "Spline Parameter.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.001",
+          "Math.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Easing.003",
+          "Math.018"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Clamp.001",
+          "Math.005"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.005",
+          "Named Attribute.004"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.015",
+          "Vector Math"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.007",
+          "Math.015"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Position",
+          "Separate XYZ"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Noise Texture",
+          "Vector Math.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.014",
+          "Vector Math.002"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Capture Attribute",
+          "Sample Index"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Capture Attribute",
+          "Position.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Capture Attribute",
+          "Store Named Attribute.011"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean",
+          "Capture Attribute"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Sample Index",
+          "Viewer.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Resample Curve.003",
+          "Store Named Attribute.011"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Store Named Attribute.011",
+          "Viewer.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points.001",
+          "Named Attribute.005"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Instance on Points.001",
+          "Viewer"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Ico Sphere",
+          "Instance on Points.001"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Boolean Math.006",
+          "Endpoint Selection"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.018",
+          "Vector Math.003"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.018",
+          "Math.019"
+        ],
+        "count": 2
+      },
+      {
+        "nodes": [
+          "Math.019",
+          "Named Attribute.008"
+        ],
+        "count": 2
+      }
+    ],
+    "avg_degree": 2.4074074074074074
+  },
+  "reroute_opportunities": [
+    {
+      "connection": "Group Input -> Math.002",
+      "reason": "Crosses 15 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        873.0604858398438,
+        21.05836772918701
+      ]
+    },
+    {
+      "connection": "Group Input -> Math.008",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -277.33917236328125,
+        -111.18878364562988
+      ]
+    },
+    {
+      "connection": "Group Input -> Random Value.003",
+      "reason": "Crosses 9 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -254.61187744140625,
+        -23.84023094177246
+      ]
+    },
+    {
+      "connection": "Group Input -> Random Value.003",
+      "reason": "Crosses 9 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -254.61187744140625,
+        -23.84023094177246
+      ]
+    },
+    {
+      "connection": "Group Input -> Math.001",
+      "reason": "Very long (2549 units)",
+      "priority": "medium",
+      "suggested_reroute_pos": [
+        -669.0626831054688,
+        -80.91192054748535
+      ]
+    },
+    {
+      "connection": "Group Input -> Compare.001",
+      "reason": "Very long (2842 units)",
+      "priority": "medium",
+      "suggested_reroute_pos": [
+        -533.7689208984375,
+        -182.1129856109619
+      ]
+    },
+    {
+      "connection": "Group Input -> Random Value",
+      "reason": "Very long (2350 units)",
+      "priority": "medium",
+      "suggested_reroute_pos": [
+        -773.1595611572266,
+        -117.00274085998535
+      ]
+    },
+    {
+      "connection": "Group Input -> Random Value.001",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -554.1743469238281,
+        101.4948787689209
+      ]
+    },
+    {
+      "connection": "Group Input -> Repeat Input.001",
+      "reason": "Very long (2005 units)",
+      "priority": "medium",
+      "suggested_reroute_pos": [
+        -959.057297706604,
+        242.07053184509277
+      ]
+    },
+    {
+      "connection": "Store Named Attribute.001 -> Store Named Attribute.002",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -718.3370971679688,
+        32.871097564697266
+      ]
+    },
+    {
+      "connection": "Store Named Attribute.002 -> Store Named Attribute.005",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -712.9013671875,
+        -159.58906173706055
+      ]
+    },
+    {
+      "connection": "Named Attribute -> Math.008",
+      "reason": "Crosses 7 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        891.9739532470703,
+        -91.2225112915039
+      ]
+    },
+    {
+      "connection": "Compare -> Boolean Math",
+      "reason": "Crosses 5 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        705.7412414550781,
+        0.0
+      ]
+    },
+    {
+      "connection": "Named Attribute.001 -> Math.002",
+      "reason": "Very long (1637 units)",
+      "priority": "medium",
+      "suggested_reroute_pos": [
+        2871.226806640625,
+        -74.55449199676514
+      ]
+    },
+    {
+      "connection": "Math -> Store Named Attribute.003",
+      "reason": "Crosses 11 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        2023.590560913086,
+        67.37313842773438
+      ]
+    },
+    {
+      "connection": "Math -> Compare",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        518.2595977783203,
+        14.835662841796875
+      ]
+    },
+    {
+      "connection": "Repeat Input.001 -> Math",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        214.67468166351318,
+        191.9194793701172
+      ]
+    },
+    {
+      "connection": "Repeat Input.001 -> Join Geometry",
+      "reason": "Crosses 8 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        2511.2971334457397,
+        447.4596252441406
+      ]
+    },
+    {
+      "connection": "Random Value.002 -> Duplicate Elements",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        1586.8289184570312,
+        28.05670928955078
+      ]
+    },
+    {
+      "connection": "Named Attribute.002 -> Boolean Math.003",
+      "reason": "Very long (1754 units)",
+      "priority": "medium",
+      "suggested_reroute_pos": [
+        2661.0421142578125,
+        835.8612670898438
+      ]
+    },
+    {
+      "connection": "Boolean Math.001 -> Store Named Attribute.010",
+      "reason": "Backwards flow (right-to-left)",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        1742.3369140625,
+        291.11722564697266
+      ]
+    },
+    {
+      "connection": "Vector Math -> Instance on Points",
+      "reason": "Crosses 5 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        2120.572265625,
+        184.39076614379883
+      ]
+    },
+    {
+      "connection": "Boolean Math.004 -> Boolean NOT",
+      "reason": "Crosses 5 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        1009.4042358398438,
+        -37.744873046875
+      ]
+    },
+    {
+      "connection": "Store Named Attribute.009 -> Repeat Input.001",
+      "reason": "Crosses 8 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        -341.39265537261963,
+        -89.51237487792969
+      ]
+    },
+    {
+      "connection": "Store Named Attribute.010 -> Sample Index",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        2196.1051025390625,
+        390.45690155029297
+      ]
+    },
+    {
+      "connection": "Capture Attribute -> Sample Index",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        2305.5533447265625,
+        389.4649658203125
+      ]
+    },
+    {
+      "connection": "Capture Attribute -> Store Named Attribute.011",
+      "reason": "Crosses 4 other lines",
+      "priority": "high",
+      "suggested_reroute_pos": [
+        2382.7967529296875,
+        199.87831115722656
+      ]
+    }
+  ]
+}
