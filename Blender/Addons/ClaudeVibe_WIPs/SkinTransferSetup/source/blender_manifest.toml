@@ -1,0 +1,14 @@
+schema_version = "1.0.0"
+
+id = "skin_transfer_setup"
+version = "1.3.0"
+name = "Skin Transfer Setup"
+tagline = "Per-part skin setup: as-is, data transfer, or single-bone bind"
+maintainer = "Stephko <stephko@viranyi.de>"
+type = "add-on"
+
+tags = ["Rigging"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
