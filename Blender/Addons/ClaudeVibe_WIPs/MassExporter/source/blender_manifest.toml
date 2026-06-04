@@ -1,0 +1,17 @@
+schema_version = "1.0.0"
+
+id = "mass_collection_exporter"
+version = "13.6.2"
+name = "Mass Collection Exporter"
+tagline = "Batch export with state-proof isolation (local view / hidden / excluded)"
+maintainer = "Stephko <stephko@viranyi.de>"
+type = "add-on"
+
+tags = ["Import-Export", "Pipeline"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Export files to disk"
