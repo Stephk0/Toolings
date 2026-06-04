@@ -1,0 +1,220 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    PROCEDURAL TREE GENERATOR - QUICK REF                     ║
+║                          Phase 1 MVP - v1.0                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ QUICK START                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+1. Open Blender 4.5+
+2. Scripting Workspace → Open "quick_test_scene.py"
+3. Run Script (▶ icon or Alt+P)
+4. Adjust parameters in Modifier Properties panel
+5. Switch to Geometry Nodes workspace to see nodes
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PARAMETERS                                                                   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+BASE THICKNESS (0.01-2.0m, default: 0.1)
+  ├─ 0.05-0.1  : Small trees, bushes
+  ├─ 0.2-0.5   : Medium trees
+  └─ 0.5-2.0   : Large/ancient trees
+
+BRANCH LENGTH (0.1-10.0m, default: 1.0)
+  ├─ 0.5-1.5   : Compact, bushy
+  ├─ 1.5-3.0   : Medium spread
+  └─ 3.0-5.0   : Wide, dramatic
+
+ITERATIONS (0-10, default: 2)
+  ├─ 0         : Trunk only
+  ├─ 1         : Trunk + main branches
+  ├─ 2-3       : Natural tree (recommended)
+  ├─ 4-5       : Dense, detailed
+  └─ 6+        : ⚠️  SLOW! Use with caution
+
+RANDOM SEED (0-999999, default: 0)
+  └─ Change for different variations (same settings, new shape)
+
+ANGULAR SPREAD (0.0-1.0, default: 0.3)
+  ├─ 0.0-0.2   : Very straight, formal
+  ├─ 0.2-0.4   : Natural (RECOMMENDED)
+  ├─ 0.4-0.6   : Wild, chaotic
+  └─ 0.6-1.0   : Extreme chaos
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PRESETS (Manual Adjustment)                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+OAK TREE:
+  Thickness: 0.4  |  Length: 1.2  |  Iterations: 3  |  Spread: 0.35
+
+WILLOW TREE:
+  Thickness: 0.3  |  Length: 2.5  |  Iterations: 3  |  Spread: 0.6
+
+PINE TREE:
+  Thickness: 0.2  |  Length: 1.8  |  Iterations: 4  |  Spread: 0.25
+
+BUSH:
+  Thickness: 0.05 |  Length: 0.8  |  Iterations: 3  |  Spread: 0.5
+
+ANCIENT TREE:
+  Thickness: 0.8  |  Length: 1.5  |  Iterations: 3  |  Spread: 0.4
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ NODE FRAMES (Geometry Nodes Workspace)                                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+INPUT PROCESSING (Green)
+  └─ Converts input curve, resamples points
+
+ATTRIBUTE INITIALIZATION (Blue)
+  └─ Stores: iteration_level, branch_id, thickness, curve_parameter
+
+BRANCH GENERATION (Red)
+  └─ Repeat Zone: Creates new branch levels
+
+GROWTH DIRECTION (Orange)
+  └─ Calculates where branches grow (normal + random)
+
+GEOMETRY BUILDER (Purple)
+  └─ Converts curves to mesh with radius
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+NO BRANCHES?
+  ✓ Iterations > 0
+  ✓ Branch Length > 0
+  ✓ Try Angular Spread = 0.5
+
+BLENDER SLOW/FROZEN?
+  ✓ Iterations = 2-3 max
+  ✓ Disable viewport realtime update
+  ✓ Close other apps
+
+WEIRD SHAPES?
+  ✓ Try different Random Seed
+  ✓ Adjust Angular Spread
+  ✓ Check input curve quality
+
+CAN'T FIND MODIFIER?
+  ✓ Modifier Properties (wrench icon)
+  ✓ Named "ProceduralTreeGenerator"
+  ✓ Make sure script completed
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ KEYBOARD SHORTCUTS (Blender)                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Alt + P          : Run script in text editor
+G                : Move selected object
+S                : Scale selected object
+R                : Rotate selected object
+Shift + D        : Duplicate selected object
+Tab              : Toggle Edit Mode
+Numpad 7         : Top view
+Numpad 1         : Front view
+Numpad 3         : Side view
+Z                : Shading menu
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PERFORMANCE GUIDELINES                                                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+VIEWPORT WORK:
+  Iterations: 2-3  |  Smooth & Interactive
+
+FINAL RENDER:
+  Iterations: 3-5  |  Some lag OK
+
+HIGH DETAIL:
+  Iterations: 5-7  |  Slow but manageable
+
+⚠️  EXTREME (NOT RECOMMENDED):
+  Iterations: 8+   |  Very slow, high memory
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ WORKFLOW EXAMPLES                                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+QUICK TREE:
+  1. Run quick_test_scene.py
+  2. Iterations → 3
+  3. Random Seed → vary until satisfied
+  4. Done!
+
+FOREST:
+  1. Create one tree
+  2. Shift+D to duplicate
+  3. Change Random Seed on duplicate
+  4. Repeat for variations
+  5. Arrange in scene
+
+EXPORT FOR GAME:
+  1. Create & adjust tree
+  2. File → Export → FBX
+  3. Use in game engine
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ FILES & SCRIPTS                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+setup_tree_generator.py  : Main setup (run on curve object)
+quick_test_scene.py      : Auto test scene (easiest)
+
+TreeGenDocu/
+  ├─ README.md                                  : Overview & navigation
+  ├─ SETUP_INSTRUCTIONS.md                      : Detailed guide
+  ├─ ProceduralTreeGenerator_Specification.md   : Full technical spec
+  └─ MCP_INTEGRATION.md                         : Future AI automation
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ATTRIBUTES CREATED                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+iteration_level   : Int    : Branch depth (0=trunk, 1=main, etc.)
+branch_id         : Int    : Unique identifier per branch
+branch_thickness  : Float  : Radius for mesh conversion
+curve_parameter   : Float  : Position along curve [0-1]
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ TIPS & TRICKS                                                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+→ Start with defaults, adjust ONE parameter at a time
+→ Random Seed is your best friend for variation
+→ Save interesting seeds (write them down!)
+→ Iterations 2-3 is the sweet spot for most trees
+→ Higher Angular Spread = droopier/wilder
+→ Lower Angular Spread = straighter/formal
+→ Duplicate trees and vary seeds for forests
+→ Use Collections to organize tree variations
+→ Export to FBX for game engines
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ COMING SOON                                                                  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Phase 2: Thickness decay, Gravity, Sun direction, Wind noise
+Phase 3: Canopy system (growth boundaries)
+Phase 4: Mesh canopy integration
+Phase 5: Leaf/asset scattering
+Phase 6: Optimization & polish
+Phase 7: MCP AI integration
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SUPPORT                                                                      │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Detailed Help:  See TreeGenDocu/SETUP_INSTRUCTIONS.md
+Technical Spec: See TreeGenDocu/ProceduralTreeGenerator_Specification.md
+Author:         Stephan Viranyi (Stephko)
+Version:        1.0 - Phase 1 MVP
+Date:           2025-12-03
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          🌳 HAPPY TREE GROWING! 🌳                           ║
+╚══════════════════════════════════════════════════════════════════════════════╝
