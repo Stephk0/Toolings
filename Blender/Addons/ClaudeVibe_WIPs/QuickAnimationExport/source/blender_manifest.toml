@@ -1,0 +1,17 @@
+schema_version = "1.0.0"
+
+id = "quick_animation_export"
+version = "1.0.9"
+name = "Quick Animation Export"
+tagline = "One-click FBX export for rigs, with optional Animation Layers merge/bake"
+maintainer = "Stephko <stephko@viranyi.de>"
+type = "add-on"
+
+tags = ["Animation", "Import-Export", "Pipeline"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Export FBX files to disk"
