@@ -1,0 +1,41 @@
+---
+interface Props {
+  name: string;
+  version: string;
+  status: 'active' | 'maintenance' | 'beta' | 'experimental';
+  category: string;
+  blenderVersion?: string;
+  author?: string;
+  downloadUrl?: string;
+  sourcePath?: string;
+}
+
+const {
+  name,
+  version,
+  status,
+  category,
+  blenderVersion = '4.5+',
+  author = 'Stephan Viranyi',
+  downloadUrl,
+  sourcePath,
+} = Astro.props;
+---
+
+<dl class="tool-meta">
+  <div class="tool-meta-row"><dt>Tool</dt><dd>{name}</dd></div>
+  <div class="tool-meta-row"><dt>Version</dt><dd>v{version}</dd></div>
+  <div class="tool-meta-row">
+    <dt>Status</dt>
+    <dd><span class={`tool-badge tool-badge--${status}`}>{status}</span></dd>
+  </div>
+  <div class="tool-meta-row"><dt>Category</dt><dd>{category}</dd></div>
+  <div class="tool-meta-row"><dt>Blender</dt><dd>{blenderVersion}</dd></div>
+  <div class="tool-meta-row"><dt>Author</dt><dd>{author}</dd></div>
+  {downloadUrl && (
+    <div class="tool-meta-row"><dt>Download</dt><dd><a href={downloadUrl}>v{version} zip</a></dd></div>
+  )}
+  {sourcePath && (
+    <div class="tool-meta-row"><dt>Source</dt><dd><code>{sourcePath}</code></dd></div>
+  )}
+</dl>

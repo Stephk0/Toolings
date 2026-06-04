@@ -1,0 +1,124 @@
+---
+title: Quick Animation Export
+description: Per-action FBX export driven by NLA strips, action filters, and a configurable output naming pattern.
+tool:
+  name: QuickAnimationExport
+  version: 1.0.9
+  status: active
+  category: Animation
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport_v1.0.9.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport/
+  detailLevel: detailed
+---
+
+import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+import ToolMeta from '../../../components/ToolMeta.astro';
+import panelImg from '../../../assets/tools/quick-animation-export/panel.svg';
+import outputImg from '../../../assets/tools/quick-animation-export/output-folder.svg';
+
+<ToolMeta
+  name="Quick Animation Export"
+  version="1.0.9"
+  status="active"
+  category="Animation"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport_v1.0.9.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport/"
+/>
+
+## At a glance
+
+The complement to [Anim Layers Quick Export](/Toolings/tools/anim-layers-quick-export/): rather than flattening layers into one file, this exports a separate FBX per action. Pick the actions you want, set a naming pattern, click export. Used for character/creature pipelines where every locomotion and reaction state is a discrete clip.
+
+Where ALQE collapses the NLA, QAE iterates it.
+
+## Install
+
+<Steps>
+1. Download `QuickAnimationExport_v1.0.9.zip`.
+2. **Edit → Preferences → Add-ons → Install from Disk**.
+3. Enable. Look for the **QAE** tab in the N-panel while an armature is active.
+</Steps>
+
+## UI tour
+
+<img src={panelImg.src} alt="Quick Animation Export N-panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">N-panel · output folder, naming pattern, action filters, per-action checkboxes</span>
+
+<img src={outputImg.src} alt="File explorer showing per-action FBX files after export" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Result folder · one FBX per ticked action, named by the pattern</span>
+
+<p class="mockup-notice">Mockup illustrations · will be replaced with real Blender screenshots when captured.</p>
+
+## Day-to-day vs Advanced
+
+<Tabs>
+<TabItem label="Day-to-day">
+
+1. Select the armature.
+2. The panel lists all actions on the armature. Tick the ones you want to export.
+3. Set the **output folder**.
+4. Click **Export Selected Actions**.
+
+Each ticked action is pushed to the armature, baked over its action range, and written as `<armature>_<action>.fbx`.
+
+</TabItem>
+<TabItem label="Advanced">
+
+### Naming pattern
+
+The default name is `{armature}_{action}.fbx`. The **Name Pattern** field accepts tokens:
+
+- `{armature}` — armature object name
+- `{action}` — action data-block name
+- `{index}` — 0-padded sequence number
+- `{prefix}` / `{suffix}` — values from the corresponding fields
+
+Example pattern: `anim_{action}_{index}.fbx` → `anim_idle_00.fbx`, `anim_run_01.fbx`, …
+
+### Action filters
+
+Filter the action list by:
+
+- **Prefix** — only show actions starting with a given prefix (e.g. `anim_`).
+- **Selected only** — hide actions not currently pushed to the NLA.
+- **Recently modified** — show actions edited in the last session.
+
+### Frame range source
+
+Pick where each clip's frame range comes from:
+
+- **Action range** (default) — uses the action's keyframe start/end.
+- **Scene range** — uses the scene timeline for every clip.
+- **NLA strip range** — when the action is on the NLA, uses that strip's range.
+
+### Subset selection
+
+For armatures with hundreds of actions, the **Filter by Tag** option groups actions by custom property tags. Useful for shipping just `combat_*` while skipping `idle_*` in one pass.
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+<Aside type="tip" title="One action keeps overwriting another">
+Two actions resolving to the same output filename collide. Check the **Name Pattern** — `{armature}_{action}.fbx` is unique only if action names are unique. Add `{index}` to disambiguate.
+</Aside>
+
+<Aside type="caution" title="Bone constraint baking">
+Like ALQE, this exporter relies on Blender's FBX export step to bake bone constraints. Drivers and complex constraint setups can produce unexpected output. Bake constraints to keyframes first if the engine doesn't match the viewport.
+</Aside>
+
+## Changelog
+
+- **v1.0.9** — current packaged release.
+- **v1.0.7** — tag-based filtering.
+- **v1.0.5** — naming pattern tokens.
+- **v1.0.0** — initial release.
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport"
+  description="Open the addon source directory."
+/>

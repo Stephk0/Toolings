@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 140" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#252525}
+    .toolbar{fill:#303030;stroke:#1c1c1c}
+    .btn{fill:#3d3d3d;stroke:#1c1c1c}
+    .btn-active{fill:#4772b3;stroke:#2e5798}
+    .lbl{fill:#d5d5d5;font-size:12px;font-weight:600}
+    .lbl-active{fill:#fff;font-size:12px;font-weight:700}
+    .muted{fill:#9aa6b3;font-size:11px}
+    .annot{fill:#f3c969;font-size:12px;font-weight:600}
+    .annot-line{stroke:#f3c969;stroke-width:1;stroke-dasharray:3,3;fill:none}
+    .annot-bubble{fill:#f3c969;stroke:#000}
+    .annot-num{fill:#1c1c1c;font-size:11px;font-weight:700;text-anchor:middle}
+  </style>
+  <rect class="bg" width="720" height="140"/>
+
+  <!-- Header bar -->
+  <rect class="toolbar" x="0" y="40" width="720" height="32"/>
+
+  <!-- Mode menu -->
+  <rect class="btn" x="14" y="46" width="98" height="20" rx="3"/>
+  <text class="lbl" x="63" y="60" text-anchor="middle">Edit Mode ▾</text>
+
+  <!-- Select mode toggles -->
+  <rect class="btn" x="124" y="46" width="26" height="20" rx="3"/>
+  <text class="lbl" x="137" y="60" text-anchor="middle">⬢</text>
+  <rect class="btn" x="152" y="46" width="26" height="20" rx="3"/>
+  <text class="lbl" x="165" y="60" text-anchor="middle">⏤</text>
+  <rect class="btn" x="180" y="46" width="26" height="20" rx="3"/>
+  <text class="lbl" x="193" y="60" text-anchor="middle">▣</text>
+
+  <!-- Edge Constraint toggle (highlighted) -->
+  <rect class="btn-active" x="240" y="46" width="170" height="20" rx="3"/>
+  <text class="lbl-active" x="325" y="60" text-anchor="middle">⚯ Edge Constraint: ON</text>
+
+  <!-- Other tools placeholder -->
+  <rect class="btn" x="424" y="46" width="80" height="20" rx="3"/>
+  <text class="lbl" x="464" y="60" text-anchor="middle">Pivot ▾</text>
+  <rect class="btn" x="516" y="46" width="80" height="20" rx="3"/>
+  <text class="lbl" x="556" y="60" text-anchor="middle">Snap ▾</text>
+
+  <!-- Annotations -->
+  <circle class="annot-bubble" cx="325" cy="100" r="11"/><text class="annot-num" x="325" y="104">★</text>
+  <path class="annot-line" d="M325 89 L325 70"/>
+  <text class="annot" x="325" y="124" text-anchor="middle">toggle here · persistent across selection &amp; transform tools</text>
+</svg>

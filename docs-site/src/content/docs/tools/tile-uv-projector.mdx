@@ -1,0 +1,111 @@
+---
+title: Tile UV Projector
+description: Project tileable UVs onto selected faces from any axis, with rotation, per-tile offsets, and non-destructive preview.
+tool:
+  name: TileUVProjector
+  version: 1.2.1
+  status: active
+  category: UV/Materials
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/TileUVProjector_v1.2.1.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/TileUVProjector/
+  detailLevel: detailed
+---
+
+import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+import ToolMeta from '../../../components/ToolMeta.astro';
+import panelImg from '../../../assets/tools/tile-uv-projector/panel.svg';
+import previewImg from '../../../assets/tools/tile-uv-projector/preview-vs-applied.svg';
+
+<ToolMeta
+  name="Tile UV Projector"
+  version="1.2.1"
+  status="active"
+  category="UV/Materials"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/TileUVProjector_v1.2.1.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/TileUVProjector/"
+/>
+
+## At a glance
+
+A planar projector tuned for tileable textures: project UVs onto the selected faces from a chosen world axis, with a real-world tile size in meters so the texture repeats at the intended scale regardless of mesh dimensions. Built for environment art and trim sheets where every wall, floor, and prop should share consistent texel density.
+
+The day-to-day move: select faces → pick projection axis → set tile size → apply. The advanced surface covers rotation, per-axis offsets, and non-destructive preview.
+
+## Install
+
+<Steps>
+1. Download `TileUVProjector_v1.2.1.zip`.
+2. **Edit → Preferences → Add-ons → Install from Disk**.
+3. Enable. The panel appears in the N-panel under a **Tile UV** tab while in Edit Mode.
+</Steps>
+
+## UI tour
+
+<img src={panelImg.src} alt="Tile UV Projector N-panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">N-panel · axis, tile size, rotation, offsets, preview toggle</span>
+
+<img src={previewImg.src} alt="Brick wall: default UV vs Tile UV Projector at 1m tile" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Same brick texture · default unwrap stretches, projector keeps texel density consistent</span>
+
+<p class="mockup-notice">Mockup illustrations · will be replaced with real Blender screenshots when captured.</p>
+
+## Day-to-day vs Advanced
+
+<Tabs>
+<TabItem label="Day-to-day">
+
+For typical trim/tileable work:
+
+1. Select the faces you want to project (often a whole wall or floor).
+2. Open the panel and pick the **projection axis** — `Z` for floors and ceilings, `Y` or `X` for walls.
+3. Set **Tile Size** in meters. `1.0` means the texture repeats once per world meter.
+4. Click **Project**. UVs are written to the active UV map.
+
+If the result looks rotated 90°, flip the rotation field to `90` and re-apply.
+
+</TabItem>
+<TabItem label="Advanced">
+
+### Per-axis offsets
+
+The U and V offsets let you fine-tune alignment after the initial projection — useful for matching seams to existing geometry without breaking tiling. Offsets are expressed in tile units, so `0.5` shifts the texture by half a tile.
+
+### Rotation
+
+Rotation is applied in UV space after the planar projection, in 90° increments by default. Custom angles work but break tiling at seams unless the underlying texture is rotation-symmetric.
+
+### Non-destructive preview
+
+When **Preview** is on, the addon writes to a temporary UV map and shows the result without overwriting the active map. Click **Apply** to commit, **Cancel** to discard. Useful for testing tile sizes against an existing material setup.
+
+### Best-axis auto-pick
+
+The **Auto** option picks the projection axis based on the average normal of the selected faces. Works well for mostly-flat selections; falls back to `Z` on highly-curved selections.
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+<Aside type="tip" title="Stretched UVs after applying">
+Stretching usually means the selected faces aren't planar enough for the chosen axis. Either restrict the selection to a flat run or use Auto axis. For genuinely curved geometry, planar projection isn't the right tool — try cube projection instead.
+</Aside>
+
+<Aside type="caution" title="Active UV map gets overwritten">
+By default the projector writes into the *active* UV map of each selected object. If you wanted to keep the original, create a new UV map first and make it active, then project.
+</Aside>
+
+## Changelog
+
+- **v1.2.1** — current packaged release.
+- **v1.2.0** — non-destructive preview mode.
+- **v1.1.x** — per-axis offsets, auto-axis selection.
+- **v1.0.0** — initial release.
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/TileUVProjector"
+  description="Open the addon source directory."
+/>

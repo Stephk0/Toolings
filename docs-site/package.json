@@ -1,0 +1,22 @@
+{
+  "name": "stephko-toolings-docs",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "build:portable": "astro build --config astro.config.portable.mjs",
+    "build:all": "npm run build && npm run build:portable",
+    "preview": "astro preview",
+    "preview:portable": "npx --yes serve dist-portable -l 8080",
+    "dist:zip": "node ./scripts/zip-portable.mjs",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.30.0",
+    "astro": "^5.1.0",
+    "sharp": "^0.33.5"
+  }
+}

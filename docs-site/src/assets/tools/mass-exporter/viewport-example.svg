@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="Segoe UI, Roboto, sans-serif">
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3f48"/>
+      <stop offset="100%" stop-color="#1f242b"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .label{fill:#d5d5d5;font-size:12px;font-weight:600}
+    .muted{fill:#9aa6b3;font-size:11px}
+    .cube{fill:#bdc7d3;stroke:#3a3f48;stroke-width:1.2}
+    .cube-side{fill:#7d8694;stroke:#3a3f48;stroke-width:1.2}
+    .col-mesh{fill:none;stroke:#f3c969;stroke-width:1.3;stroke-dasharray:4,3}
+    .lod-mesh{fill:none;stroke:#7fd1a1;stroke-width:1.3;stroke-dasharray:2,2}
+    .arrow{fill:#5680c2}
+    .tag{fill:#252525;stroke:#1c1c1c}
+    .tag-text{fill:#d5d5d5;font-size:11px;font-weight:600}
+    .out{fill:#1c1c1c;stroke:#5680c2;stroke-width:1.5}
+    .out-text{fill:#5680c2;font-size:13px;font-weight:700}
+  </style>
+  <rect width="720" height="360" fill="url(#grad)"/>
+
+  <!-- Three meshes in scene -->
+  <!-- main cube -->
+  <g transform="translate(110,170)">
+    <polygon class="cube" points="0,-30 35,-15 35,30 0,45 -35,30 -35,-15"/>
+    <polygon class="cube-side" points="0,-30 35,-15 0,0 -35,-15"/>
+    <polygon class="cube-side" points="35,-15 35,30 0,45 0,0" opacity="0.7"/>
+  </g>
+  <rect class="tag" x="68" y="232" width="100" height="22" rx="3"/>
+  <text class="tag-text" x="118" y="247" text-anchor="middle">sm_wall_4x4</text>
+
+  <!-- COL (dashed yellow) -->
+  <g transform="translate(290,170)">
+    <polygon class="col-mesh" points="0,-32 38,-16 38,32 0,48 -38,32 -38,-16"/>
+  </g>
+  <rect class="tag" x="246" y="232" width="100" height="22" rx="3"/>
+  <text class="tag-text" x="296" y="247" text-anchor="middle" fill="#f3c969">sm_wall_4x4_COL</text>
+
+  <!-- LOD (dashed green, simpler) -->
+  <g transform="translate(470,170)">
+    <polygon class="lod-mesh" points="0,-28 32,-14 32,28 0,42 -32,28 -32,-14"/>
+  </g>
+  <rect class="tag" x="426" y="232" width="100" height="22" rx="3"/>
+  <text class="tag-text" x="476" y="247" text-anchor="middle" fill="#7fd1a1">sm_wall_4x4_LOD0</text>
+
+  <!-- Arrow merging into one -->
+  <path d="M170 290 Q300 320 600 285" stroke="#5680c2" stroke-width="2" fill="none" stroke-dasharray="4,3"/>
+  <path d="M340 305 Q380 318 470 305" stroke="#5680c2" stroke-width="2" fill="none" stroke-dasharray="4,3"/>
+  <polygon class="arrow" points="600,285 588,278 590,294"/>
+
+  <!-- Output file -->
+  <rect class="out" x="560" y="280" width="120" height="44" rx="4"/>
+  <text class="out-text" x="620" y="298" text-anchor="middle">sm_wall_4x4.fbx</text>
+  <text class="muted" x="620" y="315" text-anchor="middle">3 meshes • one file</text>
+
+  <!-- Caption -->
+  <text class="label" x="40" y="40">Suffix grouping in action</text>
+  <text class="muted" x="40" y="58">main mesh + _COL + _LOD0 share a base name → exported as separate meshes inside one FBX</text>
+</svg>

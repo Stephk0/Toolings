@@ -1,0 +1,62 @@
+---
+title: Stephko Toolings
+description: Production-ready Blender, Unity, and 3DS Max tools by Stephan Viranyi.
+template: splash
+hero:
+  tagline: A growing collection of focused, production-tested tools — mostly Blender addons, plus geometry-node libraries and supporting utilities.
+  actions:
+    - text: Browse the tools
+      link: /Toolings/tools/mass-exporter/
+      icon: right-arrow
+    - text: Install an addon
+      link: /Toolings/guides/installing/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What's documented here
+
+This site documents the most recent, actively-maintained tools first. Older or maintenance-mode tools live in shorter overview pages until they need full attention.
+
+<CardGrid stagger>
+  <Card title="Mass Exporter" icon="rocket">
+    Batch-export Blender collections with suffix grouping, mesh joining, and per-collection settings.<br/>
+    [Open page →](/Toolings/tools/mass-exporter/)
+  </Card>
+  <Card title="Edge Constraint Mode" icon="setting">
+    Persistent mode + transform-agnostic solver for sliding edges along their own direction.<br/>
+    [Open page →](/Toolings/tools/edge-constraint-mode/)
+  </Card>
+  <Card title="Tile UV Projector" icon="puzzle">
+    Project tileable UVs onto selected faces from any axis, with rotation and per-tile offsets.<br/>
+    [Open page →](/Toolings/tools/tile-uv-projector/)
+  </Card>
+  <Card title="Anim Layers Quick Export" icon="bars">
+    One-click FBX export of selected armature with animation layers flattened.<br/>
+    [Open page →](/Toolings/tools/anim-layers-quick-export/)
+  </Card>
+  <Card title="Quick Animation Export" icon="document">
+    Per-action FBX export driven by NLA strips and action filters.<br/>
+    [Open page →](/Toolings/tools/quick-animation-export/)
+  </Card>
+  <Card title="And five more…" icon="list-format">
+    Skin Transfer, ModifierList Stephko, Synced Modifiers, Compositor Render Sets, Add Bounds To Name.<br/>
+    See the sidebar under **Tools — overview**.
+  </Card>
+</CardGrid>
+
+## How each tool page is organized
+
+Every tool page has the same anatomy so you can scan it quickly:
+
+1. **Meta block** — version, status, Blender compatibility, download/source links.
+2. **At a glance** — one-paragraph summary plus the most common day-to-day use case.
+3. **Install** — drag-and-drop zip, or directory copy if applicable.
+4. **UI tour** — screenshots of the panels with annotation notes.
+5. **Day-to-day vs Advanced** — tabs separate the common path from edge-case features.
+6. **Troubleshooting** — known gotchas and fixes.
+7. **Changelog** — recent versions and what changed.
+
+If you maintain these tools and want to refresh a page after a release, see [Updating these docs](/Toolings/guides/updating-docs/).

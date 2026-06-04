@@ -1,0 +1,50 @@
+---
+title: Modifier List Stephko
+description: Fork of ModifierList that restores GN Input Attribute Toggle in list view on Blender 5.
+tool:
+  name: ModifierList_Stephko
+  version: 1.0.0
+  status: maintenance
+  category: Modifiers
+  blenderVersion: 5.0+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko/
+  detailLevel: stub
+---
+
+import ToolMeta from '../../../components/ToolMeta.astro';
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+import listViewImg from '../../../assets/tools/modifier-list-stephko/list-view.svg';
+
+<ToolMeta
+  name="Modifier List Stephko"
+  version="1.0.0"
+  status="maintenance"
+  category="Modifiers"
+  blenderVersion="5.0+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko/"
+/>
+
+## Summary
+
+A targeted fork of the **ModifierList** addon. Upstream's list view dropped the GN Input Attribute toggle on Blender 5 due to an API change; this fork restores it. Otherwise identical to the original.
+
+Use this if you rely on the toggle in list-view mode on Blender 5. On Blender 4.x the upstream addon is fine.
+
+## UI tour
+
+<img src={listViewImg.src} alt="ModifierList list-view with restored Input Attribute toggle on a GN modifier" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">List view · the restored Input Attribute toggle on the highlighted Geometry Nodes row</span>
+
+<p class="mockup-notice">Mockup illustration · will be replaced with a real Blender screenshot when captured.</p>
+
+<Aside type="tip">
+This page is a stub. Full UI tour, day-to-day vs advanced split, and troubleshooting are pending.
+</Aside>
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko"
+  description="Open the addon source directory."
+/>

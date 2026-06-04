@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#2b2b2b}.hdr{fill:#353535}
+    .label{fill:#b8b8b8;font-size:12px}
+    .lbl-bold{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#7e7e7e;font-size:11px}
+    .field{fill:#1c1c1c;stroke:#141414}
+    .btn{fill:#3d3d3d;stroke:#1c1c1c}
+    .btn-active{fill:#4772b3;stroke:#2e5798}
+    .btn-primary{fill:#4772b3;stroke:#2e5798}
+    .btn-text{fill:#d5d5d5;font-size:11px;font-weight:600}
+    .btn-text-on{fill:#fff;font-size:13px;font-weight:700}
+    .check-on{fill:#5680c2;stroke:#1c1c1c}
+    .check-off{fill:#1c1c1c;stroke:#404040}
+    .tab-text{fill:#9aa6b3;font-size:11px;font-weight:600;letter-spacing:.5px}
+    .divider{stroke:#1c1c1c;stroke-width:1}
+    .panel-stroke{stroke:#1c1c1c;stroke-width:1;fill:none}
+    .preview{fill:#1f3a25;stroke:#2f6940}
+    .preview-text{fill:#b5e8c1;font-size:13px;font-weight:700;font-family:Consolas,Monaco,monospace}
+  </style>
+  <rect class="bg" width="480" height="480"/>
+  <rect class="hdr" x="0" y="0" width="480" height="28"/>
+  <text class="lbl-bold" x="14" y="19">▼ Add Bounds To Name</text>
+  <text class="muted" x="430" y="19">v1.1.3</text>
+
+  <!-- Preset -->
+  <text class="tab-text" x="14" y="54">PRESETS</text>
+  <line class="divider" x1="14" y1="60" x2="466" y2="60"/>
+  <rect class="field" x="14" y="70" width="320" height="22" rx="3"/>
+  <text class="lbl-bold" x="22" y="85">Game Assets · cm · floor</text>
+  <text class="muted" x="320" y="85" text-anchor="end">▾</text>
+  <rect class="btn" x="340" y="70" width="60" height="22" rx="3"/>
+  <text class="btn-text" x="370" y="85" text-anchor="middle">Save</text>
+  <rect class="btn" x="404" y="70" width="62" height="22" rx="3"/>
+  <text class="btn-text" x="435" y="85" text-anchor="middle">Load</text>
+
+  <!-- Units -->
+  <text class="tab-text" x="14" y="116">UNITS &amp; ROUNDING</text>
+  <line class="divider" x1="14" y1="122" x2="466" y2="122"/>
+  <rect class="btn" x="14" y="132" width="66" height="22" rx="3"/>
+  <text class="btn-text" x="47" y="147" text-anchor="middle">m</text>
+  <rect class="btn-active" x="84" y="132" width="66" height="22" rx="3"/>
+  <text class="btn-text" x="117" y="147" text-anchor="middle" fill="#fff">cm</text>
+  <rect class="btn" x="154" y="132" width="66" height="22" rx="3"/>
+  <text class="btn-text" x="187" y="147" text-anchor="middle">mm</text>
+  <rect class="check-on" x="234" y="135" width="14" height="14" rx="2"/>
+  <path d="M237 142 L240 145 L245 139" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="label" x="256" y="147">unit suffix</text>
+
+  <text class="label" x="14" y="178">Rounding</text>
+  <rect class="btn" x="80" y="166" width="60" height="22" rx="3"/>
+  <text class="btn-text" x="110" y="181" text-anchor="middle">none</text>
+  <rect class="btn-active" x="144" y="166" width="60" height="22" rx="3"/>
+  <text class="btn-text" x="174" y="181" text-anchor="middle" fill="#fff">floor</text>
+  <rect class="btn" x="208" y="166" width="60" height="22" rx="3"/>
+  <text class="btn-text" x="238" y="181" text-anchor="middle">ceil</text>
+  <rect class="btn" x="272" y="166" width="60" height="22" rx="3"/>
+  <text class="btn-text" x="302" y="181" text-anchor="middle">round</text>
+  <text class="label" x="346" y="178">Step</text>
+  <rect class="field" x="386" y="166" width="80" height="22" rx="3"/>
+  <text class="lbl-bold" x="426" y="181" text-anchor="middle">10</text>
+
+  <!-- Formatting -->
+  <text class="tab-text" x="14" y="214">FORMATTING</text>
+  <line class="divider" x1="14" y1="220" x2="466" y2="220"/>
+
+  <text class="label" x="14" y="244">Order</text>
+  <rect class="btn-active" x="60" y="232" width="54" height="22" rx="3"/>
+  <text class="btn-text" x="87" y="247" text-anchor="middle" fill="#fff">X · Y · Z</text>
+  <rect class="btn" x="118" y="232" width="54" height="22" rx="3"/>
+  <text class="btn-text" x="145" y="247" text-anchor="middle">Z · X · Y</text>
+  <text class="label" x="186" y="244">Separator</text>
+  <rect class="field" x="252" y="232" width="40" height="22" rx="3"/>
+  <text class="lbl-bold" x="272" y="247" text-anchor="middle">x</text>
+  <text class="label" x="306" y="244">Digits</text>
+  <rect class="field" x="346" y="232" width="40" height="22" rx="3"/>
+  <text class="lbl-bold" x="366" y="247" text-anchor="middle">0</text>
+  <rect class="check-on" x="398" y="235" width="14" height="14" rx="2"/>
+  <path d="M401 242 L404 245 L409 239" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="label" x="420" y="247">omit .0</text>
+
+  <text class="label" x="14" y="274">Bounds</text>
+  <rect class="btn-active" x="80" y="262" width="100" height="22" rx="3"/>
+  <text class="btn-text" x="130" y="277" text-anchor="middle" fill="#fff">Object</text>
+  <rect class="btn" x="184" y="262" width="100" height="22" rx="3"/>
+  <text class="btn-text" x="234" y="277" text-anchor="middle">Mesh</text>
+  <rect class="check-on" x="298" y="265" width="14" height="14" rx="2"/>
+  <path d="M301 272 L304 275 L309 269" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="label" x="320" y="277">replace previous bounds</text>
+
+  <!-- Preview -->
+  <text class="tab-text" x="14" y="312">PREVIEW</text>
+  <line class="divider" x1="14" y1="318" x2="466" y2="318"/>
+  <rect class="preview" x="14" y="326" width="452" height="40" rx="4"/>
+  <text class="preview-text" x="240" y="352" text-anchor="middle">wall_400x200x10cm</text>
+
+  <!-- Actions -->
+  <rect class="btn-primary" x="14" y="382" width="222" height="40" rx="4"/>
+  <text class="btn-text-on" x="125" y="406" text-anchor="middle">Rename Active</text>
+  <rect class="btn" x="244" y="382" width="222" height="40" rx="4"/>
+  <text class="btn-text" x="355" y="406" text-anchor="middle" font-size="13">Rename All Selected</text>
+
+  <text class="muted" x="14" y="438">Active object → preview · multiple selected objects renamed in one operation.</text>
+
+  <rect class="panel-stroke" x="0.5" y="0.5" width="479" height="479"/>
+</svg>

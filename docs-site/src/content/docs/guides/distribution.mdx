@@ -1,0 +1,81 @@
+---
+title: Hosting & distribution
+description: How to publish this site online, share it as a portable zip, or run it offline.
+---
+
+import { Tabs, TabItem, Steps, Aside, LinkCard } from '@astrojs/starlight/components';
+
+This site has two build profiles so the same content can be deployed either as a published web page or as a self-contained bundle.
+
+<Tabs>
+<TabItem label="Publish to the web (GitHub Pages)">
+
+The repo includes a GitHub Actions workflow that builds and publishes the site on every push to `main` that touches `docs-site/`.
+
+<Steps>
+1. In the GitHub repo, open **Settings → Pages**.
+2. Set **Source** = **GitHub Actions**.
+3. Push any change under `docs-site/` to `main`. The workflow runs `npm run build` and uploads `dist/` as the Pages artifact.
+4. After the first successful run the site is live at `https://<your-user>.github.io/Toolings/`.
+</Steps>
+
+The workflow file lives at `.github/workflows/deploy.yml` — no manual steps after the one-time Pages setup.
+
+</TabItem>
+<TabItem label="Share a portable zip">
+
+For sharing the documentation with someone who doesn't want to clone the repo, build the portable bundle:
+
+```bash
+npm run build:portable    # writes dist-portable/
+npm run dist:zip          # produces stephko-toolings-docs_v<ver>_<date>.zip
+```
+
+The zip is around 500 KB. The recipient unzips it and either:
+
+- runs `npx serve` in the unzipped folder for a local view,
+- drops it onto Netlify / Cloudflare Pages / any static host via drag-and-drop,
+- serves it from any sub-folder of an existing site — the portable build uses `base: '/'` which means relative paths everywhere.
+
+</TabItem>
+<TabItem label="View offline">
+
+The portable build needs a tiny static server (browsers block ES-module loading from `file://`). Pick the simplest tool you have installed:
+
+```bash
+# Option 1 — npx (zero install)
+npx serve dist-portable -l 8080
+
+# Option 2 — Python
+cd dist-portable && python -m http.server 8080
+
+# Option 3 — VS Code Live Server extension
+# Right-click dist-portable/index.html → "Open with Live Server"
+```
+
+Then open `http://localhost:8080`.
+
+</TabItem>
+</Tabs>
+
+<Aside type="note" title="Why not just open index.html?">
+The built site uses ES modules, which modern browsers refuse to load over `file://` for security reasons. The portable bundle is "no install needed", but it still needs to be served over HTTP — `npx serve` is the shortest path.
+</Aside>
+
+## Build script reference
+
+| Script | Output | Base path | When to use |
+|---|---|---|---|
+| `npm run dev` | live server | `/Toolings` | Local editing |
+| `npm run build` | `dist/` | `/Toolings` | GitHub Pages |
+| `npm run build:portable` | `dist-portable/` | `/` | Any static host / portable zip |
+| `npm run build:all` | both | — | CI / release |
+| `npm run preview` | localhost | `/Toolings` | Preview the web build |
+| `npm run preview:portable` | localhost:8080 | `/` | Preview the portable build |
+| `npm run dist:zip` | `*.zip` next to `package.json` | — | Bundle the portable build for sharing |
+
+<LinkCard
+  title="GitHub Pages docs"
+  href="https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site"
+  description="Official setup guide for the Pages publishing source."
+/>

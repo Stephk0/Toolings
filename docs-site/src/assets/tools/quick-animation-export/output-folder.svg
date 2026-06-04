@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#1e1e1e}
+    .chrome{fill:#2b2b2b;stroke:#1c1c1c}
+    .urlbar{fill:#1c1c1c;stroke:#141414}
+    .url-text{fill:#9aa6b3;font-size:12px}
+    .file-row{fill:#252525}
+    .file-row-alt{fill:#2b2b2b}
+    .file-name{fill:#d5d5d5;font-size:12px}
+    .file-meta{fill:#7e7e7e;font-size:11px}
+    .fbx-icon{fill:#4772b3;stroke:#1c1c1c}
+    .label{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#9aa6b3;font-size:11px}
+    .hdr-cell{fill:#353535;stroke:#1c1c1c}
+    .hdr-text{fill:#b8b8b8;font-size:11px;font-weight:600;letter-spacing:.5px}
+  </style>
+  <rect class="bg" width="720" height="320"/>
+  <text class="label" x="20" y="20">Output folder · after export</text>
+
+  <!-- Window chrome -->
+  <rect class="chrome" x="20" y="30" width="680" height="270" rx="4"/>
+  <!-- url bar -->
+  <rect class="urlbar" x="32" y="42" width="656" height="22" rx="3"/>
+  <text class="url-text" x="42" y="57">D:\anims\hero\</text>
+
+  <!-- header -->
+  <rect class="hdr-cell" x="32" y="72" width="656" height="22"/>
+  <text class="hdr-text" x="46" y="87">NAME</text>
+  <text class="hdr-text" x="500" y="87">SIZE</text>
+  <text class="hdr-text" x="600" y="87">DATE</text>
+
+  <!-- files -->
+  <g font-family="Segoe UI, Roboto, sans-serif">
+    <rect class="file-row" x="32" y="94" width="656" height="26"/>
+    <rect class="fbx-icon" x="42" y="100" width="14" height="14" rx="2"/>
+    <text class="file-name" x="64" y="111">rig_hero_anim_idle.fbx</text>
+    <text class="file-meta" x="500" y="111">412 KB</text>
+    <text class="file-meta" x="600" y="111">14:32</text>
+
+    <rect class="file-row-alt" x="32" y="120" width="656" height="26"/>
+    <rect class="fbx-icon" x="42" y="126" width="14" height="14" rx="2"/>
+    <text class="file-name" x="64" y="137">rig_hero_anim_walk.fbx</text>
+    <text class="file-meta" x="500" y="137">186 KB</text>
+    <text class="file-meta" x="600" y="137">14:32</text>
+
+    <rect class="file-row" x="32" y="146" width="656" height="26"/>
+    <rect class="fbx-icon" x="42" y="152" width="14" height="14" rx="2"/>
+    <text class="file-name" x="64" y="163">rig_hero_anim_run.fbx</text>
+    <text class="file-meta" x="500" y="163">128 KB</text>
+    <text class="file-meta" x="600" y="163">14:32</text>
+
+    <rect class="file-row-alt" x="32" y="172" width="656" height="26"/>
+    <rect class="fbx-icon" x="42" y="178" width="14" height="14" rx="2"/>
+    <text class="file-name" x="64" y="189">rig_hero_anim_jump.fbx</text>
+    <text class="file-meta" x="500" y="189">221 KB</text>
+    <text class="file-meta" x="600" y="189">14:33</text>
+
+    <rect class="file-row" x="32" y="198" width="656" height="26"/>
+    <rect class="fbx-icon" x="42" y="204" width="14" height="14" rx="2"/>
+    <text class="file-name" x="64" y="215">rig_hero_anim_die.fbx</text>
+    <text class="file-meta" x="500" y="215">298 KB</text>
+    <text class="file-meta" x="600" y="215">14:33</text>
+  </g>
+
+  <text class="muted" x="44" y="252">5 items · one FBX per ticked action · names follow {armature}_{action}.fbx pattern</text>
+</svg>

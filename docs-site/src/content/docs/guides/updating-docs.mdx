@@ -1,0 +1,46 @@
+---
+title: Updating these docs
+description: How to refresh a tool page after shipping a new addon version.
+---
+
+import { Steps, FileTree } from '@astrojs/starlight/components';
+
+Each tool page is a single `.mdx` file under `src/content/docs/tools/`. The version, status, and download URL live in the page's frontmatter — change them in one place and the meta block updates everywhere.
+
+## File layout
+
+<FileTree>
+- docs-site/
+  - src/
+    - content/
+      - docs/
+        - tools/
+          - mass-exporter.mdx
+          - edge-constraint-mode.mdx
+          - …
+    - assets/
+      - tools/
+        - mass-exporter/
+          - panel.png
+          - viewport.png
+</FileTree>
+
+## When a new version ships
+
+<Steps>
+
+1. **Bump the frontmatter.** Update `tool.version` and `tool.downloadUrl` at the top of the page.
+
+2. **Drop replacement screenshots** into `src/assets/tools/<tool-slug>/`. Keep the same filenames — references in the page don't need to change.
+
+3. **Append a changelog entry** at the bottom of the page under the existing list.
+
+4. If the UI changed materially, update the **UI tour** section. Tabs and Asides are the building blocks — see [Starlight components](https://starlight.astro.build/guides/authoring-content/).
+
+5. Run `npm run dev` and verify the page looks right. Then commit.
+
+</Steps>
+
+## Adding a new tool
+
+Copy `mass-exporter.mdx` as a template, change the frontmatter and slug, then add a sidebar entry in `astro.config.mjs` under the relevant section. The frontmatter schema lives in `src/content.config.ts` if you need to introduce new fields.

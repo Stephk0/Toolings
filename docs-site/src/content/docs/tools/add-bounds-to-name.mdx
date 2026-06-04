@@ -1,0 +1,46 @@
+---
+title: Add Bounds To Name
+description: Rename objects with their bounding-box dimensions — flexible units, rounding, axis order, and save/load presets.
+tool:
+  name: AddBoundsToName
+  version: 1.1.3
+  status: active
+  category: Workflow
+  blenderVersion: 4.5+
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName/__init__.py
+  detailLevel: stub
+---
+
+import ToolMeta from '../../../components/ToolMeta.astro';
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+import panelImg from '../../../assets/tools/add-bounds-to-name/panel.svg';
+
+<ToolMeta
+  name="Add Bounds To Name"
+  version="1.1.3"
+  status="active"
+  category="Workflow"
+  blenderVersion="4.5+"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName/__init__.py"
+/>
+
+## Summary
+
+Rename selected objects to include their bounding-box dimensions: `wall_400x200x10cm`, `rock_2.5x1.8x2.1`. Choose units (m / cm / mm), rounding mode (none / round / floor / ceil) and increment, axis swizzle, separator, padding, and optional unit suffix. Save configurations as presets for studio-wide consistency.
+
+## UI tour
+
+<img src={panelImg.src} alt="Add Bounds To Name N-panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">N-panel · presets, units, rounding, formatting, live preview of the resulting name</span>
+
+<p class="mockup-notice">Mockup illustration · will be replaced with a real Blender screenshot when captured.</p>
+
+<Aside type="tip">
+This page is a stub. Full UI tour, day-to-day vs advanced split, and troubleshooting are pending.
+</Aside>
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName"
+  description="Open the addon source directory."
+/>

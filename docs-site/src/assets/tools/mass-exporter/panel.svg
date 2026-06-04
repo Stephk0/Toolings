@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 540" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#2b2b2b}
+    .hdr{fill:#353535}
+    .label{fill:#b8b8b8;font-size:12px}
+    .lbl-bold{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#7e7e7e;font-size:11px}
+    .field{fill:#1c1c1c;stroke:#141414}
+    .btn{fill:#3d3d3d;stroke:#1c1c1c}
+    .btn-text{fill:#d5d5d5;font-size:12px;font-weight:600}
+    .btn-primary{fill:#4772b3;stroke:#2e5798}
+    .accent{fill:#5680c2}
+    .row{fill:#303030}
+    .check-on{fill:#5680c2;stroke:#1c1c1c}
+    .check-off{fill:#1c1c1c;stroke:#404040}
+    .divider{stroke:#1c1c1c;stroke-width:1}
+    .panel-stroke{stroke:#1c1c1c;stroke-width:1;fill:none}
+    .tab-text{fill:#9aa6b3;font-size:11px;font-weight:600;letter-spacing:.5px}
+  </style>
+  <rect class="bg" width="480" height="540"/>
+  <rect class="hdr" x="0" y="0" width="480" height="28"/>
+  <text class="lbl-bold" x="14" y="19">▼ Mass Exporter</text>
+  <text class="muted" x="430" y="19">v13.6.0</text>
+
+  <!-- Export path -->
+  <text class="label" x="14" y="56">Export Path</text>
+  <rect class="field" x="14" y="64" width="400" height="22" rx="3"/>
+  <text class="muted" x="22" y="79">D:/exports/props/</text>
+  <rect class="btn" x="420" y="64" width="46" height="22" rx="3"/>
+  <text class="btn-text" x="436" y="80">📁</text>
+
+  <!-- Collections section -->
+  <text class="lbl-bold" x="14" y="112">Collections to Export</text>
+  <line class="divider" x1="14" y1="118" x2="466" y2="118"/>
+
+  <!-- Collection row 1 -->
+  <rect class="row" x="14" y="126" width="452" height="32" rx="3"/>
+  <rect class="check-on" x="22" y="134" width="14" height="14" rx="2"/>
+  <path d="M25 141 L28 144 L33 138" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="lbl-bold" x="44" y="146">props</text>
+  <rect class="check-on" x="200" y="134" width="14" height="14" rx="2"/>
+  <text class="label" x="220" y="146">merge</text>
+  <rect class="check-on" x="266" y="134" width="14" height="14" rx="2"/>
+  <text class="label" x="286" y="146">center</text>
+  <rect class="check-off" x="328" y="134" width="14" height="14" rx="2"/>
+  <text class="label" x="348" y="146">mods</text>
+  <rect class="check-off" x="386" y="134" width="14" height="14" rx="2"/>
+  <text class="label" x="406" y="146">suffix</text>
+
+  <!-- Collection row 2 -->
+  <rect class="row" x="14" y="164" width="452" height="32" rx="3"/>
+  <rect class="check-on" x="22" y="172" width="14" height="14" rx="2"/>
+  <path d="M25 179 L28 182 L33 176" stroke="#fff" stroke-width="2" fill="none"/>
+  <text class="lbl-bold" x="44" y="184">weapons</text>
+  <rect class="check-off" x="200" y="172" width="14" height="14" rx="2"/>
+  <text class="label" x="220" y="184">merge</text>
+  <rect class="check-on" x="266" y="172" width="14" height="14" rx="2"/>
+  <text class="label" x="286" y="184">center</text>
+  <rect class="check-off" x="328" y="172" width="14" height="14" rx="2"/>
+  <text class="label" x="348" y="184">mods</text>
+  <rect class="check-on" x="386" y="172" width="14" height="14" rx="2"/>
+  <text class="label" x="406" y="184">suffix</text>
+
+  <!-- Collection row 3 -->
+  <rect class="row" x="14" y="202" width="452" height="32" rx="3"/>
+  <rect class="check-off" x="22" y="210" width="14" height="14" rx="2"/>
+  <text class="label" x="44" y="222">characters</text>
+  <rect class="check-off" x="200" y="210" width="14" height="14" rx="2"/>
+  <text class="label" x="220" y="222">merge</text>
+  <rect class="check-on" x="266" y="210" width="14" height="14" rx="2"/>
+  <text class="label" x="286" y="222">center</text>
+  <rect class="check-on" x="328" y="210" width="14" height="14" rx="2"/>
+  <text class="label" x="348" y="222">mods</text>
+  <rect class="check-off" x="386" y="210" width="14" height="14" rx="2"/>
+  <text class="label" x="406" y="222">suffix</text>
+
+  <!-- Add/Remove buttons -->
+  <rect class="btn" x="14" y="246" width="80" height="24" rx="3"/>
+  <text class="btn-text" x="54" y="262" text-anchor="middle">+ Add</text>
+  <rect class="btn" x="98" y="246" width="80" height="24" rx="3"/>
+  <text class="btn-text" x="138" y="262" text-anchor="middle">– Remove</text>
+
+  <!-- Format row -->
+  <text class="label" x="14" y="294">Format</text>
+  <rect class="field" x="80" y="282" width="120" height="22" rx="3"/>
+  <text class="lbl-bold" x="92" y="297">FBX</text>
+  <text class="muted" x="186" y="297">▾</text>
+  <text class="label" x="220" y="294">Material Override</text>
+  <rect class="field" x="330" y="282" width="136" height="22" rx="3"/>
+  <text class="muted" x="338" y="297">(none)</text>
+
+  <!-- Big export button -->
+  <rect class="btn-primary" x="14" y="322" width="452" height="36" rx="4"/>
+  <text class="btn-text" x="240" y="345" text-anchor="middle" fill="#fff">▶ Export All</text>
+
+  <!-- Quick export row -->
+  <text class="tab-text" x="14" y="382">QUICK EXPORT FROM SELECTION</text>
+  <line class="divider" x1="14" y1="388" x2="466" y2="388"/>
+  <rect class="btn" x="14" y="396" width="220" height="28" rx="3"/>
+  <text class="btn-text" x="124" y="414" text-anchor="middle">Collection of Selected</text>
+  <rect class="btn" x="246" y="396" width="220" height="28" rx="3"/>
+  <text class="btn-text" x="356" y="414" text-anchor="middle">Subcollections of Selected</text>
+  <rect class="btn" x="14" y="430" width="452" height="28" rx="3"/>
+  <text class="btn-text" x="240" y="448" text-anchor="middle">Export Selected Objects</text>
+
+  <!-- Suffix grouping subpanel -->
+  <text class="tab-text" x="14" y="484">SUFFIX GROUPING</text>
+  <line class="divider" x1="14" y1="490" x2="466" y2="490"/>
+  <text class="muted" x="14" y="510">_COL, _UCX, _LOD0, _LOD1, _LOD2, _LOD3</text>
+  <rect class="btn" x="14" y="516" width="220" height="20" rx="3"/>
+  <text class="label" x="124" y="530" text-anchor="middle">+ Add Default Suffixes</text>
+
+  <rect class="panel-stroke" x="0.5" y="0.5" width="479" height="539"/>
+</svg>

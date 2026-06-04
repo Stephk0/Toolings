@@ -1,0 +1,137 @@
+---
+title: Mass Exporter
+description: Batch-export Blender collections to FBX / OBJ / DAE / glTF with suffix grouping, mesh joining, and per-collection settings.
+tool:
+  name: MassExporter
+  version: 13.6.0
+  status: active
+  category: Export
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/MassExporter_v13.6.0.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/MassExporter_v12.4/__init__.py
+  detailLevel: detailed
+---
+
+import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+import ToolMeta from '../../../components/ToolMeta.astro';
+import panelImg from '../../../assets/tools/mass-exporter/panel.svg';
+import headerImg from '../../../assets/tools/mass-exporter/header.svg';
+import viewportImg from '../../../assets/tools/mass-exporter/viewport-example.svg';
+
+<ToolMeta
+  name="Mass Exporter"
+  version="13.6.0"
+  status="active"
+  category="Export"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/MassExporter_v13.6.0.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/MassExporter_v12.4/__init__.py"
+/>
+
+## At a glance
+
+Mass Exporter turns Blender's per-file export into a per-collection batch operation. Mark which collections to export, set their per-collection options once, and a single button writes everything to disk — properly named, properly grouped, and with origin/transform behavior controlled by the collection's settings rather than the active object's accident-of-state.
+
+The everyday flow is: organize meshes into collections → tick the ones to export → click **Export All**. The rest of this page is the parts that aren't obvious from the panel.
+
+## Install
+
+<Steps>
+1. Download `MassExporter_v13.6.0.zip` from the meta block above.
+2. **Edit → Preferences → Add-ons → Install from Disk** (or drag the zip in).
+3. Enable the addon. A **Mass Exporter** tab appears in the 3D View N-panel.
+</Steps>
+
+## UI tour
+
+<img src={panelImg.src} alt="Mass Exporter N-panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">N-panel · collection list, per-collection toggles, suffix grouping</span>
+
+<img src={headerImg.src} alt="Per-collection row close-up with annotations" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Per-collection row · what each toggle does</span>
+
+<img src={viewportImg.src} alt="Viewport example: main mesh + _COL + _LOD0 exported as one FBX" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Suffix grouping in action · three meshes → one FBX with three sub-meshes</span>
+
+<p class="mockup-notice">Mockup illustrations · will be replaced with real Blender screenshots when captured.</p>
+
+## Day-to-day vs Advanced
+
+<Tabs>
+<TabItem label="Day-to-day">
+
+For 90% of work you only need three things in the panel:
+
+- **Export path** at the top — where files go.
+- **The collection list** — tick boxes for what to ship.
+- **Export All** — the green button.
+
+Per-collection toggles you'll touch most often:
+
+- **Merge to single** — combine all meshes in the collection into one file named after the collection.
+- **Move to center** — temporarily place objects at world origin during export (default ON). Restored after.
+- **Apply modifiers** — bake modifier stacks before export (default OFF).
+
+That's enough for ordinary asset batches.
+
+</TabItem>
+<TabItem label="Advanced">
+
+### Suffix grouping
+
+For game-engine pipelines that expect `mesh + mesh_COL + mesh_LOD0…` in the same FBX:
+
+1. Enable **Group by Suffix** on the collection.
+2. Open the **Suffix Grouping** sub-panel and add the suffixes you use (defaults: `_COL`, `_UCX`, `_LOD0–3`).
+3. Mass Exporter scans the collection for objects sharing a base name and groups them. Each group exports as one file containing each variant as a separate mesh.
+
+Priority order when multiple modes are on: **Suffix Grouping > Merge to Single > Individual**.
+
+### Export Selected Objects
+
+The **Export Selected** button respects the same priority, but operates only on the active selection. Selecting `cube`, `cube_COL`, `cube_LOD0` from a collection with suffix grouping enabled produces a single `cube.fbx` containing all three as separate meshes.
+
+### Subcollection-as-single
+
+A parent collection can set `export_subcollections_as_single` — selecting any object from a subcollection then exports the whole subcollection as one file. Useful for hierarchical asset libraries.
+
+### Apply Only Visible modifiers
+
+When **Apply modifiers** is on, the **Apply Only Visible** sub-option skips disabled modifiers in the stack instead of all of them. Lets you ship the realtime preview state without baking hidden offline-only modifiers.
+
+### Material override
+
+Sets a single material on all exported meshes during export. Source data is untouched — overrides happen on duplicates and restore in `finally`.
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+<Aside type="caution" title="Hidden objects silently excluded">
+Blender exporters skip objects with `hide_viewport` or `hide_get()` set. Mass Exporter temporarily unhides everything during export and restores state in a `finally`. If you see a missing mesh in a result file, check that no upstream tool re-hid it after Mass Exporter unhid it.
+</Aside>
+
+<Aside type="caution" title="`.001` suffixes on output">
+Blender auto-appends `.001` to duplicate names. If two collections share an object name, one will be renamed. Mass Exporter resolves this by deleting copies before restoring originals, but custom property-driven export paths can collide — name collections uniquely.
+</Aside>
+
+<Aside type="tip" title="Quick Export from Selection">
+The two **Quick Export** buttons in the panel find the immediate collection or subcollections of the selected object and export with their configured settings. Faster than ticking boxes for a one-off ship.
+</Aside>
+
+## Changelog
+
+- **v13.6.0** — current packaged release. See git for cumulative fixes since v13.0.
+- **v13.5.x** — multiple stability and suffix-grouping refinements.
+- **v13.0.0** — major refactor, full per-collection property integration across all export paths.
+- **v12.5.1** — suffix grouping shipped to "Export Selected Objects" path; UI added missing checkbox.
+- **v12.5.0** — `apply_modifiers` and `move_to_center` integrated across every export path.
+- **v12.4.1** — "Export Selected" now exports only selected objects, respecting collection settings.
+- **v12.3.0** — suffix grouping system introduced.
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/MassExporter_v12.4"
+  description="Open the addon source directory."
+/>

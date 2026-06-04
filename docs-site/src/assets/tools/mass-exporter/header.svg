@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#2b2b2b}
+    .row{fill:#303030;stroke:#1c1c1c}
+    .label{fill:#b8b8b8;font-size:13px}
+    .lbl-bold{fill:#d5d5d5;font-size:14px;font-weight:600}
+    .muted{fill:#7e7e7e;font-size:11px}
+    .check-on{fill:#5680c2;stroke:#1c1c1c}
+    .check-off{fill:#1c1c1c;stroke:#404040}
+    .annot{fill:#f3c969;font-size:12px;font-weight:600}
+    .annot-line{stroke:#f3c969;stroke-width:1;stroke-dasharray:3,3;fill:none}
+    .annot-num{fill:#1c1c1c;font-size:11px;font-weight:700;text-anchor:middle}
+    .annot-bubble{fill:#f3c969;stroke:#000;stroke-width:0.5}
+  </style>
+  <rect class="bg" width="720" height="200"/>
+
+  <!-- Collection row close-up -->
+  <rect class="row" x="40" y="70" width="640" height="44" rx="4"/>
+  <rect class="check-on" x="56" y="86" width="16" height="16" rx="2"/>
+  <path d="M59 94 L62 97 L68 90" stroke="#fff" stroke-width="2.2" fill="none"/>
+  <text class="lbl-bold" x="84" y="98">sm_wall_4x4</text>
+
+  <rect class="check-on" x="280" y="86" width="16" height="16" rx="2"/>
+  <text class="label" x="304" y="98">merge</text>
+
+  <rect class="check-on" x="370" y="86" width="16" height="16" rx="2"/>
+  <text class="label" x="394" y="98">center</text>
+
+  <rect class="check-off" x="460" y="86" width="16" height="16" rx="2"/>
+  <text class="label" x="484" y="98">mods</text>
+
+  <rect class="check-on" x="550" y="86" width="16" height="16" rx="2"/>
+  <text class="label" x="574" y="98">suffix</text>
+
+  <!-- Annotations -->
+  <circle class="annot-bubble" cx="64" cy="36" r="11"/><text class="annot-num" x="64" y="40">1</text>
+  <path class="annot-line" d="M64 47 L64 86"/>
+  <text class="annot" x="80" y="40">enable collection for batch</text>
+
+  <circle class="annot-bubble" cx="288" cy="36" r="11"/><text class="annot-num" x="288" y="40">2</text>
+  <path class="annot-line" d="M288 47 L288 86"/>
+  <text class="annot" x="304" y="40">merge into 1 file</text>
+
+  <circle class="annot-bubble" cx="378" cy="146" r="11"/><text class="annot-num" x="378" y="150">3</text>
+  <path class="annot-line" d="M378 135 L378 102"/>
+  <text class="annot" x="394" y="150">temp move to origin</text>
+
+  <circle class="annot-bubble" cx="468" cy="146" r="11"/><text class="annot-num" x="468" y="150">4</text>
+  <path class="annot-line" d="M468 135 L468 102"/>
+  <text class="annot" x="484" y="150">apply modifiers</text>
+
+  <circle class="annot-bubble" cx="558" cy="36" r="11"/><text class="annot-num" x="558" y="40">5</text>
+  <path class="annot-line" d="M558 47 L558 86"/>
+  <text class="annot" x="574" y="40">group by suffix</text>
+</svg>

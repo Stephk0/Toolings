@@ -1,0 +1,46 @@
+---
+title: Compositor Render Sets
+description: Multi-render setup manager with automated node creation, output muting, and synchronous batch rendering.
+tool:
+  name: CompositorRenderSets
+  version: 1.9.0
+  status: active
+  category: Compositor
+  blenderVersion: 4.5+
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/
+  detailLevel: stub
+---
+
+import ToolMeta from '../../../components/ToolMeta.astro';
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+import panelImg from '../../../assets/tools/compositor-render-sets/panel.svg';
+
+<ToolMeta
+  name="Compositor Render Sets"
+  version="1.9.0"
+  status="active"
+  category="Compositor"
+  blenderVersion="4.5+"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/"
+/>
+
+## Summary
+
+Manages named "render sets" — saved combinations of compositor output overrides, file output nodes, and modifier sync filters. The batch render runs each set synchronously, restoring state between runs, with console progress. Includes a Blender 5 compatibility shim for the new compositor `filename` field.
+
+## UI tour
+
+<img src={panelImg.src} alt="Compositor Render Sets panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">Render-set list · per-set toggles, optimization options, batch and current-set render</span>
+
+<p class="mockup-notice">Mockup illustration · will be replaced with a real Blender screenshot when captured.</p>
+
+<Aside type="tip">
+This page is a stub. Full UI tour, day-to-day vs advanced split, and troubleshooting are pending.
+</Aside>
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/Compositor%20Render%20Sets"
+  description="Open the addon source directory."
+/>

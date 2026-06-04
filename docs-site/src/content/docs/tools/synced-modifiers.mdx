@@ -1,0 +1,48 @@
+---
+title: Synced Modifiers
+description: Add modifiers to multiple objects at once and keep them synchronized via Blender's driver system.
+tool:
+  name: SyncedModifiers
+  version: 2.5.0
+  status: active
+  category: Modifiers
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers/__init__.py
+  detailLevel: stub
+---
+
+import ToolMeta from '../../../components/ToolMeta.astro';
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+import panelImg from '../../../assets/tools/synced-modifiers/panel.svg';
+
+<ToolMeta
+  name="Synced Modifiers"
+  version="2.5.0"
+  status="active"
+  category="Modifiers"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers/__init__.py"
+/>
+
+## Summary
+
+Add a modifier to one object, broadcast it to many. Source modifier tagged with a 6-char hash ID (e.g. `Bevel (Source:abc123)`); targets get driver-bound copies that update live. Supports vanilla modifiers and Geometry Nodes inputs, with manual sync for non-drivable reference fields. Includes **Find Source** navigation to walk the driver chain back to the origin.
+
+## UI tour
+
+<img src={panelImg.src} alt="Synced Modifiers N-panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">N-panel · 85/15 split with synced modifier list + sidebar action icons</span>
+
+<p class="mockup-notice">Mockup illustration · will be replaced with a real Blender screenshot when captured.</p>
+
+<Aside type="tip">
+This page is a stub. Full UI tour, day-to-day vs advanced split, and troubleshooting are pending.
+</Aside>
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers"
+  description="Open the addon source directory."
+/>

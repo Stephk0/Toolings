@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#2b2b2b}.hdr{fill:#353535}
+    .label{fill:#b8b8b8;font-size:12px}
+    .lbl-bold{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#7e7e7e;font-size:11px}
+    .row{fill:#252525}
+    .row-alt{fill:#2b2b2b}
+    .row-sel{fill:#2a3a52;stroke:#4772b3}
+    .btn{fill:#3d3d3d;stroke:#1c1c1c}
+    .btn-text{fill:#d5d5d5;font-size:11px;font-weight:600}
+    .icon{fill:#9aa6b3}
+    .icon-on{fill:#5680c2}
+    .icon-attr-on{fill:#7fd1a1;stroke:#1c1c1c}
+    .icon-attr-off{fill:#3d3d3d;stroke:#1c1c1c}
+    .annot{fill:#f3c969;font-size:12px;font-weight:600}
+    .annot-line{stroke:#f3c969;stroke-width:1;stroke-dasharray:3,3;fill:none}
+    .annot-bubble{fill:#f3c969;stroke:#000}
+    .annot-num{fill:#1c1c1c;font-size:11px;font-weight:700;text-anchor:middle}
+    .panel-stroke{stroke:#1c1c1c;stroke-width:1;fill:none}
+    .tab-text{fill:#9aa6b3;font-size:11px;font-weight:600;letter-spacing:.5px}
+  </style>
+  <rect class="bg" width="720" height="360"/>
+  <rect class="hdr" x="0" y="0" width="720" height="28"/>
+  <text class="lbl-bold" x="14" y="19">▼ Modifiers · list view</text>
+  <text class="muted" x="670" y="19">Stephko</text>
+
+  <text class="tab-text" x="14" y="54">ACTIVE OBJECT · environment_rock</text>
+
+  <!-- header -->
+  <rect class="row-alt" x="14" y="68" width="692" height="22"/>
+  <text class="muted" x="22" y="83">Modifier</text>
+  <text class="muted" x="500" y="83">Show</text>
+  <text class="muted" x="560" y="83">Render</text>
+  <text class="muted" x="630" y="83">Attr</text>
+
+  <!-- Solidify -->
+  <rect class="row" x="14" y="94" width="692" height="26"/>
+  <circle class="icon" cx="30" cy="107" r="6"/>
+  <text class="lbl-bold" x="44" y="111">Solidify</text>
+  <circle class="icon-on" cx="512" cy="107" r="6"/>
+  <circle class="icon-on" cx="572" cy="107" r="6"/>
+  <text class="muted" x="640" y="111">—</text>
+
+  <!-- Subdivision Surface -->
+  <rect class="row-alt" x="14" y="124" width="692" height="26"/>
+  <circle class="icon" cx="30" cy="137" r="6"/>
+  <text class="lbl-bold" x="44" y="141">Subdivision Surface</text>
+  <circle class="icon-on" cx="512" cy="137" r="6"/>
+  <circle class="icon-on" cx="572" cy="137" r="6"/>
+  <text class="muted" x="640" y="141">—</text>
+
+  <!-- GN Modifier (highlighted) -->
+  <rect class="row-sel" x="14" y="154" width="692" height="26" rx="2"/>
+  <circle class="icon-on" cx="30" cy="167" r="6"/>
+  <text class="lbl-bold" x="44" y="171">GeometryNodes · GN_Scatter</text>
+  <circle class="icon-on" cx="512" cy="167" r="6"/>
+  <circle class="icon-on" cx="572" cy="167" r="6"/>
+  <!-- the restored attribute toggle -->
+  <rect class="icon-attr-on" x="624" y="161" width="14" height="14" rx="2"/>
+  <text class="muted" x="644" y="171">attr</text>
+
+  <!-- Bevel -->
+  <rect class="row" x="14" y="184" width="692" height="26"/>
+  <circle class="icon" cx="30" cy="197" r="6"/>
+  <text class="lbl-bold" x="44" y="201">Bevel</text>
+  <circle class="icon-on" cx="512" cy="197" r="6"/>
+  <circle class="icon-on" cx="572" cy="197" r="6"/>
+  <text class="muted" x="640" y="201">—</text>
+
+  <!-- Annotation -->
+  <circle class="annot-bubble" cx="631" cy="240" r="11"/><text class="annot-num" x="631" y="244">★</text>
+  <path class="annot-line" d="M631 229 L631 178"/>
+  <text class="annot" x="500" y="280">Restored on Blender 5</text>
+  <text class="annot" x="500" y="297">Input Attribute toggle for GN inputs</text>
+  <text class="muted" x="500" y="316">(upstream ModifierList drops this in list-view on B5)</text>
+
+  <rect class="panel-stroke" x="0.5" y="0.5" width="719" height="359"/>
+</svg>

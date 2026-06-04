@@ -1,0 +1,30 @@
+---
+title: Installing addons
+description: How to install any of the Blender addons from this site.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+All Blender addons here are shipped as drag-and-drop `.zip` files. The same procedure works for every tool documented on this site.
+
+<Steps>
+
+1. **Download** the latest `.zip` from the tool's page (link is in the meta block at the top).
+
+2. **Open Blender 4.5 or newer.** Go to **Edit → Preferences → Add-ons**.
+
+3. **Drag the zip** into the preferences window — or click **Install from Disk** and pick the file.
+
+4. **Enable** the new entry by ticking its checkbox.
+
+5. Open the **N-panel** in the 3D Viewport (`N` key). Most tools register a tab here.
+
+</Steps>
+
+<Aside type="tip" title="Updating">
+For a newer version: disable and remove the previous version first, then install the new zip. Some addons store per-scene properties — those persist across reinstalls.
+</Aside>
+
+<Aside type="caution" title="Blender 5.0">
+A few tools include compatibility shims for Blender 5.0's API changes (compositor node `filename` field, modifier list view). The meta block on each tool page calls out 5.0 status explicitly.
+</Aside>

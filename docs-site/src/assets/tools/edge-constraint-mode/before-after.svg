@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" font-family="Segoe UI, Roboto, sans-serif">
+  <defs>
+    <linearGradient id="vp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3f48"/>
+      <stop offset="100%" stop-color="#1f242b"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .vp{fill:url(#vp);stroke:#1c1c1c}
+    .edge{stroke:#bdc7d3;stroke-width:1.5;fill:none}
+    .edge-active{stroke:#f3c969;stroke-width:2;fill:none}
+    .vert{fill:#bdc7d3;stroke:#1c1c1c}
+    .vert-sel{fill:#f3c969;stroke:#1c1c1c}
+    .ghost{stroke:#5680c2;stroke-width:1.5;stroke-dasharray:3,3;fill:none}
+    .arrow{stroke:#5680c2;stroke-width:2;fill:none}
+    .arrow-head{fill:#5680c2}
+    .arrow-bad{stroke:#d65555;stroke-width:2;fill:none}
+    .arrow-bad-head{fill:#d65555}
+    .label{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#9aa6b3;font-size:11px}
+    .tag-good{fill:#1f3a25;stroke:#2f6940}
+    .tag-good-text{fill:#b5e8c1;font-size:12px;font-weight:600}
+    .tag-bad{fill:#3a1f24;stroke:#69343a}
+    .tag-bad-text{fill:#f0a0a5;font-size:12px;font-weight:600}
+  </style>
+
+  <!-- Left: OFF -->
+  <rect class="vp" x="20" y="40" width="320" height="240" rx="4"/>
+  <text class="label" x="180" y="32" text-anchor="middle">Edge Constraint OFF</text>
+  <!-- triangle of edges -->
+  <polygon class="edge" points="80,220 280,200 200,90"/>
+  <!-- selected vertex original -->
+  <circle class="vert-sel" cx="200" cy="90" r="6"/>
+  <!-- ghost at moved position (off-edge) -->
+  <circle class="ghost" cx="240" cy="60" r="6"/>
+  <line class="ghost" x1="200" y1="90" x2="240" y2="60"/>
+  <!-- arrow showing drag direction -->
+  <line class="arrow-bad" x1="206" y1="86" x2="234" y2="64"/>
+  <polygon class="arrow-bad-head" points="240,60 230,60 234,68"/>
+  <rect class="tag-bad" x="40" y="240" width="280" height="26" rx="3"/>
+  <text class="tag-bad-text" x="180" y="258" text-anchor="middle">vertex drifts through free space</text>
+
+  <!-- Right: ON -->
+  <rect class="vp" x="380" y="40" width="320" height="240" rx="4"/>
+  <text class="label" x="540" y="32" text-anchor="middle">Edge Constraint ON</text>
+  <polygon class="edge" points="440,220 640,200 560,90"/>
+  <!-- highlight the edge being followed -->
+  <line class="edge-active" x1="560" y1="90" x2="640" y2="200"/>
+  <circle class="vert-sel" cx="560" cy="90" r="6"/>
+  <!-- ghost slid along edge -->
+  <circle class="ghost" cx="590" cy="127" r="6"/>
+  <line class="ghost" x1="560" y1="90" x2="590" y2="127"/>
+  <!-- arrow following edge -->
+  <line class="arrow" x1="565" y1="96" x2="585" y2="121"/>
+  <polygon class="arrow-head" points="590,127 580,126 586,118"/>
+  <rect class="tag-good" x="400" y="240" width="280" height="26" rx="3"/>
+  <text class="tag-good-text" x="540" y="258" text-anchor="middle">drag projects onto closest connected edge</text>
+
+  <text class="muted" x="360" y="304" text-anchor="middle">same drag input · different solver behavior</text>
+</svg>

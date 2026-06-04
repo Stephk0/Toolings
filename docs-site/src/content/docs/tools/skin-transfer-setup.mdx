@@ -1,0 +1,48 @@
+---
+title: Skin Transfer Setup
+description: One-click setup for transferring skin weights from a source mesh to a target with sensible defaults.
+tool:
+  name: SkinTransferSetup
+  version: 1.3.0
+  status: active
+  category: Rigging
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup_v1.3.0.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup/
+  detailLevel: stub
+---
+
+import ToolMeta from '../../../components/ToolMeta.astro';
+import { Aside, LinkCard } from '@astrojs/starlight/components';
+import panelImg from '../../../assets/tools/skin-transfer-setup/panel.svg';
+
+<ToolMeta
+  name="Skin Transfer Setup"
+  version="1.3.0"
+  status="active"
+  category="Rigging"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup_v1.3.0.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup/"
+/>
+
+## Summary
+
+Configures Blender's **Data Transfer** modifier for skin weight transfer in one click — preserves bone group mapping, copies armature modifier from source, and offers a one-button bake when results look right. Replaces a tedious 6-step manual setup.
+
+## UI tour
+
+<img src={panelImg.src} alt="Skin Transfer Setup N-panel" class="tool-screenshot" />
+<span class="tool-screenshot-caption">N-panel · source/target pickers, options, configure + bake</span>
+
+<p class="mockup-notice">Mockup illustration · will be replaced with a real Blender screenshot when captured.</p>
+
+<Aside type="tip">
+This page is a stub. Full UI tour, day-to-day vs advanced split, and troubleshooting are pending.
+</Aside>
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup"
+  description="Open the addon source directory."
+/>

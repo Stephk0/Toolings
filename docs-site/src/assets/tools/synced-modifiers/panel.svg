@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 400" font-family="Segoe UI, Roboto, sans-serif">
+  <style>
+    .bg{fill:#2b2b2b}.hdr{fill:#353535}
+    .label{fill:#b8b8b8;font-size:12px}
+    .lbl-bold{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#7e7e7e;font-size:11px}
+    .field{fill:#1c1c1c;stroke:#141414}
+    .btn{fill:#3d3d3d;stroke:#1c1c1c}
+    .btn-primary{fill:#4772b3;stroke:#2e5798}
+    .btn-text{fill:#d5d5d5;font-size:11px;font-weight:600}
+    .row{fill:#252525}
+    .row-sel{fill:#2a3a52;stroke:#4772b3}
+    .icon{fill:#9aa6b3}
+    .icon-on{fill:#5680c2}
+    .icon-driver{fill:#7d5fa3;stroke:#1c1c1c}
+    .tab-text{fill:#9aa6b3;font-size:11px;font-weight:600;letter-spacing:.5px}
+    .divider{stroke:#1c1c1c;stroke-width:1}
+    .panel-stroke{stroke:#1c1c1c;stroke-width:1;fill:none}
+  </style>
+  <rect class="bg" width="480" height="400"/>
+  <rect class="hdr" x="0" y="0" width="480" height="28"/>
+  <text class="lbl-bold" x="14" y="19">▼ Synced Modifiers</text>
+  <text class="muted" x="430" y="19">v2.5.0</text>
+
+  <text class="tab-text" x="14" y="54">SYNCED ON ACTIVE OBJECT</text>
+  <line class="divider" x1="14" y1="60" x2="466" y2="60"/>
+
+  <!-- 85/15 split: list on left, icon buttons on right -->
+  <!-- List items -->
+  <rect class="row-sel" x="14" y="70" width="384" height="30" rx="3"/>
+  <rect class="icon-driver" x="22" y="79" width="14" height="14" rx="2"/>
+  <text class="lbl-bold" x="44" y="89">Bevel (Source:abc123)</text>
+  <text class="muted" x="44" y="96">↳ environment_rock_01</text>
+
+  <rect class="row" x="14" y="104" width="384" height="30" rx="3"/>
+  <rect class="icon-driver" x="22" y="113" width="14" height="14" rx="2"/>
+  <text class="lbl-bold" x="44" y="123">Subdivision Surface (Source:abc123)</text>
+  <text class="muted" x="44" y="130">↳ environment_rock_01</text>
+
+  <rect class="row" x="14" y="138" width="384" height="30" rx="3"/>
+  <rect class="icon-driver" x="22" y="147" width="14" height="14" rx="2"/>
+  <text class="lbl-bold" x="44" y="157">GN Scatter (Source:7f2a91)</text>
+  <text class="muted" x="44" y="164">↳ environment_grass_master</text>
+
+  <rect class="row" x="14" y="172" width="384" height="30" rx="3"/>
+  <rect class="icon-driver" x="22" y="181" width="14" height="14" rx="2"/>
+  <text class="lbl-bold" x="44" y="191">Mirror (Source:9d3c4e)</text>
+  <text class="muted" x="44" y="198">↳ environment_rock_02</text>
+
+  <!-- Sidebar icon buttons (15% column) -->
+  <rect class="btn" x="404" y="70" width="62" height="30" rx="3"/>
+  <text class="btn-text" x="435" y="89" text-anchor="middle">⟳</text>
+  <rect class="btn" x="404" y="104" width="62" height="30" rx="3"/>
+  <text class="btn-text" x="435" y="123" text-anchor="middle">→</text>
+  <rect class="btn" x="404" y="138" width="62" height="30" rx="3"/>
+  <text class="btn-text" x="435" y="157" text-anchor="middle">⇄</text>
+  <rect class="btn" x="404" y="172" width="62" height="30" rx="3"/>
+  <text class="btn-text" x="435" y="191" text-anchor="middle">×</text>
+
+  <text class="tab-text" x="14" y="226">ADD SYNCED MODIFIER · multi-selection</text>
+  <line class="divider" x1="14" y1="232" x2="466" y2="232"/>
+
+  <text class="label" x="14" y="252">Source object</text>
+  <rect class="field" x="120" y="240" width="346" height="22" rx="3"/>
+  <text class="lbl-bold" x="128" y="255">environment_rock_01</text>
+
+  <text class="label" x="14" y="282">Modifier to broadcast</text>
+  <rect class="field" x="150" y="270" width="316" height="22" rx="3"/>
+  <text class="lbl-bold" x="158" y="285">Bevel</text>
+  <text class="muted" x="450" y="285" text-anchor="end">▾</text>
+
+  <rect class="btn-primary" x="14" y="302" width="452" height="34" rx="4"/>
+  <text class="btn-text" x="240" y="324" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">▶ Sync to Selected Objects (4)</text>
+
+  <text class="muted" x="14" y="358">Targets get driver-bound copies · find original via Select Source</text>
+  <text class="muted" x="14" y="372">Tip: Source:abc123 hash lets you trace driver chains back through forks</text>
+
+  <rect class="panel-stroke" x="0.5" y="0.5" width="479" height="399"/>
+</svg>

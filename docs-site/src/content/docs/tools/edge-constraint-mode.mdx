@@ -1,0 +1,116 @@
+---
+title: Edge Constraint Mode
+description: Persistent mode that constrains edge-vertex movement to the edges' own direction — works with any transform tool.
+tool:
+  name: EdgeConstraintMode
+  version: 1.1.2
+  status: active
+  category: Modeling
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode_v1.1.2.zip
+  sourcePath: Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode/
+  detailLevel: detailed
+---
+
+import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+import ToolMeta from '../../../components/ToolMeta.astro';
+import headerImg from '../../../assets/tools/edge-constraint-mode/header.svg';
+import beforeAfterImg from '../../../assets/tools/edge-constraint-mode/before-after.svg';
+
+<ToolMeta
+  name="Edge Constraint Mode"
+  version="1.1.2"
+  status="active"
+  category="Modeling"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode_v1.1.2.zip"
+  sourcePath="Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode/"
+/>
+
+## At a glance
+
+A persistent edit-mode mode that constrains selected vertex movement to the direction of the edges they sit on. Move, grab, or use any transform tool — vertices slide along their connected edge instead of through free space. Toggle the mode on once and forget it; it works with the regular `G` grab, with proportional editing, with the gizmo handles.
+
+Originally a one-shot operator; now a mode that persists across selection changes and tool switches because that's how it should have worked from the start.
+
+## Install
+
+<Steps>
+1. Download `EdgeConstraintMode_v1.1.2.zip`.
+2. **Edit → Preferences → Add-ons → Install from Disk**.
+3. Enable. The toggle appears in the 3D View header in Edit Mode, and also under the N-panel.
+</Steps>
+
+## UI tour
+
+<img src={headerImg.src} alt="Edit Mode header with Edge Constraint toggle highlighted" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Edit Mode header · toggle appears between select-mode pickers and Pivot</span>
+
+<img src={beforeAfterImg.src} alt="Before/after viewport showing edge-constrained drag vs free-space drag" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Same drag, two solvers · OFF lets the vertex leave the edge, ON projects motion onto it</span>
+
+<p class="mockup-notice">Mockup illustrations · will be replaced with real Blender screenshots when captured.</p>
+
+## Day-to-day vs Advanced
+
+<Tabs>
+<TabItem label="Day-to-day">
+
+1. Enter Edit Mode on a mesh.
+2. Click the **Edge Constraint** toggle in the header (or press the assigned shortcut if you bound one).
+3. Select vertices and drag with `G`. They follow their connected edges.
+4. Click the toggle again to leave the mode.
+
+That's it. The mode is transform-agnostic, so it also works with the **Move** tool gizmo and with **Proportional Editing**.
+
+</TabItem>
+<TabItem label="Advanced">
+
+### How the solver works
+
+For each moved vertex, the solver:
+
+1. Reads the requested delta from the transform operator.
+2. Projects that delta onto each of the vertex's connected edges.
+3. Picks the edge whose projection is largest in magnitude.
+4. Writes the projected delta back, ignoring the perpendicular component.
+
+This is why it works with any transform tool — the addon doesn't replace the transform, it post-processes the result before it's committed.
+
+### Multiple connected edges
+
+When a vertex has two or more connected edges, the "largest projection" rule effectively picks the edge whose direction is closest to the drag direction. Drag along an edge → it sticks to that edge. Drag perpendicular to all of them → motion approaches zero.
+
+### Persistence across selection changes
+
+The mode survives:
+- Switching between vertex / edge / face select.
+- Tool changes (Move / Rotate / Scale / Inset).
+- Undo / redo.
+
+It does not survive leaving Edit Mode, by design — there is no constraint to apply in Object Mode.
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+<Aside type="tip" title="Vertex won't move at all">
+If a vertex has no connected edges in the current select-pool (e.g. isolated single-vertex), the constraint has nothing to project onto and motion is zero. Select an edge-connected vertex.
+</Aside>
+
+<Aside type="caution" title="Conflicts with snapping">
+With both edge constraint and Blender's built-in vertex snapping on, the snap target can pull the vertex off-edge before the constraint runs. Disable snapping or use this mode alone for clean slides.
+</Aside>
+
+## Changelog
+
+- **v1.1.2** — current packaged release.
+- **v1.1.0** — persistent mode + transform-agnostic solver (replaces old `edge_constraint_mode/` one-shot folder).
+- **v1.0.x** — initial single-operator releases.
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode"
+  description="Open the addon source directory."
+/>

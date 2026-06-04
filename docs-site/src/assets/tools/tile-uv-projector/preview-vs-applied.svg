@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 320" font-family="Segoe UI, Roboto, sans-serif">
+  <defs>
+    <linearGradient id="vp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a3f48"/>
+      <stop offset="100%" stop-color="#1f242b"/>
+    </linearGradient>
+    <pattern id="brick" x="0" y="0" width="40" height="20" patternUnits="userSpaceOnUse">
+      <rect width="40" height="20" fill="#8a6650"/>
+      <rect x="0" y="0" width="38" height="9" fill="#a07561" stroke="#5a3f2f" stroke-width="0.6"/>
+      <rect x="0" y="11" width="18" height="9" fill="#a07561" stroke="#5a3f2f" stroke-width="0.6"/>
+      <rect x="20" y="11" width="20" height="9" fill="#a07561" stroke="#5a3f2f" stroke-width="0.6"/>
+    </pattern>
+    <pattern id="brick-stretch" x="0" y="0" width="80" height="14" patternUnits="userSpaceOnUse">
+      <rect width="80" height="14" fill="#8a6650"/>
+      <rect x="0" y="0" width="78" height="6" fill="#a07561" stroke="#5a3f2f" stroke-width="0.5"/>
+      <rect x="0" y="8" width="38" height="6" fill="#a07561" stroke="#5a3f2f" stroke-width="0.5"/>
+      <rect x="42" y="8" width="36" height="6" fill="#a07561" stroke="#5a3f2f" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <style>
+    .vp{fill:url(#vp);stroke:#1c1c1c}
+    .face{stroke:#1c1c1c;stroke-width:1.2}
+    .label{fill:#d5d5d5;font-size:13px;font-weight:600}
+    .muted{fill:#9aa6b3;font-size:11px}
+    .tag-bad{fill:#3a1f24;stroke:#69343a}
+    .tag-bad-text{fill:#f0a0a5;font-size:12px;font-weight:600}
+    .tag-good{fill:#1f3a25;stroke:#2f6940}
+    .tag-good-text{fill:#b5e8c1;font-size:12px;font-weight:600}
+  </style>
+
+  <!-- Left: stretched (no Tile UV Projector) -->
+  <rect class="vp" x="20" y="40" width="320" height="240" rx="4"/>
+  <text class="label" x="180" y="32" text-anchor="middle">Default UV unwrap</text>
+  <!-- Small wall + large wall, both stretched -->
+  <rect class="face" x="50" y="100" width="80" height="120" fill="url(#brick)"/>
+  <rect class="face" x="150" y="80" width="180" height="160" fill="url(#brick-stretch)"/>
+  <rect class="tag-bad" x="40" y="248" width="280" height="22" rx="3"/>
+  <text class="tag-bad-text" x="180" y="263" text-anchor="middle">stretched · texel density mismatch</text>
+
+  <!-- Right: Tile UV Projector -->
+  <rect class="vp" x="380" y="40" width="320" height="240" rx="4"/>
+  <text class="label" x="540" y="32" text-anchor="middle">Tile UV Projector · 1 m tile</text>
+  <rect class="face" x="410" y="100" width="80" height="120" fill="url(#brick)"/>
+  <rect class="face" x="510" y="80" width="180" height="160" fill="url(#brick)"/>
+  <rect class="tag-good" x="400" y="248" width="280" height="22" rx="3"/>
+  <text class="tag-good-text" x="540" y="263" text-anchor="middle">consistent texel density · any face size</text>
+
+  <text class="muted" x="360" y="304" text-anchor="middle">same texture, same world scale · projector keeps tiling at 1 repeat per meter</text>
+</svg>
