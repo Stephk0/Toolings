@@ -2,7 +2,9 @@ import bpy, sys, os
 from collections import defaultdict
 GEO = r"D:\Stephko_Tooling\Toolings\Blender\Geonodes"
 TARGETS = ["GN_Spherify", "GN_Twist", "GN_Taper", "GN_Wave", "GN_Bend", "GN_Stretch",
-           "GN_Inflate", "GN_Smooth", "GN_RandomizePosition"]
+           "GN_Inflate", "GN_Smooth", "GN_RandomizePosition",
+           "GN_Triangulate", "GN_Subdivide", "GN_Wireframe", "GN_RadialArray",
+           "GN_Displace", "GN_MeshBoolean", "GN_Cast", "GN_Scatter"]
 
 def isock(node, ident): return next(s for s in node.inputs if s.identifier == ident)
 def osock(node, ident): return next(s for s in node.outputs if s.identifier == ident)
@@ -342,7 +344,7 @@ def route_around_nodes(ng):
 
 if "--" in sys.argv:                       # run on a subset: blender ... -- GN_Spherify GN_Twist
     sel = sys.argv[sys.argv.index("--") + 1:]
-    if sel: TARGETS = [t for t in TARGETS if t in sel]
+    if sel: TARGETS = sel                      # route exactly the names passed (any file, not just defaults)
 
 for fname in TARGETS:
     bpy.ops.wm.open_mainfile(filepath=os.path.join(GEO, fname + ".blend"))
