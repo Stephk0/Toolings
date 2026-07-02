@@ -1,6 +1,6 @@
 # Compositor Render Sets
 
-![Version](https://img.shields.io/badge/version-1.7.1-blue)
+![Version](https://img.shields.io/badge/version-1.7.4-blue)
 ![Blender](https://img.shields.io/badge/blender-4.0%20%7C%205.0+-orange)
 
 **Author:** Claude AI + Stephan Viranyi

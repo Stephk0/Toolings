@@ -13,8 +13,9 @@ from PIL import Image, ImageDraw, ImageFont
 sys.stdout.reconfigure(encoding='utf-8')
 
 ROOT = r"D:/Stephko_Tooling/Toolings/Blender/Addons/ClaudeVibe_WIPs"
-SRC = os.path.join(ROOT, "quick_anim_export_screenshot.png")
-OUT = os.path.join(ROOT, "QuickAnimationExport", "QuickAnimationExport_docs.png")
+ASSETS = os.path.join(ROOT, "QuickAnimationExport", "assets")
+SRC = os.path.join(ASSETS, "quick_anim_export_screenshot.png")
+OUT = os.path.join(ASSETS, "QuickAnimationExport_docs.png")
 
 # Canvas geometry — the screenshot is pasted with this offset so its grey
 # 3D viewport area is widened on the left.

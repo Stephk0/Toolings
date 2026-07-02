@@ -49,7 +49,28 @@ Restart 3DS Max
 | N-Panel | `N` → Find addon tab | Full interface |
 | Context Menu | Right-click in Edit Mode | Context-specific |
 
-### Mass Exporter v12
+### Full Addon Roster (versions)
+| Addon | Ver | Access |
+|-------|-----|--------|
+| Mass Collection Exporter | 13.6.2 | `N` Panel → Mass Exporter |
+| Synced Modifiers | 2.5.0 | `N` Panel → Item |
+| Compositor Render Sets | 1.7.4 | Compositor → `N` Panel |
+| Modifier List (Stephko fork) | 1.9.89 | Properties → Modifiers / popup |
+| Tile UV Projector | 1.2.1 | `N` Panel (UV) |
+| Add Bounds To Name | 1.1.3 | `N` Panel → Bounds Name |
+| Edge Constraint Mode | 1.1.2 | `F3` / header toggle |
+| Skin Transfer Setup | 1.3.0 | `N` Panel |
+| Quick Animation Export | 1.0.9 | `N` Panel |
+| Animation Layers Quick Export | 0.3.0 | `N` Panel |
+| Smart Crease | 1.5.1 | `F3` → Smart Crease |
+| Smart Collapse | 1.0.0 | `F3` → Smart Collapse |
+| Smart Set Orientation | 1.5.0 | `F3` → Smart Orientation |
+| Center Edges/Loops | 1.5.1 | `F3` → Center Loops |
+| Edit Mode Overlay | 1.1.0 | `N` Panel → Overlay |
+| Toggle Modifier Display | 1.3.0 | `D` / `Shift+D` in Edit Mode |
+| **ST3E Geometry Nodes** | 37 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
+
+### Mass Exporter v13.6
 
 **Location:** `N` Panel → Mass Exporter tab
 
@@ -520,8 +541,8 @@ Apply Modifiers Before Join: OFF
 
 ---
 
-**Last Updated:** October 2025  
-**Version:** 1.0
+**Last Updated:** June 2026  
+**Version:** 2.0
 
 ---
 

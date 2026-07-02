@@ -29,7 +29,7 @@ Automatically rename objects with their bounding box dimensions. Perfect for pro
 ### Method 1: Install Single File (Recommended)
 1. Open Blender → Edit → Preferences → Add-ons
 2. Click **"Install..."**
-3. Navigate to: `AddBoundsToName/add_bounds_to_name.py`
+3. Navigate to: `AddBoundsToName/source/add_bounds_to_name.py`
 4. Enable the checkbox
 
 ### Method 2: Manual Folder Installation

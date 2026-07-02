@@ -20,18 +20,23 @@
 
 ### 🔷 Blender Tools (Active Development)
 
-**Addons** - Production-ready modeling helpers:
-- **Mass Collection Exporter** - Batch export with multiple collections
-- **Smart Crease** - Fast edge / vertex crease setting tool
-- **Smart Collapse** - 3ds max style Collapse Geometry (combines collapse and merge at center)
-- **Smart Set Orientation** - Quickly set transform orientation based on selection (simlar to "D" working pivot in Maya)
-- **Center Edges/Loops** - Simple Edge loop centering
-- **Edit Mode Overlay** - Edit Mode Viewport feedback
-- **Toggle Modifier Display** - Quick modifier visibility toggle . Like 3ds max "Show end result" toggle
+**Addons** - 16 production-ready helpers across export, modeling, modifiers, UV, naming, rigging and render:
+- **Mass Collection Exporter** - Batch export collections/objects with suffix grouping & parent-empty handling
+- **Synced Modifiers** - Keep modifiers synchronized across objects via drivers
+- **Compositor Render Sets** - Multi-render-setup management with batch rendering
+- **Modifier List (Stephko fork)** - Enhanced modifier-stack UI (list / popup / sidebar)
+- **Tile UV Projector** - Tile-based UV projection for texture-atlas workflows
+- **Smart Crease / Smart Collapse / Smart Set Orientation / Center Edges** - 3ds Max / Maya-style modeling helpers
+- **Edge Constraint Mode** - Verts slide along topology during transforms
+- **Add Bounds To Name** - Rename objects from bounding-box dimensions
+- **Quick Animation Export / Animation Layers Quick Export** - One-click animation/action export
+- **Skin Transfer Setup** - Per-part skin setup (as-is / data transfer / bind-to-bone)
+- **Edit Mode Overlay / Toggle Modifier Display** - Viewport & modifier-display helpers
+- [See the full roster with versions](DOCUMENTATION_INDEX.md#blender-addons)
 
-**Geometry Nodes** - Procedural helpers:
-- Procedual Attribute setting and manipulation, procedual modelling, selection tools, and more
-- [See full list](DOCUMENTATION_INDEX.md#geometry-nodes)
+**Geometry Nodes** - 37-modifier **ST3E library** (Add Modifier → ST3E): deformers, generators,
+topology & attribute tools, plus a procedural tree generator.
+- [Full library reference](Blender/Geonodes/README.md)
 
 ### 🔶 Unity Tools (Planned)
 Import automation and workflow helpers - Coming soon!
@@ -208,9 +213,9 @@ Most addons add operators accessible via:
 Watch this repository or star it to be notified of updates!
 
 **Recent Updates:**
-- October 2025: Smart Crease, Smart Collapse added
-- October 2025: Complete documentation overhaul
-- October 2025: Documentation index created
+- June 2026: ST3E Geometry Nodes library expanded to 37 modifiers (Add Modifier → ST3E)
+- June 2026: Documentation refresh — full 16-addon roster + geonode library reference
+- Earlier: Mass Exporter v13.6, Synced Modifiers v2.5, Tile UV Projector, Edge Constraint Mode
 
 ---
 

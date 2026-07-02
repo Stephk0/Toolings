@@ -1,4 +1,4 @@
-# Tile UV Projector v1.1.0
+# Tile UV Projector v1.2.1
 
 Tile-based UV projection and placement for texture atlas workflows in Blender.
 

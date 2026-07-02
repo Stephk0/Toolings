@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Generates an annotated documentation image for Mass Collection Exporter
-v13.3.3 by overlaying labelled boxes + metro-style connectors onto the
+v13.6.2 by overlaying labelled boxes + metro-style connectors onto the
 captured N-panel screenshot.
 
 Mirrors the layout of `QuickAnimationExport/_make_annotated_doc.py` so the
@@ -13,8 +13,9 @@ from PIL import Image, ImageDraw, ImageFont
 sys.stdout.reconfigure(encoding='utf-8')
 
 ROOT = r"D:/Stephko_Tooling/Toolings/Blender/Addons/ClaudeVibe_WIPs"
-SRC = os.path.join(ROOT, "mass_exporter_panel.png")
-OUT = os.path.join(ROOT, "MassExporter_v13.3.3_docs.png")
+ASSETS = os.path.join(ROOT, "MassExporter", "assets")
+SRC = os.path.join(ASSETS, "mass_exporter_panel.png")
+OUT = os.path.join(ASSETS, "MassExporter_v13.6.2_docs.png")
 
 # Panel paste offset in the final canvas.
 PASTE_X = 1820
@@ -60,300 +61,179 @@ GROUPS = {
 
 
 # ---------- Field annotations ----------
-# field_box uses PANEL-CROP coordinates (panel image is 980x1760). y-values
-# were verified against a 2x ruler overlay. The draw step adds (PASTE_X,
-# PASTE_Y) so the same numbers stay easy to verify against the source crop.
+# field_box uses PANEL-CROP coordinates (panel image is 654x1286, captured
+# at ui_scale 0.55). y-values verified against a 25px ruler overlay. The draw
+# step adds (PASTE_X, PASTE_Y) so the numbers stay easy to verify vs the crop.
 FIELDS = [
-    # 1 — Export All Collections (primary action)
-    dict(
-        group="action",
-        field_box=(20, 115, 970, 150),
+    dict(group="action", field_box=(8, 22, 648, 40),
         title="Export All Collections",
         body=[
             "The primary action. Iterates every row in the Collection list",
-            "whose Export checkbox is ON, then writes each to its configured",
-            "Export Path using the active File Export Options.",
+            "whose Export checkbox is ON and writes each to its Export Path",
+            "using the active File Export Options.",
         ],
-        examples=["3 enabled rows  ->  3 FBX files written this run"],
-    ),
-    # 2 — Export Hidden Collections
-    dict(
-        group="control",
-        field_box=(20, 152, 970, 178),
+        examples=["3 enabled rows  ->  3 FBX files written this run"]),
+    dict(group="control", field_box=(8, 42, 648, 54),
         title="Export Hidden Collections",
         body=[
             "Temporarily unhide hidden objects (outliner eye, hide_viewport,",
-            "layer-collection exclude, local view) so they participate, then",
-            "restore. When OFF, hidden collections are skipped with a warning.",
-            "Default: ON.",
+            "layer-collection exclude) so they participate, then restore.",
+            "When OFF, hidden collections are skipped. Default: ON.",
         ],
-        examples=["Reason: Blender's FBX exporter silently drops hidden",
-                  "objects — this toggle prevents accidental data loss."],
-    ),
-    # 3 — Export Selected Object(s)
-    dict(
-        group="quick",
-        field_box=(20, 235, 970, 270),
+        examples=["Stops Blender's FBX exporter silently dropping hidden",
+                  "objects (fixed/hardened in v13.6.1-.2)."]),
+    dict(group="quick", field_box=(8, 83, 648, 99),
         title="Export Selected Object(s)",
         body=[
             "Quick export scoped to the viewport selection. Exports ONLY the",
-            "selected objects (not their whole collection) but honours the",
-            "parent collection's Merge / Suffix Grouping / Sub-Collections",
-            "as Single settings.",
-        ],
-    ),
-    # 4 — Export Collection of Selected
-    dict(
-        group="quick",
-        field_box=(20, 275, 970, 310),
+            "selected objects (not the whole collection) but honours the",
+            "parent collection's Merge / Suffix / Sub-Collections settings.",
+        ]),
+    dict(group="quick", field_box=(8, 102, 648, 118),
         title="Export Collection of Selected",
         body=[
             "Finds the immediate collection containing the selected object",
-            "and exports it. The collection does NOT need to be enabled in",
-            "the list first — handy for ad-hoc one-off exports.",
-        ],
-    ),
-    # 5 — Export Sub-Collections of Selected
-    dict(
-        group="quick",
-        field_box=(20, 312, 970, 348),
+            "and exports it — it does NOT need to be enabled in the list",
+            "first. Handy for ad-hoc one-off exports.",
+        ]),
+    dict(group="quick", field_box=(8, 121, 648, 137),
         title="Export Sub-Collections of Selected",
         body=[
             "Walks one level into the selected collection and exports each",
-            "of its child collections as its own file. Useful when a parent",
-            "collection groups several modular variants you want shipped",
-            "as separate FBXs.",
-        ],
-    ),
-    # 6 — Debug Mode
-    dict(
-        group="control",
-        field_box=(20, 372, 970, 398),
+            "child collection as its own file — for a parent that groups",
+            "several modular variants you want shipped separately.",
+        ]),
+    dict(group="control", field_box=(8, 150, 648, 164),
         title="Debug Mode",
         body=[
-            "Prints verbose status to the system console: which objects are",
-            "processed, what's joined, what's skipped, resolved paths,",
-            "modifier-eval steps, etc.",
-            "Flip on before reporting a bug. Default: OFF.",
-        ],
-    ),
-    # 7 — Collection List (the UIList with all five columns)
-    dict(
-        group="list",
-        field_box=(20, 445, 970, 590),
-        title="Collection List (Collection Options panel)",
+            "Prints verbose status to the system console: objects processed,",
+            "joins, skips, resolved paths, modifier-eval steps. Flip on",
+            "before reporting a bug. Default: OFF.",
+        ]),
+    dict(group="list", field_box=(8, 186, 648, 278),
+        title="Collection List (Collection Options)",
         body=[
-            "The core export queue. Each row has five columns:",
-            "• Eye — mirrors the outliner eye (LayerCollection.hide_viewport).",
-            "• Export checkbox — include this row in Export All Collections.",
-            "• Merge icon — merge all meshes in this collection into one file.",
-            "• Collection picker — the actual bpy.types.Collection.",
-            "• Export Path — destination folder for this row's FBX(s).",
-            "Side buttons (right): Add row, Remove row, Refresh (rescan scene).",
+            "The export queue. Each row: Eye (mirrors outliner visibility),",
+            "Export checkbox, Merge icon, Collection picker, and Export Path.",
+            "Side buttons (right): Add row, Remove row, Refresh (rescan).",
         ],
-        examples=["Per-row settings are independent — different collections",
-                  "can target different folders or merge modes in one run."],
-    ),
-    # 8 — Sub-Collections as Single (per-row enhanced option)
-    dict(
-        group="perlist",
-        field_box=(20, 647, 970, 672),
+        examples=["Per-row settings are independent — collections can target",
+                  "different folders or merge modes in one run."]),
+    dict(group="perlist", field_box=(8, 304, 648, 318),
+        title="Whole Collection as One File",
+        body=[
+            "Per-row (merge_to_single). Merge every mesh in this collection",
+            "into one file named after the collection. OFF = each object",
+            "exports individually.",
+        ]),
+    dict(group="perlist", field_box=(8, 325, 648, 339),
         title="Sub-Collections as Single",
         body=[
-            "Per-row enhanced option for the row selected above. When ON,",
-            "each child collection is merged into one mesh and exported as",
-            "one FBX. When OFF, each sub-collection is its own file.",
-        ],
-        examples=["Useful when each sub-collection is one modular asset",
-                  "variant that should ship as a single mesh."],
-    ),
-    # 9 — Use Parent Empties
-    dict(
-        group="perlist",
-        field_box=(20, 678, 970, 703),
+            "Per-row. Each child collection is merged into one mesh and",
+            "exported as one FBX. OFF = each sub-collection is its own file.",
+        ]),
+    dict(group="perlist", field_box=(8, 340, 648, 354),
         title="Use Parent Empties",
         body=[
-            "Per-row. When ON, the exporter searches for parent empties and",
-            "uses each empty's transform as the origin/centre for the meshes",
-            "parented to it. Reveals two extra sub-panels (Empty Options +",
-            "Join Options) for centring + join behaviour.",
-        ],
-    ),
-    # 10 — Export at Origin
-    dict(
-        group="transform",
-        field_box=(20, 754, 970, 779),
-        title="Export at Origin",
+            "Per-row. Use each parent empty's transform as the origin/centre",
+            "for its child meshes. Reveals the Empty Options + Join Options",
+            "sub-panels below.",
+        ]),
+    dict(group="perlist", field_box=(8, 356, 648, 418),
+        title="Empty Options / Join Options",
         body=[
-            "Move each export's pivot to world (0,0,0) during the export call,",
-            "then restore. Produces engine-ready FBXs that import at world",
-            "origin instead of carrying the source-scene placement.",
-        ],
-    ),
-    # 11 — Apply Transforms
-    dict(
-        group="transform",
-        field_box=(20, 785, 970, 810),
+            "Visible under Use Parent Empties:",
+            "- Center Each Empty: zero each empty's pivot during export.",
+            "- Move All Empties to Origin: send empties to world (0,0,0).",
+            "- Join Options: join each empty's children (+ Apply Modifiers",
+            "  Before Join) into a single mesh.",
+        ]),
+    dict(group="perlist", field_box=(8, 430, 648, 444),
+        title="Move to Center",
+        body=[
+            "Per-row (move_to_center). Temporarily move this collection's",
+            "objects to the world origin during export, then restore.",
+            "The source scene is left untouched.",
+        ]),
+    dict(group="transform", field_box=(8, 471, 648, 485),
         title="Apply Transforms",
         body=[
             "Bake object location / rotation / scale into mesh data so the",
-            "exported FBX object has identity transform. Avoids surprises",
-            "when an engine doesn't honour the original transform.",
-        ],
-    ),
-    # 12 — Forward / Up axes
-    dict(
-        group="transform",
-        field_box=(20, 828, 970, 885),
+            "exported object has an identity transform. Avoids surprises in",
+            "engines that don't honour the source transform.",
+        ]),
+    dict(group="transform", field_box=(8, 528, 648, 543),
         title="Transform Axis Settings — Forward / Up",
         body=[
-            "Coordinate-system axes baked into the FBX. Defaults:",
-            "-Z Forward, Y Up — what Unity expects.",
-            "Note: the same two properties also appear inside File Export",
-            "Options > FBX. Edit either — they refer to the same prop.",
-        ],
-    ),
-    # 13 — Material Options (collapsed header)
-    dict(
-        group="material",
-        field_box=(20, 898, 970, 925),
-        title="Material Options (collapsed)",
+            "Coordinate axes baked into the FBX. Defaults -Z Forward / Y Up",
+            "(Unity-correct). NOTE: the same two props also live inside File",
+            "Export Options > FBX — editing either changes the same property.",
+        ]),
+    dict(group="material", field_box=(8, 569, 648, 634),
+        title="Material Options",
         body=[
-            "Click to expand. Houses optional material substitution:",
-            "• Override Materials — replace every assigned material with one",
-            "  shared material on export (scene unchanged).",
-            "• Override Material — the replacement (only enabled when",
-            "  Override Materials is on).",
-            "• Assign Override Material if No Material — covers objects with",
-            "  no material slot at all.",
-            "• Add M_ Prefix if Missing — Unity/Unreal naming convention,",
-            "  prepends 'M_' to material names that lack it.",
-        ],
-    ),
-    # 14 — Apply Modifiers
-    dict(
-        group="modifier",
-        field_box=(20, 1005, 970, 1035),
+            "Optional material substitution on export (scene unchanged):",
+            "- Override Materials + Override Material: replace every slot",
+            "  with one shared material.",
+            "- Assign Override Material if No Material: covers empty slots.",
+            "- Add M_ Prefix if Missing: Unity/Unreal naming convention.",
+        ]),
+    dict(group="modifier", field_box=(8, 681, 648, 695),
         title="Apply Modifiers",
         body=[
-            "Apply every modifier on every exported mesh. Required for",
-            "displacement / array / boolean / subdivision output to show",
-            "up in the FBX. Default: ON.",
-        ],
-    ),
-    # 15 — Export Rig with Mesh
-    dict(
-        group="modifier",
-        field_box=(20, 1085, 970, 1115),
+            "Apply every modifier on each exported mesh. Required for",
+            "displace / array / boolean / subdivision output to appear in",
+            "the FBX. Default: ON.",
+        ]),
+    dict(group="modifier", field_box=(8, 716, 648, 730),
         title="Export Rig with Mesh",
         body=[
-            "Include the Armature object referenced by any Armature modifier,",
-            "even when it lives outside the export collection. Default: OFF.",
-            "Turn on when you need the rig to land in the FBX alongside the",
-            "skinned mesh.",
-        ],
-    ),
-    # 16 — Skip Armature Modifier
-    dict(
-        group="modifier",
-        field_box=(20, 1118, 970, 1148),
+            "Include the Armature referenced by an Armature modifier even",
+            "when it lives outside the export collection. Turn on to ship",
+            "the rig alongside the skinned mesh. Default: OFF.",
+        ]),
+    dict(group="modifier", field_box=(8, 733, 648, 747),
         title="Skip Armature Modifier",
         body=[
             "When applying modifiers, leave Armature modifiers in place so",
-            "the mesh ships in its rest pose (no skinning baked in).",
-            "Greyed out unless Apply Modifiers is ON.",
+            "the mesh ships in rest pose (no skinning baked). Only meaningful",
+            "when Apply Modifiers is ON.",
         ],
-        examples=["Combo for skinned export: Apply Modifiers ON + Skip",
-                  "Armature Modifier ON + Export Rig with Mesh ON."],
-    ),
-    # 17 — File Export Options (collapsed header)
-    dict(
-        group="file",
-        field_box=(20, 1163, 970, 1193),
-        title="File Export Options (collapsed)",
+        examples=["Skinned export combo: Apply Modifiers + Skip Armature",
+                  "Modifier + Export Rig with Mesh all ON."]),
+    dict(group="file", field_box=(8, 774, 648, 884),
+        title="File Export Options — Format + FBX",
         body=[
-            "Click to expand. Format + format-specific tuning:",
-            "• Export Format — FBX / OBJ / DAE / glTF 2.0.",
-            "• FBX-only sub-options (when format = FBX): Apply Scaling,",
-            "  Apply Transform, Forward/Up axes (duplicate of Transform",
-            "  Options), Primary/Secondary Bone Axis, Armature FBX Node,",
-            "  Only Deform Bones, Add Leaf Bones, Custom FBX ASCII",
-            "  Exporter (experimental), Unity import tips.",
-            "Apply Scaling defaults to 'FBX Units Scale' (Unity-correct).",
-        ],
-    ),
-    # 18 — Suffix Grouping info+example
-    dict(
-        group="suffix",
-        field_box=(20, 1232, 970, 1305),
-        title="Suffix Grouping — info banner",
+            "Format + format-specific tuning:",
+            "- Export Format: FBX / OBJ / DAE / glTF 2.0.",
+            "- FBX: Apply Scaling (default 'FBX Units Scale', Unity-correct),",
+            "  Apply Transform, Forward / Up axes (mirror of Transform Opts).",
+        ]),
+    dict(group="file", field_box=(8, 892, 648, 990),
+        title="Armature / Bone Options (FBX)",
         body=[
-            "Read-only banner explaining the feature. Objects whose names",
-            "share a base but differ by a registered suffix (cube,",
-            "cube_COL, cube_LOD0) collapse into one FBX named after the",
-            "base — standard pattern for shipping a render mesh plus its",
-            "collision and LOD siblings to a game engine.",
-        ],
-    ),
-    # 19 — Suffix List (UIList)
-    dict(
-        group="suffix",
-        field_box=(20, 1320, 970, 1460),
-        title="Suffix List",
+            "FBX armature tuning (shown when format = FBX):",
+            "- Primary / Secondary Bone Axis, Armature FBX Node type.",
+            "- Only Deform Bones: skip control / IK bones.",
+            "- Add Leaf Bones: extra tip bones (leave off for Unity/Unreal).",
+        ]),
+    dict(group="suffix", field_box=(8, 1032, 648, 1212),
+        title="Suffix Grouping",
         body=[
-            "Editable list of suffix definitions. Each row has:",
-            "• Enabled checkbox — turn this suffix on/off for grouping.",
-            "• Suffix string — the literal trailing token to match",
-            "  (case-insensitive, e.g. _COL).",
-            "• Description column — label that echoes into the box below.",
-            "Side buttons: Add row, Remove row.",
-        ],
-    ),
-    # 20 — Description (active suffix)
-    dict(
-        group="suffix",
-        field_box=(20, 1470, 970, 1502),
-        title="Suffix Description (active row)",
+            "Objects sharing a base name but differing by a registered suffix",
+            "(cube, cube_COL, cube_LOD0) collapse into one FBX named after",
+            "the base — render + collision + LOD in a single file.",
+            "List: enable / edit suffixes. Add Default Suffixes seeds the",
+            "standard set (_COL, _col, _UCX, _LOD0-3).",
+        ]),
+    dict(group="debug", field_box=(8, 1217, 648, 1272),
+        title="Debug Controls",
         body=[
-            "Read-only echo of the selected suffix's Description field.",
-            "Confirms what a suffix is meant for without expanding the row.",
-        ],
-    ),
-    # 21 — Add Default Suffixes
-    dict(
-        group="suffix",
-        field_box=(20, 1518, 970, 1552),
-        title="Add Default Suffixes",
-        body=[
-            "One-shot populator. Adds the standard game-engine set if not",
-            "already present: _COL, _col, _UCX, _LOD0, _LOD1, _LOD2, _LOD3.",
-            "Safe to click on a partially-populated list — duplicates skipped.",
-        ],
-    ),
-    # 22 — Move Empties to Origin (debug)
-    dict(
-        group="debug",
-        field_box=(20, 1595, 970, 1632),
-        title="Move Empties to Origin (debug)",
-        body=[
-            "Standalone tool: moves every empty in the scene to world (0,0,0).",
-            "Useful for previewing what the exporter does internally when",
-            "Use Parent Empties + Move All Empties to Origin are set.",
-            "Destructive on the scene — Ctrl-Z to undo.",
-        ],
-    ),
-    # 23 — Join Empties (Preview)
-    dict(
-        group="debug",
-        field_box=(20, 1632, 970, 1670),
-        title="Join Empties (Preview)",
-        body=[
-            "Standalone tool: joins each empty's mesh children into one",
-            "object so you can inspect the merge result before running a",
-            "real export with Join Empty Children turned on.",
-            "Destructive on the scene — Ctrl-Z to undo.",
-        ],
-    ),
+            "Standalone preview tools (destructive on the scene — Ctrl-Z):",
+            "- Move Empties to Origin: send every empty to world (0,0,0).",
+            "- Join Empties (Preview): join each empty's children so you can",
+            "  inspect the merge before a real export.",
+        ]),
 ]
 
 
@@ -487,14 +367,14 @@ def main():
     # Code-review notes — informational block at the bottom that documents
     # things worth fixing or revisiting in the addon source.
     review_lines = [
-        ("title", "Code Review Notes (v13.3.3)"),
-        ("body", "• Single 3 542-line __init__.py — splitting properties / operators / ui / export"),
+        ("title", "Code Review Notes (v13.6.2)"),
+        ("body", "• Single 3 863-line __init__.py — splitting properties / operators / ui / export"),
         ("body", "  into modules would make future maintenance a lot easier."),
         ("body", "• axis_forward / axis_up appears in BOTH Transform Options AND inside the FBX"),
         ("body", "  section of File Export Options — same property, two UI locations. Confusing"),
         ("body", "  when users edit one and don't realise the other is the same."),
-        ("body", "• CollectionExportItem defines `move_to_center` and `use_suffix_grouping` but"),
-        ("body", "  neither is exposed in the panel — they read as dead per-collection props."),
+        ("body", "• `move_to_center` is now exposed per-collection (Collection Options); but"),
+        ("body", "  `use_suffix_grouping` still drives logic without a per-row checkbox in the panel."),
         ("body", "• `visibility_synced` keeps its update callback for back-compat even though the"),
         ("body", "  UIList eye now uses the toggle operator — comment acknowledges this; consider"),
         ("body", "  dropping the prop entirely on a major version."),
@@ -502,11 +382,11 @@ def main():
         ("body", "  only visible under Use Parent Empties + Join Empty Children. Scope mismatch is"),
         ("body", "  easy to misread — a tooltip clarifying which one wins would help."),
         ("body", "• 'Skip Armature Modifier' is drawn unconditionally but only meaningful when Apply"),
-        ("body", "  Modifiers is ON (currently grey-outs via `sub.enabled` — works, just verify"),
-        ("body", "  Blender 5 still respects nested .enabled on a Box child)."),
+        ("body", "  Modifiers is ON (currently grey-outs via `sub.enabled`)."),
         ("body", "• Quick Export operators duplicate export logic across four operators — there's"),
-        ("body", "  ~3 200 lines of operator code that could share a single resolver pipeline."),
-        ("body", "• Old `mass_exporter_v13_WIP.py` still sits in scripts/addons (disabled). Stale."),
+        ("body", "  a large block of operator code that could share a single resolver pipeline."),
+        ("body", "• v13.6.1/.2 hardened hidden-object export (layer-collection exclude restore +"),
+        ("body", "  name-keyed dedup instead of id()) — verify no hidden geometry leaks on export."),
     ]
     review_heights = []
     for kind, txt in review_lines:
@@ -534,7 +414,7 @@ def main():
     draw = ImageDraw.Draw(canvas)
 
     # Title
-    draw.text((40, 24), "Mass Collection Exporter v13.3.3 — Field Reference",
+    draw.text((40, 24), "Mass Collection Exporter v13.6.2 — Field Reference",
               fill=(245, 245, 245), font=F_TITLE)
     draw.text((40, 68),
               "Each labelled box on the panel maps to a description on the left.",
@@ -628,7 +508,7 @@ def main():
 
     # Footer
     draw.text((40, NH - 30),
-              "Stephko / ClaudeVibe — Mass Collection Exporter v13.3.3   •   N-panel: 3D Viewport ▸ Mass Exporter",
+              "Stephko / ClaudeVibe — Mass Collection Exporter v13.6.2   •   N-panel: 3D Viewport ▸ Mass Exporter",
               fill=(140, 140, 140), font=F_SMALL)
 
     canvas.convert("RGB").save(OUT, "PNG", optimize=True)

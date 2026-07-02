@@ -32,7 +32,7 @@ disable themselves with a clear message.
 
 ## Installation
 
-1. Download `AnimLayersQuickExport_v0.1.0.zip`
+1. Download `AnimLayersQuickExport_v0.3.0.zip`
 2. In Blender: `Edit > Preferences > Add-ons > Install from Disk`
 3. Pick the zip and enable the addon
 4. Make sure **Animation Layers** is also installed and enabled

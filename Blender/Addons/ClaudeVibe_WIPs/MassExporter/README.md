@@ -1,4 +1,4 @@
-# Mass Collection Exporter v12.2
+# Mass Collection Exporter v13.6.2
 
 A powerful Blender addon for batch exporting collections with advanced parent-child relationship handling, automatic joining, and flexible export options.
 Allows specifying a collection for export with subcollections (Main Collection Env_Buildings > SubCollections Building_01, Building_02, Building_03, etc)
@@ -54,7 +54,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 1: Direct Install (Recommended)
 
-1. Download `mass_exporter_FIXED_v12.py`
+1. Download the latest zip from `distribution/` (`MassExporter_v13.6.2.zip`)
 2. Open Blender
 3. Go to: **Edit → Preferences → Add-ons**
 4. Click **Install...** button
@@ -63,7 +63,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 2: Manual Install
 
-1. Download `mass_exporter_FIXED_v12.py`
+1. Download the latest zip from `distribution/` (`MassExporter_v13.6.2.zip`)
 2. Locate your Blender addons folder:
    - **Windows**: `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
    - **macOS**: `~/Library/Application Support/Blender/[version]/scripts/addons/`
@@ -670,7 +670,10 @@ For Unity:
 
 ## 📝 Version History
 
-### v12.0.0 (Current)
+### v13.6.2 (Current)
+- See `source/__init__.py` `VERSION` for the authoritative current build.
+
+### v12.0.0
 - ✅ **Export meshes even when no empties present**
 - ✅ Automatic fallback to normal mesh export
 - ✅ Improved error handling and validation

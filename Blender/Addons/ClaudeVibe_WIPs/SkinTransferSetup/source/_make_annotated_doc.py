@@ -21,12 +21,13 @@ from PIL import Image, ImageDraw, ImageFont
 sys.stdout.reconfigure(encoding='utf-8')
 
 ROOT = r"D:/Stephko_Tooling/Toolings/Blender/Addons/ClaudeVibe_WIPs"
-SRC  = os.path.join(ROOT, "skin_transfer_panel.png")
-OUT  = os.path.join(ROOT, "SkinTransferSetup", "SkinTransferSetup_docs.png")
+ASSETS = os.path.join(ROOT, "SkinTransferSetup", "assets")
+SRC  = os.path.join(ASSETS, "skin_transfer_panel.png")
+OUT  = os.path.join(ASSETS, "SkinTransferSetup_docs.png")
 
 PASTE_X = 1380
 PASTE_Y = 110
-PANEL_SCALE = 2   # 2x upscale for presentation legibility
+PANEL_SCALE = 1   # panel captured hi-res (1015x732); no upscale
 BG = (63, 63, 63, 255)
 
 
@@ -64,161 +65,116 @@ GROUPS = {
 
 
 # ---------- Field annotations ----------
-# field_box uses ORIGINAL screenshot coordinates (322x790). The draw step
-# multiplies by PANEL_SCALE and offsets by PASTE_X/PASTE_Y for placement on
-# the final canvas, so these numbers stay easy to verify against the PNG.
+# field_box uses PANEL-CROP pixel coordinates (panel image 1015x732,
+# captured at ui_scale 0.85). PANEL_SCALE=1, so the draw step only offsets
+# by PASTE_X/PASTE_Y — numbers verify directly against the PNG.
 FIELDS = [
-    dict(
-        group="setup",
-        field_box=(6, 30, 318, 60),
+    dict(group="setup", field_box=(4, 38, 1010, 54),
         title="Rig (Armature)",
         body=[
-            "The skeleton the parts deform with. Pure picker — nothing is",
-            "applied to the rig itself. Drives the Bone search field below:",
-            "only bones from this armature appear in the dropdown.",
+            "The armature the parts deform with. Pure picker — nothing is",
+            "applied to the rig itself. Restricts the Bone fields below to",
+            "this armature's bones.",
         ],
-        examples=["Restricted to objects of type ARMATURE via poll filter."],
-    ),
-    dict(
-        group="setup",
-        field_box=(6, 60, 318, 90),
+        examples=["Restricted to ARMATURE objects via a poll filter."]),
+    dict(group="setup", field_box=(4, 57, 1010, 74),
         title="Weighted Base Model",
         body=[
-            "The single mesh that already carries vertex groups for every",
-            "bone of the rig. Acts as the Data Transfer source for every",
-            "part tagged Transfer.",
-            "Changing this picker re-targets EVERY Transfer object in the",
-            "scene in one shot — no need to touch the parts individually.",
+            "The single mesh carrying vertex groups for every bone — the Data",
+            "Transfer source for every part set to 'Transfer'. Re-pointing",
+            "this picker retargets EVERY Transfer object in one shot.",
         ],
-        examples=["e.g. Body_Base_Weighted — the rigged dummy your outfit",
-                  "pieces are skinned around."],
-    ),
-    dict(
-        group="refresh",
-        field_box=(6, 95, 318, 130),
+        examples=["e.g. BaseBody — the rigged dummy your outfit pieces are",
+                  "skinned around."]),
+    dict(group="bone", field_box=(4, 84, 1010, 101),
+        title="Only Weighted Bones",
+        body=[
+            "Filter toggle: restrict the Bone search fields to bones that",
+            "actually carry weights on the base model, hiding empty",
+            "control / IK bones from the dropdown.",
+        ]),
+    dict(group="refresh", field_box=(4, 120, 1010, 163),
         title="Refresh All Transfer Targets",
         body=[
-            "Walks every mesh with a skin_transfer property and rebuilds",
-            "its addon-owned modifier from the current mode + bone + base.",
-            "Use after manual edits to vertex groups, after re-pointing the",
-            "Base Model, or to recover from a broken state.",
-        ],
-        examples=["Reports 'Refreshed Skin Transfer setup on N mesh(es)'",
-                  "in the info bar."],
-    ),
-    dict(
-        group="active",
-        field_box=(6, 183, 318, 215),
-        title="Active Object header (mesh name)",
+            "Walks every mesh with a Skin Transfer setup and rebuilds its",
+            "addon-owned modifier from the current mode + bone + base model.",
+            "'Also Ensure / Strip VGs' additionally creates missing vertex",
+            "groups and strips stale ones during the refresh.",
+        ]),
+    dict(group="active", field_box=(4, 207, 1010, 225),
+        title="Active Object (mesh name)",
         body=[
-            "Echoes the active mesh's name so you can see what the panel",
-            "below is configuring. Greys out to 'Select a mesh object'",
-            "when no mesh is active.",
-        ],
-    ),
-    dict(
-        group="active",
-        field_box=(6, 215, 318, 250),
+            "Echoes the active mesh's name — the Selection panel configures",
+            "THIS mesh. Greys out when no mesh is active.",
+        ]),
+    dict(group="active", field_box=(4, 237, 1010, 255),
         title="Mode — As-is / Transfer / Bind to Bone",
         body=[
-            "Per-mesh choice driving which (if any) addon modifier the",
-            "part gets:",
-            "• As-is — no modifier added; use the mesh's own vgroups.",
-            "• Transfer — Data Transfer pulling all vgroups from the",
-            "  weighted base model.",
-            "• Bind to Bone — Vertex Weight Edit pinning every vert to",
-            "  one bone at weight 1.0 (a 'rigid bind').",
-        ],
-        examples=["Changing the mode runs the update callback which",
-                  "applies / removes modifiers immediately."],
-    ),
-    dict(
-        group="bone",
-        field_box=(6, 250, 318, 285),
+            "Per-mesh choice of which addon modifier the part gets:",
+            "- As-is: no modifier; use the mesh's own vgroups.",
+            "- Transfer: Data Transfer pulling vgroups from the base model.",
+            "- Bind to Bone: Vertex Weight Edit pinning all verts to one",
+            "  bone at weight 1.0 (a rigid bind).",
+        ]),
+    dict(group="bone", field_box=(4, 259, 1010, 278),
         title="Bone (Bind to Bone only)",
         body=[
-            "Bone search field — only visible when Mode = Bind to Bone.",
-            "Searches against the Rig picked above. The chosen bone name",
-            "doubles as the vertex-group name created on the mesh.",
-            "When no rig is set, falls back to a greyed-out 'Pick a rig",
-            "first' hint.",
+            "Bone search — only shown when Mode = Bind to Bone. Searches the",
+            "Rig above; the chosen bone name doubles as the vertex-group name",
+            "created on the mesh. Red = not yet set / invalid.",
         ],
-        examples=["Typical use: boot, glove, helmet props that should",
-                  "rigidly follow one bone (foot.L, hand.R, head)."],
-    ),
-    dict(
-        group="act_btn",
-        field_box=(6, 292, 318, 326),
-        title="Re-apply  /  Clear (active object)",
+        examples=["For rigid props: boots, gloves, helmet (foot.L, hand.R)."]),
+    dict(group="active", field_box=(4, 286, 1010, 321),
+        title="Auto-Create VG / Auto-Strip Prior VG",
         body=[
-            "Two scoped operators for the active mesh:",
-            "• Re-apply — rebuild this mesh's modifier from its current",
-            "  mode/bone settings. Manual fallback if a previous change",
-            "  didn't take.",
-            "• Clear — reset the mesh to As-is and strip its Skin",
-            "  Transfer modifiers. Source vgroups are left intact.",
-        ],
-    ),
-    dict(
-        group="status",
-        field_box=(6, 332, 318, 405),
+            "Automation applied on a mode / bone change:",
+            "- Auto-Create VG: make the target vertex group automatically.",
+            "- Auto-Strip Prior VG: remove the previous bind's group so old",
+            "  weights don't linger.",
+        ]),
+    dict(group="act_btn", field_box=(4, 342, 1010, 389),
+        title="Active-object operators",
+        body=[
+            "Scoped operators for the active mesh:",
+            "- Re-apply: rebuild this mesh's modifier from its settings.",
+            "- Clear: reset to As-is and strip Skin Transfer modifiers.",
+            "- Create VG / Strip Unused: manage this mesh's vertex groups.",
+        ]),
+    dict(group="status", field_box=(4, 397, 1010, 437),
         title="Modifier Status",
         body=[
-            "Diagnostic readout of which addon-owned modifiers live on",
-            "the active mesh RIGHT NOW. Distinct from 'Mode' because the",
-            "modifier reflects the last applied state, not the pending",
-            "selection.",
-            "• Data Transfer → <base>   — Transfer mode active",
-            "• Vertex Weight Edit → <bone>   — Bind-to-Bone mode active",
-            "• 'No Skin Transfer modifiers'   — As-is or never applied",
-        ],
-        examples=["Collapsed by default in the addon — shown expanded here",
-                  "for documentation."],
-    ),
-    dict(
-        group="batch",
-        field_box=(6, 442, 318, 478),
-        title="Collection (Batch panel)",
+            "Diagnostic readout of which addon-owned modifiers live on the",
+            "active mesh RIGHT NOW (last applied state, not the pending Mode):",
+            "- Data Transfer -> <base>   = Transfer active",
+            "- Vertex Weight Edit -> <bone>   = Bind-to-Bone active",
+            "Collapsed by default — shown expanded here.",
+        ]),
+    dict(group="batch", field_box=(4, 456, 1010, 502),
+        title="Collection (Batch by Collection)",
         body=[
-            "Scopes the batch operations to one collection's meshes.",
-            "Pure organisational handle — the batch buttons act on every",
-            "MESH object inside this collection (recursively, including",
-            "child collections).",
-        ],
-        examples=["Useful for outfit-set workflows: one collection per",
-                  "modular costume, switch between them via this picker."],
-    ),
-    dict(
-        group="setall",
-        field_box=(6, 484, 318, 568),
-        title="Set all to…  (As-is / Transfer / Bind)",
+            "Scopes the batch operations to one collection's meshes",
+            "(recursively, incl. child collections). Pure organisational",
+            "handle — switch outfit sets by re-pointing this picker.",
+        ]),
+    dict(group="setall", field_box=(4, 511, 1010, 558),
+        title="Set all to… / Strip Unused (Collection)",
         body=[
-            "Bulk mode-setter for every mesh in the active collection.",
-            "Fires the same per-mesh update path the dropdown does, so",
-            "Transfer rows get Data Transfer modifiers, Bind rows get",
-            "Vertex Weight Edit, As-is rows get cleaned.",
-            "Bind variant leaves the bone empty — set it per-mesh in the",
-            "Parts list below.",
-        ],
-    ),
-    dict(
-        group="parts",
-        field_box=(6, 580, 318, 786),
+            "Bulk mode-setter for every mesh in the collection (As-is /",
+            "Transfer / Bind), firing the same per-mesh update as the",
+            "dropdown. 'Strip Unused (Collection)' cleans stale vertex",
+            "groups across all parts at once.",
+        ]),
+    dict(group="parts", field_box=(4, 576, 1010, 730),
         title="Parts list",
         body=[
-            "Per-mesh row for every MESH in the active collection. Each",
-            "row exposes:",
-            "• Mesh name (read-only handle).",
-            "• Mode dropdown — same property as Active Object > Mode,",
-            "  edits propagate instantly.",
-            "• Bone field — only renders for Bind-to-Bone rows. Searches",
-            "  the same rig as the Active Object panel.",
-            "Empties / lights / cameras inside the collection are skipped",
-            "by the filter.",
+            "Per-mesh row for every MESH in the collection:",
+            "- Mesh name (read-only handle).",
+            "- Mode dropdown (same property as Active Object > Mode).",
+            "- Bone field — only renders for Bind-to-Bone rows.",
+            "Non-mesh objects (empties / lights / cameras) are skipped.",
         ],
-        examples=["A typical character: Torso/Arms/Hands = Transfer,",
-                  "Boots/Gloves = Bind to Bone, Cape/Skirt = As-is."],
-    ),
+        examples=["Typical: Torso/Arms = Transfer, Boots = Bind to Bone,",
+                  "Skirt = As-is."]),
 ]
 
 
@@ -335,7 +291,7 @@ def main():
     draw = ImageDraw.Draw(canvas)
 
     # Title strip
-    draw.text((40, 24), "Skin Transfer Setup v1.0.0 — Field Reference",
+    draw.text((40, 24), "Skin Transfer Setup v1.3.0 — Field Reference",
               fill=(245, 245, 245), font=F_TITLE)
     draw.text((40, 68),
               "Each labelled box on the panel maps to a description on the left.",
@@ -404,7 +360,7 @@ def main():
 
     # Footer
     draw.text((40, NH - 30),
-              "Stephko / ClaudeVibe — Skin Transfer Setup v1.0.0   •   N-panel: 3D Viewport ▸ Skin Transfer",
+              "Stephko / ClaudeVibe — Skin Transfer Setup v1.3.0   •   N-panel: 3D Viewport ▸ Skin Transfer",
               fill=(140, 140, 140), font=F_SMALL)
 
     canvas.convert("RGB").save(OUT, "PNG", optimize=True)

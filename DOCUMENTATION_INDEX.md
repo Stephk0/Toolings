@@ -5,211 +5,117 @@
 ## 📚 Table of Contents
 
 - [Overview](#overview)
-- [Blender Tools](#blender-tools)
+- [Blender Addons](#blender-addons)
+- [Blender Geometry Nodes](#blender-geometry-nodes)
 - [Unity Tools](#unity-tools)
 - [3DS Max Tools](#3ds-max-tools)
 - [Installation Guides](#installation-guides)
-- [Quick Reference](#quick-reference)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
 ## 🎯 Overview
 
-This repository contains a comprehensive collection of tools for 3D workflows across multiple platforms:
+This repository is a **compilation of independent tools** for 3D workflows across platforms:
 
-- **Blender**: Modern addons and geometry nodes for efficient modeling
-- **Unity**: Import/export utilities and workflow tools
-- **3DS Max**: Legacy MaxScript collection (development paused in 2023)
+- **Blender**: 16 production addons + a 37-modifier Geometry Nodes library
+- **Unity**: model import automation
+- **3DS Max**: legacy MaxScript collection (ST3E, development paused 2023)
 
 **Project Status:**
-- ✅ **Active Development**: Blender tools
+- ✅ **Active Development**: Blender addons & geometry nodes
+- 🔄 **Light development**: Unity tools
 - ⚠️ **Maintenance Mode**: 3DS Max tools (ST3E)
-- 🔄 **Planned**: Unity tools expansion
+
+Each tool follows the standard layout: `README.md` + `source/` + `distribution/`
+(see `Blender/Addons/ClaudeVibe_WIPs/_TOOLING_STRUCTURE.md`).
 
 ---
 
-## 🔷 Blender Tools
+## 🔷 Blender Addons
 
-### Addons
+All Blender addons live in `Blender/Addons/ClaudeVibe_WIPs/`. Each folder contains its own
+`README.md` (detailed usage), a `source/` folder, and an installable zip under `distribution/`.
 
-All Blender addons are located in: `Blender/Addons/ClaudeVibe_WIPs/`
+### Export & Pipeline
 
-#### 1. Mass Collection Exporter v12
-**Location:** `MassExporter/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Mass Exporter README](Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md)
+| Tool | Ver | Description | Docs |
+|------|-----|-------------|------|
+| **Mass Collection Exporter** | 13.6.2 | Batch export collections/objects (FBX, OBJ, DAE, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md) |
+| **Quick Animation Export** | 1.0.9 | Streamlined export of animation/action clips to game-engine-ready files | [README](Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport/README.md) |
+| **Animation Layers Quick Export** | 0.3.0 | One-click non-destructive merge + FBX export for [Animation Layers](https://blendermarket.com/products/animation-layers) rigs | [README](Blender/Addons/ClaudeVibe_WIPs/AnimLayersQuickExport/README.md) |
 
-**Quick Description:**
-Batch export collections with advanced parent-child handling, automatic joining, and multiple format support.
+### Modeling
 
-**Key Features:**
-- Export multiple collections at once
-- Smart empty parent handling
-- On-demand mesh joining
-- Support for FBX, OBJ, DAE, glTF
-- Auto-move to origin
-- Material override system
+| Tool | Ver | Description | Docs |
+|------|-----|-------------|------|
+| **Smart Crease** | 1.5.1 | Context-sensitive edge/vertex crease with preset keys + modal mouse control | [README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Crease/README.md) |
+| **Smart Collapse** | 1.0.0 | 3ds Max-style collapse (collapse + merge at center) | [README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Collapse/README.md) |
+| **Smart Set Orientation** | 1.5.0 | Set transform orientation from selection (Maya "D" working-pivot style) | [README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Set%20Orientation/README.md) |
+| **Center Edges/Loops** | 1.5.1 | Center edge loops / selections along their average position | [README](Blender/Addons/ClaudeVibe_WIPs/Center%20Edges/README.md) |
+| **Edge Constraint Mode** | 1.1.2 | 3ds Max-style edge constraint — verts slide along topology during transforms | [README](Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode/README.md) |
 
-**Use Cases:**
-- Game asset export workflows
-- Modular building systems
-- Batch prop export
-- Unity/Unreal asset pipelines
+### Modifiers
 
----
+| Tool | Ver | Description | Docs |
+|------|-----|-------------|------|
+| **Synced Modifiers** | 2.5.0 | Add & keep modifiers synchronized across objects via drivers; Geometry Nodes input sync | [README](Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers/README.md) |
+| **Modifier List (Stephko fork)** | 1.9.89 | Enhanced modifier-stack UI (list view, popup, sidebar) with GN input-attribute toggle fix | [README](Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko/source/docs/README.md) |
+| **Toggle Modifier Display** | 1.3.0 | Quick modifier visibility toggle in edit mode (D / Shift+D), 3ds Max "show end result" style | [README](Blender/Addons/ClaudeVibe_WIPs/Toggle%20Modifier%20Display/README.md) |
 
-#### 2. Smart Crease
-**Location:** `Smart Crease/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Smart Crease README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Crease/README.md)
+### UV, Naming & Rigging
 
-**Quick Description:**
-Intelligent edge crease management with multiple selection modes.
+| Tool | Ver | Description | Docs |
+|------|-----|-------------|------|
+| **Tile UV Projector** | 1.2.1 | Tile-based UV projection/placement for texture-atlas workflows | [README](Blender/Addons/ClaudeVibe_WIPs/TileUVProjector/README.md) |
+| **Add Bounds To Name** | 1.1.3 | Rename objects from bounding-box dimensions (units, rounding, swizzle, presets) | [README](Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName/README.md) |
+| **Skin Transfer Setup** | 1.3.0 | Per-part skin setup (as-is / data transfer / bind-to-bone) with centralized rig + base | [README](Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup/README.md) |
 
-**Key Features:**
-- Quick crease value application
-- Selection-based crease workflows
-- Sharp edge detection
-- Undo-friendly operations
+### Viewport & Render
 
----
-
-#### 3. Center Edges/Loops
-**Location:** `Center Edges/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Center Loops README](Blender/Addons/ClaudeVibe_WIPs/Center%20Edges/README.md)
-
-**Quick Description:**
-Center edge loops and edge selections along their average position.
-
-**Key Features:**
-- Edge loop centering
-- Edge selection averaging
-- Maintains topology
-- Works with complex selections
+| Tool | Ver | Description | Docs |
+|------|-----|-------------|------|
+| **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/ClaudeVibe_WIPs/Edit%20Mode%20Overlay/README.md) |
+| **Compositor Render Sets** | 1.7.4 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/ClaudeVibe_WIPs/Compositor%20Render%20Sets/README.md) |
 
 ---
 
-#### 4. Smart Collapse
-**Location:** `Smart Collapse/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Smart Collapse README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Collapse/README.md)
+## 🔷 Blender Geometry Nodes
 
-**Quick Description:**
-Context-aware mesh element collapsing.
+**Location:** `Blender/Geonodes/`
+**Status:** ✅ Active
+**Full reference:** **[ST3E Geometry Nodes Library README](Blender/Geonodes/README.md)**
 
-**Key Features:**
-- Intelligent edge collapse
-- Vertex merge operations
-- Preserves mesh quality
-- Multiple collapse modes
+A library of **37 ST3E modifiers** available from the **Add Modifier → ST3E** quick-pick menu,
+grouped into:
 
----
+- **Deformers** (14) — Inflate, Spherify, Twist, Taper, Stretch, Bend, Wave, Cast, Smooth,
+  Displace, RandomizePosition, ShearGeometry, FlattenByBoundary, SimpleTransformMesh
+- **Generators & Topology** (12) — Subdivide, Triangulate, Wireframe, ConvexHull, BoundingBox,
+  DualMesh, VoxelRemesh, RadialArray, PointsToSpheres, Scatter, MeshBoolean, CollectionInstancer
+- **Mesh & Attribute Utilities** (11) — FlipFaces, AutoSmooth, SetMaterial, MaterialOverride,
+  Weld, Delete, ExtrudeFace, MirrorGroup, SplitEdgeByAttribute, SetAttribute, AttributeTransfer
 
-#### 5. Smart Orientation
-**Location:** `Smart Orientation/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Smart Orientation README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Orientation/README.md)
-
-**Quick Description:**
-Automatically set transform orientation based on selection.
-
-**Key Features:**
-- Face-based orientation
-- Edge-based orientation
-- Quick orientation switching
-- Viewport alignment
-
----
-
-#### 6. Edge Constraint Mode
-**Location:** `edge_constraint_mode/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Edge Constraint README](Blender/Addons/ClaudeVibe_WIPs/edge_constraint_mode/README.md)
-
-**Quick Description:**
-Constrain transforms to edge directions during modeling.
-
-**Key Features:**
-- Edge-aligned transforms
-- Dynamic constraint switching
-- Works with move/rotate/scale
-- Visual feedback
-
----
-
-#### 7. Edit Mode Overlay
-**Location:** `Edit Mode Overlay/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Edit Mode Overlay README](Blender/Addons/ClaudeVibe_WIPs/Edit%20Mode%20Overlay/README.md)
-
-**Quick Description:**
-Enhanced viewport feedback for edit mode operations.
-
-**Key Features:**
-- Visual selection indicators
-- Edge/face highlighting
-- Customizable colors
-- Performance optimized
-
----
-
-#### 8. Toggle Modifier Display
-**Location:** `Toggle Modifier Display/`  
-**Status:** ✅ Production Ready  
-**Documentation:** [Modifier Display README](Blender/Addons/ClaudeVibe_WIPs/Toggle%20Modifier%20Display/README.md)
-
-**Quick Description:**
-Quick toggle modifier visibility in edit mode.
-
-**Key Features:**
-- One-click modifier toggle
-- Edit mode specific
-- Works with all modifier types
-- Preserves modifier settings
-
----
-
-### Geometry Nodes
-
-**Location:** `Blender/Geonodes/`  
-**Status:** ✅ Production Ready
-
-Collection of procedural geometry node groups for common operations:
-
-#### Available Node Groups
-
-1. **GN_AttributeFunctions_4.5** - Attribute manipulation utilities
-2. **GN_CollectionInstancer** - Advanced collection instancing
-3. **GN_Delete** - Smart geometry deletion
-4. **GN_ExtrudeSelection** - Selection-based extrusion
-5. **GN_FillBorder** - Automatic border filling
-6. **GN_GrowSelection** - Selection expansion tools
-7. **GN_InsetFace** - Face inset operations
-8. **GN_Instancer** - General instancing system
-9. **GN_MeshFromImage** - Image to mesh conversion
-10. **GN_SimpleTransform** - Basic transform operations
-11. **GN_Solidify2** - Advanced solidify
-12. **GN_SplitByAttribute** - Attribute-based splitting
+Plus Asset-Browser-only utility groups (FillBorder, GrowSelection, InsetFace, etc.), the
+**Procedural Tree Generator** ([`TreeGenDocu/`](Blender/Geonodes/TreeGenDocu/README.md)), and the
+`geonode_route_tidy.py` layout tool. See the library README for the full table, parameters, and
+installation steps.
 
 **Installation:**
-1. Set `Blender/Geonodes/` as Asset Library in Preferences → File Paths
-2. Use "Link" as import method
-3. Access via Asset Browser
+1. Add the `Blender/` folder as an Asset Library in **Preferences → File Paths**.
+2. Set Import Method: **Link**.
+3. Use **Add Modifier → ST3E**, or drag from the Asset Browser.
 
 ---
 
 ## 🔶 Unity Tools
 
-**Location:** `Unity/` (To be expanded)  
-**Status:** 🔄 Planned
+**Location:** `Unity/`
+**Status:** 🔄 Light development
 
-Utilities for Unity import/export workflows, primarily focusing on:
-- FBX import automation
-- Material assignment tools
-- Asset organization helpers
-
-**Note:** Currently, Unity workflows are handled through Blender Mass Exporter with Unity-specific export presets.
+| Tool | Ver | Description | Docs |
+|------|-----|-------------|------|
+| **Model Import Processor** | 1.0 | Automated FBX/model import processing pipeline for Unity (2019.4+) | [README](Unity/ModelImportProcessor/README.md) |
 
 ---
 
@@ -217,193 +123,78 @@ Utilities for Unity import/export workflows, primarily focusing on:
 
 > **Status:** ⚠️ Development paused in 2023. Maintained for legacy projects only.
 
-**Location:** `3DSMAX/`  
+**Location:** `3DSMAX/`
 **Full Documentation:** [ST3E Google Docs](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
 
-### ST3E Overview
+**ST3E** (Stephko's 3ds Max Extensions) is a comprehensive MaxScript collection for enhanced
+3DS Max workflows.
 
-**ST3E** (Stephko's 3ds Max Extensions) is a comprehensive MaxScript collection for enhanced 3DS Max workflows.
+### Custom Modifiers (`3DSMAX/Modifiers/Custom Modifiers/`)
 
-**Categories:**
+- **Edit Poly:** autoSmooth, bevel, connect, delete, extrude, extrudeAlongSpline, inset, outline
+- **SimpleMesh:** CornerSetSelect, MaterialIDBySG, SGFromMatID, SGFromVB, ShiftMaterialID,
+  ShiftSmoothingGroups, SplitMesh, UVOffsetByMaterialID, VertexColorMod, VertWeightTransfer
+- **SimpleMod:** Boxify, Cylindrify, Offset, Pinch, Scale, Spherify
 
-### 1. Custom Modifiers
-**Location:** `3DSMAX/Modifiers/Custom Modifiers/`
+### Script Tools (`3DSMAX/Scripts/ST3E/`)
 
-#### Edit Poly Modifiers
-- **Modifier_EPoly_autoSmooth** - Auto-smoothing operations
-- **Modifier_EPoly_bevel** - Procedural beveling
-- **Modifier_EPoly_connect** - Edge connection
-- **Modifier_EPoly_delete** - Selection deletion
-- **Modifier_EPoly_extrude** - Extrusion operations
-- **Modifier_EPoly_extrudeAlongSpline** - Spline-based extrusion
-- **Modifier_EPoly_inset** - Face inset operations
-- **Modifier_EPoly_outline** - Outline operations
-
-#### SimpleMesh Modifiers
-- **Modifier_SimpleMesh_CornerSetSelect** - Corner selection
-- **Modifier_SimpleMesh_MaterialIDBySG** - Material ID from smoothing groups
-- **Modifier_SimpleMesh_SGFromMatID** - Smoothing groups from Material ID
-- **Modifier_SimpleMesh_SGFromVB** - Smoothing groups from vertex breaks
-- **Modifier_SimpleMesh_ShiftMaterialID** - Material ID offsetting
-- **Modifier_SimpleMesh_ShiftSmoothingGroups** - Smoothing group shifting
-- **Modifier_SimpleMesh_SplitMesh** - Mesh splitting
-- **Modifier_SimpleMesh_UVOffsetByMaterialID** - UV manipulation
-- **Modifier_SimpleMesh_VertexColorMod** - Vertex color operations
-- **Modifier_SimpleMesh_VertWeightTransfer** - Weight transfer
-
-#### SimpleMod Modifiers
-- **Modifier_SimpleMod_Boxify** - Box-like deformation
-- **Modifier_SimpleMod_Cylindrify** - Cylindrical deformation
-- **Modifier_SimpleMod_Offset** - Geometry offset
-- **Modifier_SimpleMod_Pinch** - Pinch deformation
-- **Modifier_SimpleMod_Scale** - Procedural scaling
-- **Modifier_SimpleMod_Spherify** - Spherical deformation
-
-### 2. Script Tools
-**Location:** `3DSMAX/Scripts/ST3E/`
-
-#### Coordinate System
-- **PickDirectly** - Quick coordinate system picking
-
-#### Editing Operations
-- **PolyAutoSmoothHelpers** - Auto-smooth assistance
-- **PolyChamferNoSmoothing** - Chamfer without smoothing
-- **PolyConnects** - Connection tools
-- **PolyFlowTools** - Edge flow operations
-- **PolyLoopTools** - Loop selection tools
-- **PolySmartCreateNewBase** - Intelligent base creation
-- **PolySmartRemove** - Smart element removal
-- **PolySmartTargetWeld** - Target weld enhancements
-- **PolySnapToLocalCenter** - Local snapping
-- **PolySplineSmartCollapse** - Spline collapse
-- **PolyVertWeightSmoothFace** - Weight smoothing
-- **PolyWeldBorders** - Border welding
-
-#### Selection Tools
-- **PolyDotRingDotGapQuickSelect** - Pattern selection
-- **PolySelectExtended** - Extended selection modes
-- **PolySelectFacesWithMultiSG** - Multi-smoothing group selection
-- **PolySelectHalfFromBoundry** - Half-mesh selection
-
-#### Inspection Tools
-- **DisplayKnotPointsInViewport** - Knot visualization
-- **DisplayMaterialIDsInViewport** - Material ID display
-- **DisplayObjectNamesInViewport** - Name labels
-- **InverseSeeThrough** - Inverted transparency
-- **ShowCage** - Cage visualization
-- **SmartIsolate** - Intelligent isolation
-- **ToggleVertexColor** - Vertex color display
-- **WireframeEdgeFaceOff** - Display mode switching
-
-#### Scene Management
-- **AddTurnToPoly** - Poly conversion
-- **AppendBoundsSuffix** - Naming utilities
-- **CleanCollapse** - Stack collapse
-- **ExtractReference** - Reference extraction
-- **OpenLayerManager** - Layer management
-- **ResetPositionRotationScale** - Transform reset
-
-#### Stack Management
-- **CollapseStackRetainInstance** - Instance-safe collapse
-- **JumpToEditableAndExit** - Quick edit mode
+- **Coordinate System:** PickDirectly
+- **Editing:** PolyAutoSmoothHelpers, PolyChamferNoSmoothing, PolyConnects, PolyFlowTools,
+  PolyLoopTools, PolySmartCreateNewBase, PolySmartRemove, PolySmartTargetWeld,
+  PolySnapToLocalCenter, PolySplineSmartCollapse, PolyVertWeightSmoothFace, PolyWeldBorders
+- **Selection:** PolyDotRingDotGapQuickSelect, PolySelectExtended, PolySelectFacesWithMultiSG,
+  PolySelectHalfFromBoundry
+- **Inspection:** DisplayKnotPointsInViewport, DisplayMaterialIDsInViewport,
+  DisplayObjectNamesInViewport, InverseSeeThrough, ShowCage, SmartIsolate, ToggleVertexColor,
+  WireframeEdgeFaceOff
+- **Scene:** AddTurnToPoly, AppendBoundsSuffix, CleanCollapse, ExtractReference,
+  OpenLayerManager, ResetPositionRotationScale
+- **Stack:** CollapseStackRetainInstance, JumpToEditableAndExit
 
 ---
 
 ## 📥 Installation Guides
 
-### Blender Addons Installation
+### Blender Addons
 
-**Method 1: Direct Install (Recommended)**
-```
-1. Download the addon .py file
-2. Open Blender
-3. Edit → Preferences → Add-ons
-4. Click "Install..." button
-5. Select the .py file
-6. Enable the addon checkbox
-```
+**Drag-and-drop (recommended, Blender 4.2+):** drag the latest `.zip` from a tool's
+`distribution/` folder onto Blender, then enable it.
 
-**Method 2: Manual Install**
-```
-1. Locate Blender addons folder:
-   Windows: %APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\
-   macOS: ~/Library/Application Support/Blender/[version]/scripts/addons/
-   Linux: ~/.config/blender/[version]/scripts/addons/
-2. Copy addon file to folder
-3. Restart Blender
-4. Enable in Preferences → Add-ons
-```
+**Classic install:** Edit → Preferences → Add-ons → Install… → select the `.zip` → enable.
 
-**Geometry Nodes Installation**
-```
-1. Open Blender Preferences → File Paths
-2. Add Asset Library path: [Your Path]/Blender/Geonodes/
-3. Set Import Method: Link
-4. Nodes appear in Asset Browser
-5. Drag-drop onto objects
-```
+### Blender Geometry Nodes
 
----
+1. Preferences → File Paths → Asset Libraries → add the `Blender/` folder.
+2. Set Import Method: **Link**.
+3. Use **Add Modifier → ST3E**, or drag node groups from the Asset Browser.
 
-### 3DS Max Installation
+### 3DS Max (Legacy)
 
-**Scripts Installation**
-```
-1. Navigate to: Program Files\[MaxRoot]\scripts\
-2. Copy ST3E folder to this location
-3. Copy Startup folder to this location
-4. Restart 3DS Max
-5. Scripts available in MaxScript menu
-```
-
-**Modifiers Installation**
-```
-1. Navigate to: Program Files\[MaxRoot]\Plugins\
-2. Copy contents of "Custom Modifiers" folder
-3. Restart 3DS Max
-4. Modifiers available in Modifier List
-```
-
----
-
-## 📖 Quick Reference
-
-### Blender Quick Keys
-
-Most addons add operators to:
-- **Search Menu** (`F3`) - Search for addon name
-- **N-Panel** - Many addons add panels here
-- **Edit Mode Menu** - Context-specific operations
+- **Scripts:** copy `ST3E` + `Startup` folders → `[MaxRoot]\scripts\`
+- **Modifiers:** copy `Custom Modifiers` contents → `[MaxRoot]\Plugins\`
+- Restart 3DS Max.
 
 ---
 
 ## 🔧 Troubleshooting
 
-### Common Issues
+**Blender: addon doesn't appear**
+- Check Blender version compatibility (4.2+ / 5.0 recommended)
+- Enable the addon in Preferences
+- Check the System Console for errors (Window → Toggle System Console)
+- F3 → "Reload Scripts"
 
-**Blender: Addon doesn't appear**
-```
-✓ Check Blender version compatibility (4.5+)
-✓ Enable addon in Preferences
-✓ Check for errors in System Console
-✓ Reload scripts (F3 → "Reload Scripts")
-```
+**Blender: geometry node missing from Add Modifier → ST3E**
+- The group must be asset-marked, carry the `ST3E` tag, have the *Modifier* asset trait on,
+  and have Geometry in/out sockets. See the [library README](Blender/Geonodes/README.md).
 
-**Blender: Export fails**
-```
-✓ Check export path is valid
-✓ Collection has mesh objects
-✓ Objects are visible
-✓ Debug Mode enabled for details
-```
+**Blender: export fails**
+- Check the export path exists and is writable
+- Collection has visible mesh objects
+- Enable Debug Mode for detailed logging
 
-**3DS Max: Scripts not loading**
-```
-✓ Correct installation path
-✓ Max has file write permissions
-✓ No syntax errors in scripts
-✓ Check MaxScript Listener for errors
-```
+**3DS Max: scripts not loading**
+- Correct installation path; Max has file-write permissions; check the MaxScript Listener.
 
 ---
 
@@ -415,86 +206,25 @@ Most addons add operators to:
 - **Portfolio:** [ArtStation](https://www.artstation.com/stephko)
 - **LinkedIn:** [Stephan Viranyi](https://www.linkedin.com/in/stephanviranyi/)
 
-### Getting Help
-
-1. **Check Documentation** - Review the specific tool's README
-2. **Enable Debug Mode** - Most tools have debug/verbose options
-3. **Check Console** - System Console (Blender) or Listener (Max)
-4. **Report Issues** - Contact via email with:
-   - Tool name and version
-   - Software version
-   - Steps to reproduce
-   - Error messages
-
 ---
 
 ## 📜 License
 
-**Free to share and extend**
-
-These tools are provided free for use in personal and commercial projects. You are welcome to:
-- Use in any project
-- Modify for your needs
-- Share with others
-- Learn from the code
-
-**Attribution appreciated but not required.**
-
----
-
-## 🗺️ Roadmap
-
-### Planned Development
-
-**Blender (Active)**
-- Additional geometry node presets
-- More export format support
-- Enhanced material workflow tools
-- Performance optimizations
-
-**Unity (Planned)**
-- Import automation scripts
-- Material assignment tools
-- Asset organization utilities
-
-**3DS Max (Maintenance)**
-- Bug fixes only
-- Documentation preservation
-- No new features planned
-
----
-
-## 📚 Additional Documentation
-
-### Per-Tool Documentation
-- [Mass Exporter v12 README](Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md) - Complete guide
-- [Smart Crease README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Crease/README.md)
-- [Center Loops README](Blender/Addons/ClaudeVibe_WIPs/Center%20Edges/README.md)
-- [Smart Collapse README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Collapse/README.md)
-- [Smart Orientation README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Orientation/README.md)
-- [Edit Mode Overlay README](Blender/Addons/ClaudeVibe_WIPs/Edit%20Mode%20Overlay/README.md)
-- [Modifier Display README](Blender/Addons/ClaudeVibe_WIPs/Toggle%20Modifier%20Display/README.md)
-
-### External Documentation
-- [ST3E Complete Documentation](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing) - 3DS Max tools
+These tools are provided free for personal and commercial use — use, modify, and share freely.
+Attribution appreciated but not required. No warranty provided.
 
 ---
 
 ## 🌟 Credits
 
 **Development:** Stephan Viranyi (Stephko)
-**AI Assistance:** Claude AI (Anthropic) - Code generation and documentation
-**Testing:** Community feedback and personal production use
-
-**Special Thanks:**
-- Blender Foundation
-- Open source community
+**AI Assistance:** Claude AI (Anthropic) with Blender MCP integration
+**Testing:** Personal production use + community feedback
 
 ---
 
-**Last Updated:** October 2025  
-**Documentation Version:** 1.0  
-**Tools Version:** See individual tool READMEs
+**Last Updated:** 2026-06-06
+**Documentation Version:** 2.0
 
 ---
 
