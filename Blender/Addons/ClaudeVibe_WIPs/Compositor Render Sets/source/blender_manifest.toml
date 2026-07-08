@@ -1,0 +1,20 @@
+schema_version = "1.0.0"
+
+id = "compositor_render_sets"
+version = "2.0.0"
+name = "Compositor Render Sets"
+tagline = "Render collection sets through the compositor with File Output management"
+maintainer = "Stephko <stephko@viranyi.de>"
+type = "add-on"
+
+tags = ["Render", "Compositing"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Write render outputs to disk"
+
+[build]
+paths_exclude_pattern = ["__pycache__/", "tests/"]

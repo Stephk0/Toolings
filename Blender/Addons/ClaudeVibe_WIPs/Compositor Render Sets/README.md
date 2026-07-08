@@ -1,11 +1,11 @@
 # Compositor Render Sets
 
-![Version](https://img.shields.io/badge/version-1.7.4-blue)
-![Blender](https://img.shields.io/badge/blender-4.0%20%7C%205.0+-orange)
+![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Blender](https://img.shields.io/badge/blender-4.2%20%7C%205.0+-orange)
 
-**Author:** Claude AI + Stephan Viranyi
+**Author:** Stephan Viranyi + Claude AI
 **Category:** Render
-**License:** GPL v2
+**License:** GPL v3
 
 ---
 
@@ -37,25 +37,45 @@ Compositor Render Sets automates this entire workflow:
 
 ## 📦 Installation
 
-### Method 1: Install from File
-1. Download `compositor_render_sets.py`
-2. Open Blender (version 4.0 or later)
-3. Go to `Edit` → `Preferences` → `Add-ons`
-4. Click `Install...` button
-5. Navigate to and select `compositor_render_sets.py`
-6. Enable the checkbox next to **"Render: Compositor Render Sets"**
+### Method 1: Install from Zip (recommended)
+1. Grab `distribution/CompositorRenderSets_v2.0.0.zip`
+2. Open Blender (version 4.2 or later)
+3. Drag and drop the zip into the Blender window (or use
+   `Edit` → `Preferences` → `Get Extensions` → `Install from Disk...`)
+4. Enable **"Compositor Render Sets"** if it isn't enabled automatically
 
-### Method 2: Manual Installation
-1. Copy `compositor_render_sets.py` to Blender's addons folder:
-   - **Windows:** `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
-   - **macOS:** `~/Library/Application Support/Blender/[version]/scripts/addons/`
-   - **Linux:** `~/.config/blender/[version]/scripts/addons/`
-2. Restart Blender
-3. Enable in Preferences → Add-ons
+### Method 2: Dev deploy (this repo)
+Run `install_to_blender.ps1` at the tool root — it copies `source/` into the
+highest installed Blender's `extensions\user_default\` folder. Restart Blender.
+
+### Folder Layout
+
+```
+Compositor Render Sets/
+├── README.md               # this file
+├── install_to_blender.ps1  # one-click dev deploy
+├── source/                 # addon code (WMH architecture)
+│   ├── __init__.py         # thin: bl_info + register wiring
+│   ├── blender_manifest.toml
+│   ├── core/               # pure Python, bpy-free, unit-tested
+│   │   ├── naming.py       # prefix/slot/output-path computations
+│   │   └── logbuf.py       # capped log buffer helpers
+│   ├── blender/            # bpy boundary
+│   │   ├── compat.py       # Blender 4.x / 5.0+ compositor API layer
+│   │   ├── visibility.py   # collection/modifier/object visibility sync
+│   │   ├── node_state.py   # File Output node cache/configure/restore
+│   │   ├── properties.py   # PropertyGroups
+│   │   ├── operators.py    # all operators
+│   │   └── panels.py       # UI lists + panels
+│   └── tests/              # pytest over core/ (no bpy needed)
+└── distribution/           # current installable zip (+ archive/)
+```
+
+Run the unit tests without Blender: `python -m pytest source/tests`
 
 ### Verification
 
-After installation, press `N` in the 3D Viewport to open the sidebar. You should see a new tab: **"Compositor Render Sets"**
+After installation, press `N` in the 3D Viewport to open the sidebar. You should see a new tab: **"Render Sets"**
 
 ---
 
@@ -571,7 +591,45 @@ Potential features for future versions:
 
 ## 📜 Version History
 
-### Version 1.7.1 (Current - 2025-12-09)
+### Version 2.0.0 (Current - 2026-07-02) — WMH Architecture + Bug Fixes
+
+**Architecture refactor** — the 2,800-line single file is now a proper package
+following the suite's WMH standard: bpy-free `core/` (unit-tested with pytest,
+27 tests), `blender/` bpy boundary, thin `__init__.py`, extension manifest,
+dev-install script, and a versioned distribution zip. Verified end-to-end with
+headless renders on Blender 4.5 (prefix-replacement path) and 5.0
+(`file_name`-field path).
+
+**Bug fixes:**
+- **Abort Render started a render instead of aborting one** — it invoked
+  `bpy.ops.render.render`; it is now a pure recovery action (restores the File
+  Output node from the cached state and clears stuck flags)
+- **Blender 5 `file_name` field wiped after every render** — the field is now
+  cached and restored with the rest of the node state
+- **State restoration now guaranteed via try/finally** — an exception
+  mid-render no longer leaves the node reconfigured, visibility mangled, and
+  `is_rendering` stuck on
+- **Create Node Setup was broken on Blender 4.x** — `file_slots.remove()`
+  was called with the slot instead of the input socket (TypeError)
+- **Create Node Setup on a fresh Blender 5 scene** — now creates the
+  compositing node group when none exists yet
+- **Root (master) layer collection is never touched anymore** — hiding it and
+  syncing its state onto `hide_render` could blank the entire render
+- **Modifier/object sync now includes nested sub-collections**
+  (`all_objects` instead of direct `objects`)
+- Render mode is a proper enum (the phantom `'selected'` mode could crash
+  batch setup with an IndexError)
+- Panel log is capped at 200 lines instead of growing unboundedly in the
+  .blend; `Scene.use_nodes` access is guarded for its removal in Blender 6.0
+
+**Improvements:**
+- Console debug spam is now opt-in via the new **Debug Console Output**
+  setting (Settings section)
+- Layer-collection lookups use a prebuilt map instead of repeated recursive
+  searches; per-set mute-state snapshots no longer double-mute
+- Blender min version raised to 4.2 (extension system)
+
+### Version 1.7.1 (2025-12-09)
 - **Blender 5.0 Compatibility:** Added support for Blender 5.0's new File Output node `filename` field
   - Automatic version detection: uses `filename` field in Blender 5.0+, prefix replacement in Blender 4.x
   - File output nodes properly reset after each render set
