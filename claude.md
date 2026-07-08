@@ -257,8 +257,8 @@ Stephko_Tooling/
 - Modifier categories: Modify, Generate, Deform (Physics partially supported)
 - Helper functions for viewport updates: `force_modifier_update()`, `force_object_update()`
 
-### Compositor Render Sets v1.7.4
-**File:** `Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/`
+### Compositor Render Sets v2.0.0
+**File:** `Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/source/` (WMH architecture: bpy-free `core/` + `blender/` UI, pytest suite in `source/tests/`)
 
 **Core Functionality:**
 - Multi-render setup management for compositor workflows
@@ -537,7 +537,7 @@ Stephko_Tooling/
 - **Synced Modifiers v2.5.0** - Enhanced sync system with ID tracking (complete)
 - **Procedural Tree Generator Phase 2** - Natural growth forces (gravity, sun, wind)
 - **MCP-Enhanced Workflows** - AI-assisted Blender control and iteration
-- Compositor Render Sets v1.7.4 - Batch rendering complete, stable and reliable
+- Compositor Render Sets v2.0.0 - WMH architecture refactor (core/blender split, pytest, extension zip), abort/restore bug fixes
 - Geometry node library expansion
 - Compositor workflow integration
 

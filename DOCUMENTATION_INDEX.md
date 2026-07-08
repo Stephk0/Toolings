@@ -76,7 +76,7 @@ All Blender addons live in `Blender/Addons/ClaudeVibe_WIPs/`. Each folder contai
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
 | **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/ClaudeVibe_WIPs/Edit%20Mode%20Overlay/README.md) |
-| **Compositor Render Sets** | 1.7.4 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/ClaudeVibe_WIPs/Compositor%20Render%20Sets/README.md) |
+| **Compositor Render Sets** | 2.0.0 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/ClaudeVibe_WIPs/Compositor%20Render%20Sets/README.md) |
 
 ---
 

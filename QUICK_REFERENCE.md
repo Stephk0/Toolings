@@ -54,7 +54,7 @@ Restart 3DS Max
 |-------|-----|--------|
 | Mass Collection Exporter | 13.6.2 | `N` Panel → Mass Exporter |
 | Synced Modifiers | 2.5.0 | `N` Panel → Item |
-| Compositor Render Sets | 1.7.4 | Compositor → `N` Panel |
+| Compositor Render Sets | 2.0.0 | Compositor → `N` Panel |
 | Modifier List (Stephko fork) | 1.9.89 | Properties → Modifiers / popup |
 | Tile UV Projector | 1.2.1 | `N` Panel (UV) |
 | Add Bounds To Name | 1.1.3 | `N` Panel → Bounds Name |
