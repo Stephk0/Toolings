@@ -1,0 +1,15 @@
+schema_version = "1.0.0"
+
+id = "geonode_layout_mcp"
+version = "1.1.0"
+name = "GeoNode Layout MCP Bridge"
+tagline = "Socket bridge for AI-driven Geometry Nodes layout"
+maintainer = "Stephan Viranyi <viranyistephan@gmail.com>"
+type = "add-on"
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+# Pure stdlib + bpy/gpu/blf -- no wheels, no network access at runtime.
+# (The socket server binds localhost only; start it explicitly from the panel.)
