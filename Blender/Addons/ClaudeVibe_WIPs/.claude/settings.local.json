@@ -39,7 +39,10 @@
       "PowerShell(Get-Item *)",
       "PowerShell($path = 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\MassExporter_v12.4\\\\__init__.py'; py -c \"import ast,sys; ast.parse\\(open\\(r'$path', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")",
       "PowerShell(py *)",
-      "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\); $zip.Entries | Select-Object FullName, Length; $zip.Dispose\\(\\); \\(Get-Item 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\).Length)"
+      "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\); $zip.Entries | Select-Object FullName, Length; $zip.Dispose\\(\\); \\(Get-Item 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\).Length)",
+      "Read(//d/Stephko_Tooling/Toolings/.serena/memories/**)",
+      "Read(//d/Stephko_Tooling/Toolings/.serena/**)",
+      "Read(//d/Stephko_Tooling/Toolings/.claude/**)"
     ],
     "deny": [],
     "ask": []
