@@ -719,4 +719,4 @@ if __name__ == "__main__":
 
 *This file helps Claude AI understand the codebase context, structure, and development guidelines. Update as the project evolves.*
 - This project has the Serena MCP server configured. Use at all times applicable, especially core programming tasks and guided or free form idiation.
-- like in code, comment your geonodes as well by framing and naming nodes. it will be easier to understand for a human
+- like in code, comment your geonodes as well by framing and naming nodes. it will be easier to understand for a human- ANY geonode work (create / tidy / alter a Geometry Nodes group) goes through the `geonode-layout-mcp` skill — always invoke it first. The canonical criteria live with the tooling (outside the AI config) at `Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/GEONODE_CRITERIA.md`.

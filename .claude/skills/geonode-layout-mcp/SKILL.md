@@ -1,9 +1,17 @@
 ---
 name: geonode-layout-mcp
-description: Read and rearrange a Blender Geometry Nodes graph with the GeoNode Layout MCP (capture → autolayout/reason → apply → verify), then audit the result against the ST3E layout rules. Use when tidying a GN node tree, when the user mentions "layout MCP", "capture_graph / apply_layout / autolayout_pass", "tidy the nodes", or when a newly-authored geonode needs its graph laid out and checked.
+description: The entry point for ANY Geometry Nodes work — creating, tidying, or otherwise altering a geonode. Loads the ST3E criteria (GEONODE_CRITERIA.md) and the GeoNode Layout MCP flow (capture → autolayout/reason → apply → verify → audit R1–R11). Use whenever a geonode is created, tidied, refactored, or edited, when the user mentions "layout MCP", "capture_graph / apply_layout / autolayout_pass", "tidy the nodes", or when a newly-authored geonode needs its graph laid out and checked.
 ---
 
-# GeoNode Layout MCP
+# GeoNode work — criteria + Layout MCP
+
+**FIRST: Read the canonical criteria** —
+`Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/GEONODE_CRITERIA.md`.
+They apply to creating, tidying, and altering alike (function frames, interface
+panels + unique naming, per-function group inputs, subway wiring, deformer
+conventions, publishing checklist). The criteria deliberately live with the
+pipeline — outside the AI config — so they version with the tooling; this skill
+is just the trigger that loads them.
 
 An MCP bridge that reads a Geometry Nodes graph as an **annotated screenshot +
 structured table** and rearranges it **deterministically**. Layout/readability is
@@ -68,24 +76,64 @@ layout_audit.print_report(layout_audit.audit(ng))`):
 - **R6 entries staggered** — no two reroutes feeding the SAME node share a Y. *(advisory)*
   Piled entries = crossing taps you can't trace. `route_into_nodes` prevents this by
   nesting multi-socket entries into a staircase (topmost socket → lane nearest the node).
+- **R7 no frame overlap** — frames never partially overlap; full nesting is fine. **(BLOCKING)**
+- **R8 nodes framed** — every function node lives inside a labeled frame; Group
+  Input/Output buses exempt. *(advisory — the creation criterion "frame + label like code")*
+- **R9 unique socket names** — no two interface sockets share a display name.
+  *(advisory — duplicates silently miswire ANY by-name scripting; this changed real
+  geometry once: two "Auto Angle Degrees" inputs.)*
+- **R10 sockets in panels** — params organized via `interface.new_panel`; only
+  `Geometry` + `Selection` may stay top-level. *(advisory — creation criterion)*
+- **R11 no needless reroutes** — a rerouted link whose direct wire would be short
+  (<~300px) and unobstructed stays DIRECT. *(advisory — lines only bend for a reason;
+  the engine's `_adjacent_direct` test enforces this at routing time)*
+
+**The full creation/tidying criteria live in `LLMGeonodePipeline/GEONODE_CRITERIA.md`**
+— tidying is held to the SAME bar as authoring (function frames, panels + naming,
+per-function group inputs, subway wiring). The audit mirrors it as R1–R11.
 
 **Subway-map principle (the visual north star):** you must be able to trace which
 station (node) feeds which via which line. Lines/reroutes/nodes should almost never
 intersect or obstruct — reroutes build *around* nodes in the way, kept horizontal &
-vertical. A track may split from a shared source, but every path stays readable.
-R1/R2/R6 + the router's node-aware lanes enforce this.
+vertical. A track may split from a shared source, but every path stays readable —
+and a track that doesn't need to bend doesn't get reroutes at all (R11).
+R1/R2/R6/R11 + the router's node-aware lanes enforce this.
 
-**Blocking vs advisory** (policy: `layout_audit.BLOCKING` / `ADVISORY`): only R1+R2
+**Blocking vs advisory** (policy: `layout_audit.BLOCKING` / `ADVISORY`): only R1+R2+R7
 block a `run_pipeline` save (structural integrity — overlaps / hidden reroutes make
 a graph *broken*). R3 is advisory because feedback/preview topologies (a deformer's
 `Set Position` → preview `Switch` / gizmo `Join` upstream) have legitimate backward
-links and can't reach zero. `tidy_layout` defaults were tightened (`row_gap` 55,
-`band_gap` 120) — verified safe (R1/R2 pass) on both a simple graph and a
-gizmo-heavy deformer.
+links and can't reach zero. R8–R10 are advisory because fixing them takes semantic
+judgment (see the garbled-graph workflow below). `tidy_layout` defaults were
+tightened (`row_gap` 55, `band_gap` 120) — verified safe (R1/R2 pass) on both a
+simple graph and a gizmo-heavy deformer.
 
 Also keep: generous spacing, labeled frames grouping logical sections
 (`frame.location=(0,0)` makes child `.location` absolute — the trick for stamping
 frames without shifting children).
+
+## Tidying a garbled graph — isolate functions FIRST
+
+The deterministic engine layers and routes, but it cannot invent semantics: an
+unframed 90-node soup tidies into a *readable soup*. When R8 reports many unframed
+nodes, do this order (full criteria: `LLMGeonodePipeline/GEONODE_CRITERIA.md`):
+
+1. **Capture** the graph and identify the logical functions from connectivity +
+   node semantics (what feeds the output? which cluster builds the selection?
+   which is debug viewers?). This is the AI-judgment step.
+2. **Create labeled function frames** via blender-mcp `execute_blender_code`:
+   `f = ng.nodes.new("NodeFrame"); f.label = "Corner Damage"; f.location = (0,0)`
+   then parent the cluster's nodes (`n.parent = f` — with the frame at (0,0),
+   child locations stay absolute). Park debug Viewer clusters in their own
+   "Debug" frame (or ask the user whether to delete them).
+3. **Fix the interface**: rename duplicate socket names (R9 — rename, don't
+   reorder, so modifier overrides survive), group params into panels (R10):
+   Selection top-level → effect panel(s) → Affect Axes/Center/Preview.
+4. **Then run the deterministic tidy** (`tidy_and_route` live or `run_pipeline.py`
+   headless) and audit. Frames drive the band layout, so step 2 is what makes
+   step 4 come out readable.
+5. Geometry-unchanged is non-negotiable at every step: snapshot evaluated verts
+   before, compare after, never save on mismatch.
 
 ## Two layout engines — pick per need
 
@@ -103,7 +151,7 @@ Both live in `LLMGeonodePipeline/` and are scored by the same `layout_audit`.
 **`run_pipeline.py` is the default composition:** it applies `tidy_layout` and
 gates the save on BOTH geometry-unchanged AND the `layout_audit` rules — the two
 engines verify each other. `blender --background --factory-startup --python
-run_pipeline.py -- GN_NormalTransfer`. It **won't save** if a blocking rule (R1/R2/R3)
+run_pipeline.py -- GN_NormalTransfer`. It **won't save** if a blocking rule (R1/R2/R7)
 fails (this fired in practice — re-tidying already-routed output overlapped a node).
 
 Both satisfy R1–R4. Verified on `GN_NormalTransfer` (2026-07): MCP autolayout →
@@ -124,6 +172,10 @@ reroutes, aspect ~0.86. **Run `layout_audit.py` after either** to confirm.
 - **Menu → dropdown pattern:** a front-end `Menu` input drives a `Menu Switch(INT)`
   → `Index Switch`; the modifier override is an int. See memory
   `feedback_gn_menu_to_index_switch`.
+- **GI fans are exempt from ALL routing passes** — group-input param links stay
+  straight direct wires (a parallel dashed ribbon), parked below-left of their
+  consumers; far consumers get their own small GI labeled by its interface panel.
+  Lane-routing GI links once stacked 7 reroute rows across a frame label.
 - **Server persistence:** the socket server + main-thread timer survive
   `open_mainfile` (persistent timer + module-global). Re-`start_server()` is a safe
   no-op ("already running").
@@ -132,7 +184,10 @@ reroutes, aspect ~0.86. **Run `layout_audit.py` after either** to confirm.
 
 - `run_pipeline.py` — default orchestrator: tidy → verify both goals → save.
 - `tidy_layout.py` — deterministic engine (`tidy_and_route`, `process_file`).
-- `layout_audit.py` — score a tree against R1–R5 (CLI or importable); the shared
+- `layout_audit.py` — score a tree against R1–R11 (CLI or importable); the shared
   rule set both engines are checked against.
 - `prepare_capture.py` — open + frame a node editor and start the server.
-- Suite `README.md`. Rules memory: `feedback_gn_node_layout_spacing`.
+- `GEONODE_CRITERIA.md` — the canonical creation/tidying criteria (read it first).
+- Suite `README.md`. Rules memory:
+  `feedback_gn_node_layout_spacing`; rewiring safety: `feedback_gn_link_rewire_gotchas`
+  (relink by identifier, viewer dynamic sockets, geometry-unchanged gate).

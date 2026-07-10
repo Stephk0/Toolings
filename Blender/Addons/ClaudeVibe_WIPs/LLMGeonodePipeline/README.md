@@ -14,6 +14,12 @@ engines that verify each other against one shared definition of "a good layout":
 
 Both are scored by the same **`layout_audit`** rules, so they can't drift apart.
 
+**Criteria:** the full authoring/tidying criteria (function frames, interface
+panels + unique naming, per-function group inputs, subway wiring, publishing)
+live in [`GEONODE_CRITERIA.md`](GEONODE_CRITERIA.md) — the single source both
+engines and the `geonode-layout-mcp` skill follow for ANY geonode
+create/tidy/alter work.
+
 ## Folder layout
 
 ```

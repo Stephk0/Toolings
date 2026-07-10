@@ -12,7 +12,17 @@ Rules checked
   R3 left_to_right    : logical links (traced through reroutes) flow +x    (FAIL if any backward)
   R4 frames_labeled   : every frame has a non-empty label                  (WARN if any blank)
   R5 column_spacing   : clearance between adjacent columns                 (WARN if < MIN_CLEAR)
+  R6 entries_staggered: reroutes feeding one node don't pile on one row    (WARN)
+  R7 no_frame_overlap : frames never partially overlap (nesting is fine)   (FAIL if >0)
+  R8 nodes_framed     : every function node lives inside a labeled frame   (WARN)
+  R9 unique_socket_names: no two interface sockets share a display name    (WARN -- miswire hazard)
+  R10 sockets_in_panels : params organized in interface panels             (WARN; Geometry/Selection may stay top-level)
+  R11 no_needless_reroutes: short unobstructed links stay DIRECT wires     (WARN)
   (report only)       : bounds W x H and aspect
+
+R8-R10 mirror the ST3E CREATION criteria (frame+label every function like code;
+organize modifier inputs in named panels) -- tidying is held to the same bar as
+authoring. See the geonode-layout-mcp skill and the geonode asset checklist memory.
 
 Usage
 -----
@@ -38,15 +48,24 @@ OVERLAP_PAD = 2.0  # ignore hairline touches
 #              feeding a preview Switch / gizmo Join placed upstream) have
 #              legitimate backward links and can never reach zero.
 BLOCKING = ("R1_no_overlaps", "R2_reroutes_clear", "R7_no_frame_overlap")
-ADVISORY = ("R3_left_to_right", "R4_frames_labeled", "R5_row_clearance", "R6_entries_staggered")
+ADVISORY = ("R3_left_to_right", "R4_frames_labeled", "R5_row_clearance", "R6_entries_staggered",
+            "R8_nodes_framed", "R9_unique_socket_names", "R10_sockets_in_panels",
+            "R11_no_needless_reroutes")
 
-ENTRY_Y_TOL = 10.0  # two reroutes feeding one node within this Y are "piled on a row" (R6)
+ENTRY_Y_TOL = 10.0   # two reroutes feeding one node within this Y are "piled on a row" (R6)
+NEEDLESS_DX = 300.0  # a rerouted link shorter than this with a clear straight path is "needless" (R11)
+NEEDLESS_DY = 240.0  # ...and a rise smaller than this (keep in sync with tidy_layout ADJ_DX/ADJ_DY)
+TOP_LEVEL_OK = ("Geometry", "Selection")  # interface inputs allowed OUTSIDE panels (R10)
 
 
 def _est_h(n):
     nin = sum(1 for s in n.inputs if s.enabled and not s.hide and s.type != 'CUSTOM')
     nout = sum(1 for s in n.outputs if s.enabled and not s.hide and s.type != 'CUSTOM')
-    return 34 + (nin + nout) * 22 + 30
+    # unlinked vector/rotation inputs draw 3 extra sliders each (same formula as tidy_layout.est_h
+    # so engine and audit agree headless, where dimensions are 0)
+    extra = sum(54 for s in n.inputs if s.enabled and not s.hide and not s.is_linked
+                and s.type in ('VECTOR', 'ROTATION') and not s.hide_value)
+    return 34 + (nin + nout) * 22 + 30 + extra
 
 
 def _absloc(n):
@@ -178,6 +197,68 @@ def audit(ng):
                 if not contains:                       # nesting is allowed; partial overlap is not
                     frame_overlaps.append((fnames[i], fnames[j]))
 
+    # R8 function isolation (creation criterion: "frame + label every node like code"):
+    # every real node belongs to a frame. Group Input/Output are wiring buses, exempt.
+    unframed = [n.name for n in real
+                if n.bl_idname not in ('NodeGroupInput', 'NodeGroupOutput') and n.parent is None]
+
+    # R9 unique interface socket display names -- duplicates are a silent-miswire hazard
+    # for ANY by-name scripting (bit us: two inputs both called "Auto Angle Degrees").
+    from collections import Counter
+    _socks = [it for it in ng.interface.items_tree if getattr(it, 'item_type', '') == 'SOCKET']
+    dup_in = [nm for nm, c in Counter(s.name for s in _socks if s.in_out == 'INPUT').items() if c > 1]
+    dup_out = [nm for nm, c in Counter(s.name for s in _socks if s.in_out == 'OUTPUT').items() if c > 1]
+
+    # R10 params organized in panels (creation criterion: Selection top-level -> named
+    # effect panel(s) -> Affect Axes / Center / Preview). Geometry + Selection may stay loose.
+    loose_inputs = []
+    for it in _socks:
+        if it.in_out != 'INPUT' or it.name in TOP_LEVEL_OK:
+            continue
+        par = getattr(it, 'parent', None)
+        # top-level items report the implicit ROOT panel (empty name) -- only a NAMED panel counts
+        if not (par is not None and getattr(par, 'item_type', '') == 'PANEL'
+                and (getattr(par, 'name', '') or '').strip()):
+            loose_inputs.append(it.name)
+
+    # R11 needless reroutes: a rerouted link whose DIRECT wire would be short and
+    # unobstructed reads better as a plain wire (subway lines only bend for a reason).
+    def _straight_blocked(sx, sy, tx, ty):
+        if tx <= sx:
+            return True                     # backward: reroutes are justified
+        for n in real:
+            x0, y0, x1, y1 = boxes[n.name]
+            ox0, ox1 = max(x0, sx), min(x1, tx)
+            if ox1 <= ox0:
+                continue
+            for xx in (ox0, (ox0 + ox1) / 2.0, ox1):
+                t = (xx - sx) / (tx - sx)
+                if 0.0 < t < 1.0 and (y0 - 4) <= (sy + t * (ty - sy)) <= (y1 + 4):
+                    return True
+        return False
+    needless = []
+    seen_pairs = set()
+    for l in ng.links:
+        if l.from_node.bl_idname != 'NodeReroute' or l.to_node.bl_idname in ('NodeReroute', 'NodeFrame'):
+            continue
+        chain, fn = 0, l.from_node
+        while fn is not None and fn.bl_idname == 'NodeReroute':
+            chain += 1
+            fn = fn.inputs[0].links[0].from_node if fn.inputs[0].is_linked else None
+        if fn is None or fn.name not in boxes:
+            continue
+        sbox, tbox = boxes[fn.name], boxes.get(l.to_node.name)
+        if tbox is None:
+            continue
+        sx, sy = sbox[2], (sbox[1] + sbox[3]) / 2.0
+        tx, ty = tbox[0], (tbox[1] + tbox[3]) / 2.0
+        if 0 < tx - sx < NEEDLESS_DX and abs(ty - sy) < NEEDLESS_DY \
+                and not _straight_blocked(sx, sy, tx, ty):
+            key = (fn.name, l.to_node.name)
+            if key not in seen_pairs:
+                seen_pairs.add(key)
+                needless.append((fn.name, l.to_node.name, chain))
+
     allx = [_absloc(n)[0] for n in real]; ally = [_absloc(n)[1] for n in real]
     W = (max(allx) - min(allx)) if allx else 0
     H = (max(ally) - min(ally)) if ally else 0
@@ -197,6 +278,14 @@ def audit(ng):
                               "min_clear": min_clear, "target": MIN_CLEAR},
         "R6_entries_staggered": {"status": rule(not piled, warn=True), "piled_nodes": piled},
         "R7_no_frame_overlap": {"status": rule(not frame_overlaps, warn=True), "overlaps": frame_overlaps},
+        "R8_nodes_framed": {"status": rule(not unframed, warn=True),
+                             "unframed_count": len(unframed), "unframed": unframed[:12]},
+        "R9_unique_socket_names": {"status": rule(not (dup_in or dup_out), warn=True),
+                                    "duplicate_inputs": dup_in, "duplicate_outputs": dup_out},
+        "R10_sockets_in_panels": {"status": rule(not loose_inputs, warn=True),
+                                   "loose_inputs": loose_inputs[:16]},
+        "R11_no_needless_reroutes": {"status": rule(not needless, warn=True),
+                                      "count": len(needless), "links": needless[:10]},
         "bounds": {"w": round(W), "h": round(H), "aspect_h_over_w": round(H / max(W, 1), 2)},
     }
 

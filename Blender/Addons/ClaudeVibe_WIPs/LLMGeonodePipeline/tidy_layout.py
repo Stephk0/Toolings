@@ -11,13 +11,28 @@ TARGETS = ["GN_Spherify", "GN_Twist", "GN_Taper", "GN_Wave", "GN_Bend", "GN_Stre
 
 def isock(node, ident): return next(s for s in node.inputs if s.identifier == ident)
 def osock(node, ident): return next(s for s in node.outputs if s.identifier == ident)
+def isock_or_extend(node, ident):
+    """Input socket by identifier, falling back to the node's '__extend__' socket.
+    Dynamic-item sockets (Blender 5 Viewer items) self-remove when unlinked, so a
+    remove-then-relink round trip must recreate them via the extension socket."""
+    s = next((s for s in node.inputs if s.identifier == ident), None)
+    if s is None:
+        s = next((s for s in node.inputs if s.identifier == '__extend__'), None)
+    return s
 def fname_of(n): return n.parent.name if n.parent else None   # frame identity by NAME (bpy wrappers fail `is`)
 def est_h(n):
+    if n.dimensions.y > 0:                        # actual drawn size (0 when headless/pre-draw)
+        return n.dimensions.y / _uiscale()
     nin = sum(1 for s in n.inputs if s.enabled and not s.hide and s.type != 'CUSTOM')
     nout = sum(1 for s in n.outputs if s.enabled and not s.hide and s.type != 'CUSTOM')
-    return 34 + (nin + nout) * 22 + 30
+    # an unlinked vector/rotation input draws 3 extra value sliders below its row
+    extra = sum(54 for s in n.inputs if s.enabled and not s.hide and not s.is_linked
+                and s.type in ('VECTOR', 'ROTATION') and not s.hide_value)
+    return 34 + (nin + nout) * 22 + 30 + extra
 
-def tidy_layout(ng, col_gap=85, row_gap=55, band_gap=120, label_pad=48):
+def tidy_layout(ng, col_gap=130, row_gap=55, band_gap=120, label_pad=48):
+    # col_gap 85->130 (2026-07-09 user image-diff): tight columns cramped the frames;
+    # wider columns also give GI param ribbons and drop lanes room to stay clear
     """Re-spread: columns by longest-path depth, frames as vertical bands, generous row gap
     so stacked clusters (gizmos) have room for clean fan-outs. (run with a SINGLE Group Input)"""
     nodes = [n for n in ng.nodes if n.bl_idname != "NodeFrame"]
@@ -122,29 +137,74 @@ def dissolve_reroutes(ng):
             if rs: fixes.append((rs, l.to_node, l.to_socket.identifier))
     for n in rr: ng.nodes.remove(n)
     for rs, tnode, tident in fixes:
-        ng.links.new(rs, isock(tnode, tident))
+        ts = isock_or_extend(tnode, tident)
+        if ts is not None: ng.links.new(rs, ts)
     return len(rr)
 
 def localize_group_inputs(ng):
     gis = [n for n in ng.nodes if n.bl_idname == 'NodeGroupInput']; giset = set(gis)
-    items = [(l.from_socket.name, l.to_node, l.to_socket.identifier) for l in ng.links if l.from_node in giset]
+    # key by socket IDENTIFIER, never display name -- two interface sockets may share a name
+    items = [(l.from_socket.identifier, l.to_node, l.to_socket.identifier) for l in ng.links if l.from_node in giset]
     for l in list(ng.links):
         if l.from_node in giset: ng.links.remove(l)
+    # panel lookup for GI labeling (socket identifier -> NAMED panel, '' if top-level)
+    sock_panel = {}
+    for it in ng.interface.items_tree:
+        if getattr(it, 'item_type', '') == 'SOCKET':
+            par = getattr(it, 'parent', None)
+            sock_panel[it.identifier] = (getattr(par, 'name', '') or '').strip() if par is not None else ''
     byframe = defaultdict(list); framemap = {}
-    for name, tnode, ident in items:
-        fn = fname_of(tnode); byframe[fn].append((name, tnode, ident))
+    for gid, tnode, ident in items:
+        fn = fname_of(tnode); byframe[fn].append((gid, tnode, ident))
         if tnode.parent: framemap[fn] = tnode.parent
     for fn, its in byframe.items():
-        nodes_in = [t for _, t, _ in its]
-        minx = min(n.location.x for n in nodes_in); avgy = sum(n.location.y for n in nodes_in) / len(nodes_in)
-        lgi = ng.nodes.new("NodeGroupInput")
-        if framemap.get(fn): lgi.parent = framemap[fn]
-        lgi.location = (minx - 300, avgy)
-        for name, tnode, ident in its:
-            ng.links.new(lgi.outputs[name], isock(tnode, ident))
-        conn = set(l.from_socket.name for l in ng.links if l.from_node is lgi)
-        for o in lgi.outputs:
-            if o.name and o.name not in conn: o.hide = True
+        # split consumers into X-CLUSTERS: a far-right consumer gets its OWN small GI
+        # parked next to it, instead of one long wire from the frame's main GI
+        # (user image-diff: a one-socket GI labeled by its panel right before the Mix node)
+        its.sort(key=lambda t: t[1].location.x)
+        clusters = [[its[0]]]
+        for t in its[1:]:
+            if t[1].location.x - clusters[-1][-1][1].location.x > 900:
+                clusters.append([t])
+            else:
+                clusters[-1].append(t)
+        for cl in clusters:
+            nodes_in = [t for _, t, _ in cl]
+            minx = min(n.location.x for n in nodes_in)
+            lgi = ng.nodes.new("NodeGroupInput")
+            if framemap.get(fn): lgi.parent = framemap[fn]
+            if len(nodes_in) == 1:
+                # single consumer: directly left of it, socket-aligned
+                anchor_y = nodes_in[0].location.y
+            else:
+                # multi consumer: BELOW-left, so the param ribbon sweeps the clear
+                # corridor under the frame's nodes as straight parallel lines
+                anchor_y = min(n.location.y - est_h(n) for n in nodes_in) - 60
+            lgi.location = (minx - 300, anchor_y)
+            for gid, tnode, ident in cl:
+                ts = isock_or_extend(tnode, ident)
+                if ts is not None: ng.links.new(osock(lgi, gid), ts)
+            conn = set(l.from_socket.identifier for l in ng.links if l.from_node is lgi)
+            for o in lgi.outputs:
+                if o.identifier and o.identifier not in conn: o.hide = True
+            # label: the interface PANEL name when unambiguous, else the function frame
+            panels = set(sock_panel.get(g, '') for g in conn) - {''}
+            if len(panels) == 1:
+                lgi.label = next(iter(panels))
+            elif framemap.get(fn) and (framemap[fn].label or '').strip():
+                lgi.label = f"In: {framemap[fn].label}"
+            # slide the new GI to the vertical gap NEAREST its anchor among nodes sharing
+            # its x-span (never a cumulative push-down: that walks it below the whole column)
+            w, h = (lgi.width or 140), est_h(lgi)
+            x0, x1 = lgi.location.x - 30, lgi.location.x + w + 30
+            occ = [(o.location.y, o.location.y - est_h(o)) for o in ng.nodes
+                   if o is not lgi and o.bl_idname not in ('NodeFrame', 'NodeReroute')
+                   and o.location.x < x1 and o.location.x + (o.width or 140) > x0]
+            def _clear(top):
+                return all(top - h - 30 >= t or top + 30 <= b for t, b in occ)
+            if not _clear(lgi.location.y):
+                cands = [y for t, b in occ for y in (t + 30 + h, b - 30) if _clear(y)]
+                if cands: lgi.location.y = min(cands, key=lambda y: abs(y - anchor_y))
     for g in gis:
         if not any(l.from_node is g for l in ng.links): ng.nodes.remove(g)
     return sum(1 for n in ng.nodes if n.bl_idname == 'NodeGroupInput')
@@ -156,6 +216,32 @@ def node_boxes(ng, exclude=()):
     return [(n.location.x, n.location.y, (n.width or 140), est_h(n))
             for n in ng.nodes
             if n.bl_idname not in ('NodeFrame', 'NodeReroute') and n not in ex]
+
+ADJ_DX = 300.0   # a link no longer than this (edge to edge) is "adjacent" -- keep it a direct wire
+ADJ_DY = 240.0   # ...provided the rise is small too (keep in sync with layout_audit R11)
+
+def _seg_clear(sx, sy, tx, ty, boxes, pad=4):
+    """True if the straight wire (sx,sy)->(tx,ty) crosses no node body (forward links only).
+    Subway-map corollary: lines only bend for a reason -- short unobstructed runs stay direct."""
+    if tx <= sx:
+        return False
+    for nx, ny, w, h in boxes:
+        x0, y0, x1, y1 = nx, ny - h, nx + w, ny
+        ox0, ox1 = max(x0, sx), min(x1, tx)
+        if ox1 <= ox0:
+            continue
+        for xx in (ox0, (ox0 + ox1) / 2.0, ox1):
+            t = (xx - sx) / (tx - sx)
+            if 0.0 < t < 1.0 and (y0 - pad) <= (sy + t * (ty - sy)) <= (y1 + pad):
+                return False
+    return True
+
+def _adjacent_direct(a, fs, b, ts, boxes):
+    """Adjacency test shared by all routing passes: target close, small rise, clear path."""
+    a_right = a.location.x + (a.width or 140)
+    soy = _socket_y(a, fs, False); tyy = _socket_y(b, ts, True)
+    return ((b.location.x - a_right) < ADJ_DX and abs(soy - tyy) < ADJ_DY
+            and _seg_clear(a_right, soy, b.location.x, tyy, boxes))
 
 def _hits_node(rx, ymin, ymax, boxes, pad=16):
     """True if a vertical run at X=rx spanning [ymin,ymax] passes through any node body."""
@@ -306,6 +392,9 @@ def route_into_nodes(ng, placed, hplaced, boxes):
             ts = next(s for s in b.inputs if s.identifier == tid)
             rows.append((a, fs, ts, _socket_y(b, ts, True)))
         rows.sort(key=lambda r: -r[3])             # highest socket Y first (topmost)
+        # adjacent sources with a clear straight path keep their DIRECT wire (no staircase)
+        rows = [(a, fs, ts, sy) for a, fs, ts, sy in rows
+                if not _adjacent_direct(a, fs, b, ts, boxes)]
         base_x = b.location.x - 45
         for k, (a, fs, ts, sy) in enumerate(rows):
             soy = _socket_y(a, fs, False)
@@ -336,7 +425,8 @@ def route_branches(ng, placed, hplaced, boxes):
     bysrc = defaultdict(list)
     for l in ng.links:
         a, b = l.from_node, l.to_node
-        if a.bl_idname in ('NodeReroute', 'NodeGroupInput') or b.bl_idname == 'NodeReroute': continue
+        # viewers excluded: their dynamic item sockets vanish on unlink, so keep those wires direct
+        if a.bl_idname in ('NodeReroute', 'NodeGroupInput') or b.bl_idname in ('NodeReroute', 'GeometryNodeViewer'): continue
         bysrc[(a, l.from_socket.identifier)].append((b, l.to_socket.identifier))
     items = sorted(bysrc.items(), key=lambda kv: -max(b.location.x for b, _ in kv[1]))  # rightmost first
     n_hv = 0; n_fan = 0
@@ -347,6 +437,8 @@ def route_branches(ng, placed, hplaced, boxes):
             if fname_of(a) is not None and fname_of(a) == fname_of(b):
                 continue                                        # same-frame single: leave direct
             ts = isock(b, tid)
+            if _adjacent_direct(a, fs, b, ts, boxes):
+                continue                                        # adjacent + clear: direct wire reads best
             for l in list(ng.links):
                 if l.from_socket == fs and l.to_socket == ts: ng.links.remove(l); break
             _route_v(ng, fs, ts, a, b, placed, boxes, hplaced); n_hv += 2
@@ -354,6 +446,10 @@ def route_branches(ng, placed, hplaced, boxes):
         ys = [b.location.y for b, _ in tg]; xs = [b.location.x for b, _ in tg]
         if max(ys) - min(ys) < 50 and max(xs) - min(xs) < 80:
             continue                                            # tight cluster: short direct lines read fine
+        # adjacent branches with a clear straight wire stay DIRECT; only the rest get bused
+        tg = [(b, tid) for b, tid in tg if not _adjacent_direct(a, fs, b, isock(b, tid), boxes)]
+        if not tg:
+            continue                                            # whole fan adjacent: a bus adds noise
         sock = {}                                               # drop originals, remember target sockets
         for b, tid in tg:
             ts = isock(b, tid); sock[(b, tid)] = ts
@@ -366,7 +462,11 @@ def route_branches(ng, placed, hplaced, boxes):
         tg = [(b, tid) for b, tid in tg if b.location.x >= a_right + 50]
         if not tg: continue
         if len(tg) == 1:                                        # one forward target left -> simple H-V-H
-            b, tid = tg[0]; _route_v(ng, fs, sock[(b, tid)], a, b, placed, boxes, hplaced); n_hv += 2
+            b, tid = tg[0]
+            if _adjacent_direct(a, fs, b, sock[(b, tid)], boxes):
+                ng.links.new(fs, sock[(b, tid)])                # adjacent + clear: restore the direct wire
+            else:
+                _route_v(ng, fs, sock[(b, tid)], a, b, placed, boxes, hplaced); n_hv += 2
             continue
         ys = [b.location.y for b, _ in tg]; xs = [b.location.x for b, _ in tg]
         if max(xs) - min(xs) <= 200:
@@ -413,7 +513,9 @@ def route_around_nodes(ng):
     cand = []
     for l in ng.links:
         a, b = l.from_node, l.to_node
-        if a.bl_idname == 'NodeReroute' or b.bl_idname == 'NodeReroute': continue
+        # Group-Input param fans stay DIRECT straight wires, always -- lane-detouring them
+        # stacked 6+ reroute rows across the frame label (user image-diff, EdgeDestruct).
+        if a.bl_idname in ('NodeReroute', 'NodeGroupInput') or b.bl_idname in ('NodeReroute', 'GeometryNodeViewer'): continue
         if fname_of(a) is None or fname_of(a) != fname_of(b) or l.to_socket.is_multi_input: continue
         ax2 = a.location.x + (a.width or 140); ay = a.location.y - 22
         bx = b.location.x; by = b.location.y - 22
