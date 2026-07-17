@@ -1,0 +1,11 @@
+BUILD FAILED:
+Traceback (most recent call last):
+  File "D:\Stephko_Tooling\Toolings\Blender\Geonodes\_build\build_gn_polygon_tileable_noise.py", line 738, in <module>
+    build()
+  File "D:\Stephko_Tooling\Toolings\Blender\Geonodes\_build\build_gn_polygon_tileable_noise.py", line 174, in build
+    noise_sock = add_to_panel(noise_panel, "Noise Type", "NodeSocketMenu", default="Perlin",
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Stephko_Tooling\Toolings\Blender\Geonodes\_build\build_gn_polygon_tileable_noise.py", line 154, in add_to_panel
+    ng.interface.move_to_parent(s, panel, len(panel.contents))
+                                              ^^^^^^^^^^^^^^
+AttributeError: 'NodeTreeInterfacePanel' object has no attribute 'contents'
