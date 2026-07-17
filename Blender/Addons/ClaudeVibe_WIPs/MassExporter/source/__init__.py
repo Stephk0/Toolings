@@ -1,7 +1,7 @@
 # Single source of truth for the addon version. bl_info + blender_manifest.toml
 # both derive from this; the panel title does NOT show the version. Bump here
 # and in blender_manifest.toml only.
-VERSION = (13, 6, 2)
+VERSION = (13, 6, 3)
 
 bl_info = {
     "name": "Mass Collection Exporter",
@@ -3588,6 +3588,8 @@ class MASSEXPORTER_PT_collections(Panel):
 
             sub_modes = layout.column()
             sub_modes.enabled = not active_item.export_as_single_fbx
+            # Order mirrors export precedence: suffix grouping > subcollections > empty origins.
+            sub_modes.prop(active_item, "use_suffix_grouping")
             sub_modes.prop(active_item, "export_subcollections_as_single")
             sub_modes.prop(active_item, "use_empty_origins")
 

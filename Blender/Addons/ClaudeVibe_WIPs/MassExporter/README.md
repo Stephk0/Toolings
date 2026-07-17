@@ -1,7 +1,11 @@
-# Mass Collection Exporter v13.6.2
+# Mass Collection Exporter v13.6.3
 
 A powerful Blender addon for batch exporting collections with advanced parent-child relationship handling, automatic joining, and flexible export options.
 Allows specifying a collection for export with subcollections (Main Collection Env_Buildings > SubCollections Building_01, Building_02, Building_03, etc)
+
+> 📘 **New:** Step-by-step tutorial with screenshots: [TUTORIAL.md](TUTORIAL.md)
+>
+> **v13.6.3:** restored the per-collection **Group by Suffix** checkbox in Collection Options (the setting existed and drove the export flow, but the checkbox was lost in the v13 UI rewrite).
 
 ## 📋 Table of Contents
 
@@ -54,7 +58,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 1: Direct Install (Recommended)
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.6.2.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.6.3.zip`)
 2. Open Blender
 3. Go to: **Edit → Preferences → Add-ons**
 4. Click **Install...** button
@@ -63,7 +67,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 2: Manual Install
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.6.2.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.6.3.zip`)
 2. Locate your Blender addons folder:
    - **Windows**: `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
    - **macOS**: `~/Library/Application Support/Blender/[version]/scripts/addons/`
@@ -696,8 +700,7 @@ For Unity:
 - [Unity FBX Import Guide](https://docs.unity3d.com/Manual/ImportingModelFiles.html)
 
 ### Common Issues
-- Collection visibility affects export
-- Hidden objects won't export
+- Hidden collections/objects ARE exported by default since v13.6 ("Export Hidden Collections" toggle) — disable it to skip them
 - Disabled modifiers won't apply
 
 ---

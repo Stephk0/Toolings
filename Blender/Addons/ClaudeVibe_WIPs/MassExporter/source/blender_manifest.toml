@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "mass_collection_exporter"
-version = "13.6.2"
+version = "13.6.3"
 name = "Mass Collection Exporter"
 tagline = "Batch export with state-proof isolation (local view / hidden / excluded)"
 maintainer = "Stephko <stephko@viranyi.de>"
