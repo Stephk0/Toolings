@@ -1,6 +1,6 @@
 # LLM Geonode Pipeline
 
-**Version:** 1.1.0 · **Blender:** 4.2 LTS – 5.x (tested 5.0) · Windows
+**Version:** 1.2.0 · **Blender:** 4.2 LTS – 5.x (tested 5.0) · Windows
 
 A suite for **reading and laying out Blender Geometry Nodes graphs**, combining two
 engines that verify each other against one shared definition of "a good layout":
@@ -11,6 +11,13 @@ engines that verify each other against one shared definition of "a good layout":
 2. **GeoNode Layout MCP** — a socket bridge that lets an AI read a graph as an
    annotated screenshot + structured table and rearrange it by *visual* judgment
    (`capture_graph → apply_layout`). For interactive / non-standard arrangements.
+
+Since v1.2.0 the bridge is **self-sufficient** — it also carries the
+general-purpose tools the workflow used to borrow from blender-mcp
+(`execute_blender_code`, `get_scene_info`, `get_object_info`,
+`get_viewport_screenshot`), so the whole geonode loop (bootstrap editor →
+capture → edit/rewire → verify evaluated geometry → screenshot) runs against
+this one socket. blender-mcp is no longer required.
 
 Both are scored by the same **`layout_audit`** rules, so they can't drift apart.
 
@@ -26,12 +33,12 @@ create/tidy/alter work.
 LLMGeonodePipeline/
 ├── README.md
 ├── addon/                     # the Blender MCP bridge extension (install this)
-│   ├── __init__.py            # socket server + main-thread queue + 3 handlers
+│   ├── __init__.py            # socket server + main-thread queue + 7 handlers
 │   ├── compat.py              # version-specific names (blf/gpu/screenshot)
 │   ├── layout.py              # deterministic layered layout (MCP autolayout_pass)
 │   ├── blender_manifest.toml
 │   └── test_layout.py         # headless tests (not shipped in the zip)
-├── server.py                  # MCP server (FastMCP) — forwards the 3 tools over the socket
+├── server.py                  # MCP server (FastMCP) — forwards the 7 tools over the socket
 ├── pyproject.toml             # MCP server deps (mcp[cli], pillow)
 ├── tidy_layout.py             # DEFAULT engine: deterministic tidy + orthogonal routing (importable + CLI)
 ├── layout_audit.py            # shared verifier: scores a graph against rules R1–R5
@@ -39,7 +46,7 @@ LLMGeonodePipeline/
 ├── run_pipeline.py            # ORCHESTRATOR: tidy (default) → verify BOTH goals → save
 ├── CHANGELOG.md
 └── distribution/
-    ├── LLMGeonodePipeline_v1.1.0.zip   # ← install this extension
+    ├── LLMGeonodePipeline_v1.2.0.zip   # ← install this extension
     └── archive/
 ```
 
@@ -87,15 +94,30 @@ blender --background --factory-startup --python layout_audit.py -- GN_NormalTran
 ```
 
 ### Interactive / AI-judged layout — the MCP
-1. Install `distribution/LLMGeonodePipeline_v1.1.0.zip`
+1. Install `distribution/LLMGeonodePipeline_v1.2.0.zip`
    (`Preferences ▸ Add-ons ▸ Install from Disk…`), enable it, and **Start** the
-   server from the Node Editor N-panel ("GN Layout MCP" tab, port `9877`).
+   server from the Node Editor N-panel ("GN Layout MCP" tab, port `9877`) — or
+   enable **Auto-start server** in the addon preferences so every Blender
+   session comes up reachable (unattended workflows).
 2. Point your MCP client at `server.py` (registered as `geonode-layout` under the
    `Toolings` project in `~/.claude.json`).
-3. Get an editor ready with `prepare_capture.py`, then loop
+3. Get an editor ready by running `prepare_capture.prepare(...)` via the bridge's
+   own `execute_blender_code` tool, then loop
    `capture_graph → apply_layout → capture_graph (verify)`. Run `layout_audit`
    afterward to confirm the same rules. Full workflow: the **`geonode-layout-mcp`**
    project skill.
+
+### MCP tools (all on the one `geonode-layout` server)
+
+| Tool | What |
+|---|---|
+| `capture_graph` | annotated screenshot + node/link table, one response |
+| `apply_layout` | one batched write of node positions |
+| `autolayout_pass` | deterministic layered layout — returns moves, never applies |
+| `execute_blender_code` | Python in the live Blender (`bpy` in scope, stdout relayed, 120 s budget) |
+| `get_scene_info` | scene/object summary + all GeometryNodeTree names |
+| `get_object_info` | one object in depth, incl. **evaluated** mesh counts (the geometry gate) |
+| `get_viewport_screenshot` | 3D viewport PNG (downscaled to `max_px`) |
 
 ## Customizing
 
@@ -128,9 +150,11 @@ uv pip install -e .        # or: pip install mcp[cli] pillow
 
 ## ⚠️ Security note
 
-The bridge executes **writes against the live `.blend`** (moves nodes) and
-`run_pipeline`/`tidy_layout` **save files in place**. Run only against work you can
-recover (saved / versioned); the socket binds `localhost` only.
+Since v1.2.0 the bridge executes **arbitrary Python** (`execute_blender_code`)
+and **writes against the live `.blend`**; `run_pipeline`/`tidy_layout` **save
+files in place**. Run only against work you can recover (saved / versioned).
+The socket binds `localhost` only and starts only when you start it (auto-start
+is opt-in in the addon preferences).
 
 ## Version notes
 

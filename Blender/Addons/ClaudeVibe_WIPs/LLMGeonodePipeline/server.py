@@ -7,9 +7,16 @@ payload stays cheap.
 
 Tools
 -----
-* ``capture_graph``    -- annotated screenshot + node/link table (one response)
-* ``apply_layout``     -- one batched write of node positions
-* ``autolayout_pass``  -- deterministic layout, returns moves (does NOT apply)
+* ``capture_graph``           -- annotated screenshot + node/link table (one response)
+* ``apply_layout``            -- one batched write of node positions
+* ``autolayout_pass``         -- deterministic layout, returns moves (does NOT apply)
+* ``execute_blender_code``    -- run Python in the live Blender (stdout relayed)
+* ``get_scene_info``          -- scene/object summary + geometry node groups
+* ``get_object_info``         -- one object in depth (incl. evaluated mesh counts)
+* ``get_viewport_screenshot`` -- capture the 3D viewport as an image
+
+The last four are ports of the blender-mcp tools the geonode pipeline used to
+depend on -- with them the pipeline runs autonomously against this one bridge.
 
 Run:  ``python server.py``  (or via your MCP client config -- see README).
 """
@@ -34,15 +41,17 @@ SOCKET_TIMEOUT = float(os.environ.get("GNLAYOUT_TIMEOUT", "60"))
 mcp = FastMCP("blender-geonode-layout")
 
 
-def _send_command(ctype: str, params: dict) -> dict:
+def _send_command(ctype: str, params: dict, timeout: float | None = None) -> dict:
     """Send one command to the Blender addon and return its ``result`` dict.
 
     Protocol: connect, send the JSON command, half-close the write end so the
     addon can read to EOF, then read the full response to EOF and parse it.
+    ``timeout`` overrides the default socket timeout for long-running commands
+    (keep it above the addon-side handler budget so slow work isn't cut off).
     """
     payload = json.dumps({"type": ctype, "params": params}).encode("utf-8")
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(SOCKET_TIMEOUT)
+    sock.settimeout(timeout if timeout is not None else SOCKET_TIMEOUT)
     try:
         sock.connect((BLENDER_HOST, BLENDER_PORT))
         sock.sendall(payload)
@@ -154,6 +163,78 @@ def autolayout_pass(tree: str = "active", x_gap: float = 80.0, y_gap: float = 40
         "tree": tree, "x_gap": x_gap, "y_gap": y_gap,
     })
     return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def execute_blender_code(code: str):
+    """Run arbitrary Python inside the live Blender session (``bpy`` in scope).
+
+    This is the pipeline's general-purpose escape hatch -- use it for everything
+    the dedicated tools don't cover: bootstrapping an editor with
+    ``prepare_capture.prepare(...)``, creating/parenting frames, rewiring links
+    (always by socket IDENTIFIER, never display name), renaming interface
+    sockets, saving the file, etc.
+
+    ``print()`` output is captured and returned (truncated past ~60k chars),
+    so print what you need to see. Runs on Blender's main thread with a 120 s
+    budget. The code operates on the live .blend -- verify evaluated geometry
+    before saving anything.
+
+    Args:
+        code: Python source to execute.
+    """
+    result = _send_command("execute_code", {"code": code}, timeout=130.0)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def get_scene_info(max_objects: int = 50):
+    """Summarize the current Blender scene.
+
+    Returns the scene name, .blend filepath, object list (name/type/location,
+    plus each object's Geometry Nodes groups), the active object, and the names
+    of ALL GeometryNodeTree groups in the file -- the quickest way to find the
+    tree you want to capture or tidy.
+
+    Args:
+        max_objects: cap on listed objects (``objects_truncated`` flags overflow).
+    """
+    result = _send_command("get_scene_info", {"max_objects": max_objects})
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def get_object_info(name: str):
+    """Inspect one object in depth.
+
+    Returns transform, visibility, collections, modifier stack (with node-group
+    names for GN modifiers), materials, world bounding box, and for meshes BOTH
+    base and evaluated (post-modifier) vertex/edge/polygon counts -- the
+    evaluated counts are the pipeline's geometry-unchanged gate: snapshot them
+    before editing a graph and compare after, never save on a mismatch.
+
+    Args:
+        name: object name in ``bpy.data.objects``.
+    """
+    result = _send_command("get_object_info", {"name": name})
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+def get_viewport_screenshot(max_px: int = 800):
+    """Capture the 3D viewport as a PNG image.
+
+    Grabs the first open VIEW_3D area (overlays included) -- use it to eyeball
+    a modifier's visual result after graph edits. Fails if no 3D viewport is
+    open.
+
+    Args:
+        max_px: longest-edge cap for the returned image (default 800).
+    """
+    result = _send_command("get_viewport_screenshot", {})
+    raw = base64.b64decode(result.pop("image_png_base64"))
+    raw = _downscale_png(raw, max_px)
+    return Image(data=raw, format="png")
 
 
 if __name__ == "__main__":

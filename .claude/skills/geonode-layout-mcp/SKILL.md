@@ -22,9 +22,14 @@ a *visual* judgment the serialized tree can't carry; topology and writes are dat
   verifier (`layout_audit.py`) + orchestrator (`run_pipeline.py`). Full docs in
   that folder's `README.md`.
 - **MCP server name:** `geonode-layout` (configured under the `Toolings` project in
-  `~/.claude.json`). Tools: `capture_graph`, `apply_layout`, `autolayout_pass`.
+  `~/.claude.json`). Tools: `capture_graph`, `apply_layout`, `autolayout_pass`, plus
+  (v1.2.0) the self-sufficiency tools `execute_blender_code`, `get_scene_info`,
+  `get_object_info` (incl. **evaluated** mesh counts — the geometry-unchanged gate),
+  `get_viewport_screenshot`. **blender-mcp is NOT required** — the whole loop runs
+  on this one server; prefer its tools over blender-mcp equivalents for geonode work.
 - **Socket:** the addon runs a server on `localhost:9877` inside Blender; start it
-  from the Node Editor N-panel ("GN Layout MCP" tab) or `bpy.ops.gnlayout.start_server()`.
+  from the Node Editor N-panel ("GN Layout MCP" tab), `bpy.ops.gnlayout.start_server()`,
+  or enable **Auto-start server** in the addon preferences (unattended sessions).
 - **Default automated path:** for a headless, non-interactive tidy of a published
   geonode, prefer `run_pipeline.py` (below) — it applies `tidy_layout` and gates the
   save on BOTH geometry-unchanged and the audit rules. Use the MCP tools when you
@@ -49,7 +54,7 @@ index is the identity key: use it to refer to one exact node in `apply_layout`.
 
 `capture_graph` fails loud (`no NODE_EDITOR area open…`) unless a Geometry Nodes
 editor is open showing the target tree. Set that up first with the helper (paste
-into the live Blender via blender-mcp `execute_blender_code`):
+into the live Blender via the geonode-layout `execute_blender_code` tool):
 
 ```python
 import sys; sys.path.append(r"D:\Stephko_Tooling\Toolings\Blender\Addons\ClaudeVibe_WIPs\LLMGeonodePipeline")
@@ -121,7 +126,7 @@ nodes, do this order (full criteria: `LLMGeonodePipeline/GEONODE_CRITERIA.md`):
 1. **Capture** the graph and identify the logical functions from connectivity +
    node semantics (what feeds the output? which cluster builds the selection?
    which is debug viewers?). This is the AI-judgment step.
-2. **Create labeled function frames** via blender-mcp `execute_blender_code`:
+2. **Create labeled function frames** via geonode-layout `execute_blender_code`:
    `f = ng.nodes.new("NodeFrame"); f.label = "Corner Damage"; f.location = (0,0)`
    then parent the cluster's nodes (`n.parent = f` — with the frame at (0,0),
    child locations stay absolute). Park debug Viewer clusters in their own

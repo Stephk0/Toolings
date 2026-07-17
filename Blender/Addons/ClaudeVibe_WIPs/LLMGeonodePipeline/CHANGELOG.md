@@ -1,5 +1,54 @@
 # Changelog — LLM Geonode Pipeline
 
+## v1.2.0 — 2026-07-10
+
+Autonomy release: the pipeline no longer needs blender-mcp. The four tools it
+used to borrow from the blender-mcp server (:9876) are now native handlers on
+the bridge's own socket (:9877), exposed by `server.py`:
+
+- **`execute_blender_code`** — arbitrary Python on Blender's main thread, `bpy`
+  in scope, stdout captured (truncated past 60k chars). 120 s main-thread
+  budget (other handlers keep 30 s) via new per-handler `HANDLER_TIMEOUTS`;
+  `_send_command` takes a matching per-call socket timeout.
+- **`get_scene_info`** — scene/filepath/object summary tailored to geonode work:
+  per-object GN modifier groups + ALL `GeometryNodeTree` names in the file.
+- **`get_object_info`** — transform, visibility, collections, modifier stack,
+  materials, world bbox, and for meshes both base AND **evaluated** (depsgraph)
+  vert/edge/poly counts — the geometry-unchanged gate as a first-class tool.
+- **`get_viewport_screenshot`** — first open VIEW_3D area via
+  `compat.screenshot_area`, downscaled server-side (`max_px`, default 800).
+- **Auto-start preference (addon prefs, default OFF):** starts the socket
+  server on Blender startup / file load so unattended sessions are reachable
+  without clicking the N-panel (deferred one timer tick + `load_post`, no-op
+  when already running).
+- **FIXED: exclusive port bind on Windows** (`SO_EXCLUSIVEADDRUSE`): with the
+  old `SO_REUSEADDR`, a second Blender instance could silently double-bind
+  :9877 and steal connections — a stale server then answered with stale
+  handlers (bit for real during the v1.2.0 bring-up). Now the second start
+  fails loudly ("only one Blender can own the port").
+- Addon + manifest bumped to 1.2.0; repackaged as `LLMGeonodePipeline_v1.2.0.zip`
+  (old zip archived). Skill/README/prepare_capture updated: prepare an editor via
+  the bridge's own `execute_blender_code`; blender-mcp is optional everywhere.
+
+Layout engine (repo scripts, not part of the addon zip) — from the GN_Wave
+user image-diff:
+
+- **Socket-anchored Y refinement** in `tidy_layout`: sweeping band columns
+  right-to-left, each feeder aligns its OUTPUT to the Y of the input socket it
+  feeds. Tall consumers (Index/Menu Switch) get staggered feeder rows with short
+  direct wires instead of a top-aligned row + diving wires; a feeder that
+  anchors low vacates the straight path between its row neighbours (move the
+  blocker, don't detour). Bands are also more compact (height from actual node
+  bottoms).
+- **`separate_frames` R7 enforcement pass** at the end of `tidy_and_route`:
+  post-layout extensions (below-left localized GIs, exit reroutes) could make
+  two frame boxes corner-cross at a diagonal band junction; partial overlaps are
+  now resolved by shifting the lower frame's contents straight down (down-only,
+  so vertical lanes stay orthogonal).
+- **`layout_audit` R7 actually FAILS now** (was returning WARN despite being in
+  `BLOCKING` — the bug had been masking two pre-existing corner-crossings in
+  GN_NormalTransfer and GN_RadialArray; both now resolve via `separate_frames`).
+
 ## v1.1.3 — 2026-07-02
 
 Subway-map routing round 2: no circling fans, reroutes framed by function, no frame overlap.

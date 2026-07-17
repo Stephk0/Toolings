@@ -12,20 +12,25 @@ executed on Blender's main thread by ``_drain_queue`` (a ``bpy.app.timers``
 callback).  The socket thread blocks on a ``threading.Event`` and reads the
 result out of a shared slot.  See ``run_on_main``.
 
-The three handlers (``capture_graph``, ``apply_layout``, ``autolayout_pass``)
-all run on the main thread, so they may touch ``bpy`` freely.
+All handlers run on the main thread, so they may touch ``bpy`` freely.
+
+Beyond the three layout handlers, the bridge also carries the general-purpose
+handlers the pipeline used to borrow from blender-mcp (``execute_code``,
+``get_scene_info``, ``get_object_info``, ``get_viewport_screenshot``), so the
+geonode pipeline runs autonomously against this one socket.
 """
 
 bl_info = {
     "name": "GeoNode Layout MCP Bridge",
     "author": "Stephan Viranyi (Stephko)",
-    "version": (1, 1, 0),
+    "version": (1, 2, 0),
     "blender": (4, 2, 0),
     "location": "View3D / Node Editor > Sidebar > GN Layout MCP",
-    "description": "Socket bridge for AI-driven Geometry Nodes layout (capture / apply / autolayout).",
+    "description": "Socket bridge for AI-driven Geometry Nodes work (layout capture/apply, code execution, scene/object inspection, viewport capture).",
     "category": "Node",
 }
 
+import io
 import bpy
 import gpu
 import blf
@@ -37,6 +42,10 @@ import tempfile
 import threading
 import traceback
 import os
+
+from contextlib import redirect_stdout
+
+from mathutils import Vector
 
 from gpu_extras.batch import batch_for_shader
 
@@ -402,12 +411,159 @@ def _handle_autolayout_pass(params):
     }
 
 
+# --------------------------------------------------------------------------- #
+#  General-purpose handlers (ported from blender-mcp so the pipeline is
+#  self-sufficient; main thread only)
+# --------------------------------------------------------------------------- #
+
+_MAX_EXEC_OUTPUT = 60_000  # chars of captured stdout relayed to the client
+
+
+def _handle_execute_code(params):
+    """Run arbitrary Python with ``bpy`` in scope; return captured stdout."""
+    code = params.get("code")
+    if not code:
+        raise ValueError("missing 'code' parameter")
+    namespace = {"__name__": "__main__", "bpy": bpy}
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        exec(compile(code, "<gnlayout-execute>", "exec"), namespace)
+    output = buf.getvalue()
+    truncated = len(output) > _MAX_EXEC_OUTPUT
+    if truncated:
+        output = output[:_MAX_EXEC_OUTPUT]
+    return {"executed": True, "output": output, "output_truncated": truncated}
+
+
+def _handle_get_scene_info(params):
+    """Slim scene summary + the data the geonode pipeline actually needs."""
+    scene = bpy.context.scene
+    limit = max(1, int(params.get("max_objects", 50)))
+
+    objects = []
+    for obj in scene.objects:
+        if len(objects) >= limit:
+            break
+        entry = {
+            "name": obj.name,
+            "type": obj.type,
+            "location": [round(v, 2) for v in obj.location],
+        }
+        gn = [m.node_group.name for m in obj.modifiers
+              if m.type == "NODES" and m.node_group]
+        if gn:
+            entry["geometry_node_groups"] = gn
+        objects.append(entry)
+
+    active = bpy.context.active_object
+    return {
+        "scene": scene.name,
+        "filepath": bpy.data.filepath,
+        "frame_current": scene.frame_current,
+        "object_count": len(scene.objects),
+        "objects": objects,
+        "objects_truncated": len(scene.objects) > limit,
+        "active_object": active.name if active else None,
+        "geometry_node_groups": [ng.name for ng in bpy.data.node_groups
+                                 if ng.bl_idname == "GeometryNodeTree"],
+    }
+
+
+def _handle_get_object_info(params):
+    name = params.get("name") or params.get("object_name")
+    if not name:
+        raise ValueError("missing 'name' parameter")
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        raise ValueError(f"object '{name}' not found")
+
+    modifiers = []
+    for m in obj.modifiers:
+        entry = {"name": m.name, "type": m.type,
+                 "show_viewport": m.show_viewport, "show_render": m.show_render}
+        if m.type == "NODES":
+            entry["node_group"] = m.node_group.name if m.node_group else None
+        modifiers.append(entry)
+
+    info = {
+        "name": obj.name,
+        "type": obj.type,
+        "location": [round(v, 4) for v in obj.location],
+        "rotation_euler": [round(v, 4) for v in obj.rotation_euler],
+        "scale": [round(v, 4) for v in obj.scale],
+        "visible": obj.visible_get(),
+        "collections": [c.name for c in obj.users_collection],
+        "modifiers": modifiers,
+        "materials": [ms.material.name for ms in obj.material_slots if ms.material],
+        "world_bounding_box": [
+            [round(v, 4) for v in (obj.matrix_world @ Vector(corner))]
+            for corner in obj.bound_box
+        ],
+    }
+
+    if obj.type == "MESH" and obj.data is not None:
+        me = obj.data
+        info["mesh"] = {"vertices": len(me.vertices), "edges": len(me.edges),
+                        "polygons": len(me.polygons)}
+        # Evaluated (post-modifier) counts -- the pipeline's geometry-unchanged
+        # gate compares these before/after any graph edit.
+        deps = bpy.context.evaluated_depsgraph_get()
+        ev = obj.evaluated_get(deps)
+        ev_me = ev.to_mesh()
+        try:
+            info["evaluated_mesh"] = {"vertices": len(ev_me.vertices),
+                                      "edges": len(ev_me.edges),
+                                      "polygons": len(ev_me.polygons)}
+        finally:
+            ev.to_mesh_clear()
+
+    return info
+
+
+def _find_view3d():
+    """Return ``(window, area, region)`` of an open 3D viewport, or raise."""
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type != "VIEW_3D":
+                continue
+            region = next((r for r in area.regions if r.type == "WINDOW"), None)
+            if region is not None:
+                return window, area, region
+    raise RuntimeError("no VIEW_3D area open -- cannot capture the viewport")
+
+
+def _handle_get_viewport_screenshot(params):
+    window, area, region = _find_view3d()
+    filepath = os.path.join(tempfile.gettempdir(),
+                            f"gn_layout_viewport_{os.getpid()}.png")
+    area.tag_redraw()
+    compat.screenshot_area(window, area, region, filepath)
+    with open(filepath, "rb") as f:
+        img_b64 = base64.b64encode(f.read()).decode("ascii")
+    try:
+        os.remove(filepath)
+    except OSError:
+        pass
+    return {"image_png_base64": img_b64,
+            "width": area.width, "height": area.height}
+
+
 HANDLERS = {
     "capture_graph": _handle_capture_graph,
     "apply_layout": _handle_apply_layout,
     "autolayout_pass": _handle_autolayout_pass,
+    "execute_code": _handle_execute_code,
+    "get_scene_info": _handle_get_scene_info,
+    "get_object_info": _handle_get_object_info,
+    "get_viewport_screenshot": _handle_get_viewport_screenshot,
     "ping": lambda params: {"pong": True},
 }
+
+# Main-thread budget per command; arbitrary code may legitimately run long.
+HANDLER_TIMEOUTS = {
+    "execute_code": 120.0,
+}
+DEFAULT_HANDLER_TIMEOUT = 30.0
 
 
 # --------------------------------------------------------------------------- #
@@ -427,7 +583,14 @@ class LayoutSocketServer:
             return
         self.running = True
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # On Windows SO_REUSEADDR lets a SECOND process silently double-bind
+        # the port and steal connections (two Blenders -> stale server answers
+        # with stale handlers). Bind exclusively there so the second start
+        # fails loudly instead; elsewhere keep REUSEADDR for fast restarts.
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.bind((self.host, self.port))
         self._sock.listen(5)
         self._sock.settimeout(1.0)
@@ -488,7 +651,8 @@ class LayoutSocketServer:
             if handler is None:
                 response = {"status": "error", "message": f"unknown command type: {ctype}"}
             else:
-                result = run_on_main(lambda: handler(params))
+                timeout = HANDLER_TIMEOUTS.get(ctype, DEFAULT_HANDLER_TIMEOUT)
+                result = run_on_main(lambda: handler(params), timeout=timeout)
                 response = {"status": "ok", "result": result}
         except Exception as exc:  # noqa: BLE001 - relayed to client
             response = {"status": "error", "message": f"{exc}"}
@@ -506,6 +670,58 @@ _SERVER = None
 def _ensure_timer():
     if not bpy.app.timers.is_registered(_drain_queue):
         bpy.app.timers.register(_drain_queue, persistent=True)
+
+
+def _auto_start_server():
+    """Start the server unattended when the addon preference opts in.
+
+    This is what makes fully autonomous sessions possible: with auto-start
+    enabled, a freshly launched Blender is reachable on the socket without
+    anyone clicking the N-panel button.  Errors are logged, never raised --
+    this runs from timers/handlers where an exception would be swallowed
+    confusingly anyway.
+    """
+    global _SERVER
+    try:
+        prefs = bpy.context.preferences.addons[__package__].preferences
+        if not getattr(prefs, "auto_start", False):
+            return
+    except (KeyError, AttributeError):
+        return
+    if _SERVER is not None and _SERVER.running:
+        return
+    _ensure_timer()
+    server = LayoutSocketServer()
+    try:
+        server.start()
+    except OSError as exc:
+        print(f"[GN Layout MCP] auto-start failed: {exc}")
+        return
+    _SERVER = server
+
+
+@bpy.app.handlers.persistent
+def _on_load_post(_dummy):
+    # The module-global server object survives open_mainfile, but this covers
+    # the enabled-then-restarted case and is a no-op when already running.
+    _auto_start_server()
+
+
+class GNLAYOUT_prefs(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    auto_start: bpy.props.BoolProperty(
+        name="Auto-start server",
+        description=(
+            "Start the socket bridge automatically when Blender starts or a "
+            "file loads (localhost only). Enables unattended AI sessions; "
+            "note the bridge can execute arbitrary Python once running"
+        ),
+        default=False,
+    )
+
+    def draw(self, context):
+        self.layout.prop(self, "auto_start")
 
 
 # --------------------------------------------------------------------------- #
@@ -573,6 +789,7 @@ class GNLAYOUT_PT_panel(bpy.types.Panel):
 
 
 _CLASSES = (
+    GNLAYOUT_prefs,
     GNLAYOUT_OT_start_server,
     GNLAYOUT_OT_stop_server,
     GNLAYOUT_PT_panel,
@@ -589,6 +806,11 @@ def register():
     for cls in _CLASSES:
         bpy.utils.register_class(cls)
     _ensure_timer()
+    if _on_load_post not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load_post)
+    # Preferences aren't reliably readable during startup registration; defer
+    # the auto-start check one tick.
+    bpy.app.timers.register(_auto_start_server, first_interval=0.5)
 
 
 def unregister():
@@ -596,6 +818,8 @@ def unregister():
     if _SERVER is not None:
         _SERVER.stop()
         _SERVER = None
+    if _on_load_post in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load_post)
     if bpy.app.timers.is_registered(_drain_queue):
         bpy.app.timers.unregister(_drain_queue)
     for cls in reversed(_CLASSES):

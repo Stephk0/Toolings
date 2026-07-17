@@ -277,7 +277,7 @@ def audit(ng):
         "R5_row_clearance": {"status": rule(min_clear is None or min_clear >= MIN_CLEAR, warn=True),
                               "min_clear": min_clear, "target": MIN_CLEAR},
         "R6_entries_staggered": {"status": rule(not piled, warn=True), "piled_nodes": piled},
-        "R7_no_frame_overlap": {"status": rule(not frame_overlaps, warn=True), "overlaps": frame_overlaps},
+        "R7_no_frame_overlap": {"status": rule(not frame_overlaps), "overlaps": frame_overlaps},
         "R8_nodes_framed": {"status": rule(not unframed, warn=True),
                              "unframed_count": len(unframed), "unframed": unframed[:12]},
         "R9_unique_socket_names": {"status": rule(not (dup_in or dup_out), warn=True),

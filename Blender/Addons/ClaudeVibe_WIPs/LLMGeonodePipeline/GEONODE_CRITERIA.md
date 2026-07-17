@@ -36,9 +36,20 @@ geometry-unchanged + blocking rules). Live interactive flow: skill
    (≲300px, small rise, clear straight path) the link stays a DIRECT wire — no
    reroutes.** Reroutes are for building around obstacles and long runs, not
    decoration.
-4. **Spacing.** No overlapping node bodies (R1), ≥70px clearance between nodes
+4. **Feeders align to the socket they feed** (2026-07-10 user image-diff on
+   GN_Wave's Displace Direction frame): when a consumer is TALL with inputs
+   spread over its height (Index Switch, Menu Switch, big Group Output), place
+   each feeder so its OUTPUT sits at the Y of its target INPUT SOCKET —
+   staggered feeder rows with short direct wires, not one top-aligned row whose
+   wires dive across the frame. Corollary: **move the blocker, don't detour the
+   wire** — a feeder that anchors low vacates the straight path between its row
+   neighbours, so adjacent links stay direct instead of getting reroute lanes.
+   (Engine: socket-anchored Y refinement in `tidy_layout`, columns swept
+   right-to-left.)
+5. **Spacing.** No overlapping node bodies (R1), ≥70px clearance between nodes
    sharing a row (R5). Use real drawn `dimensions` when available — socket-count
-   estimates miss unlinked vector inputs (3 sliders each).
+   estimates miss unlinked vector inputs (3 sliders each). Frames stay compact:
+   a band is only as tall as its content actually needs.
 
 ## Interface (socket) conventions
 

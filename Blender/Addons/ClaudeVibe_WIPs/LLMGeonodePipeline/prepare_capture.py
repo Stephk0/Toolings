@@ -5,8 +5,9 @@ tree. This helper does that setup in one shot: (optionally) open a .blend, make
 the object holding the tree active, switch an area to a Geometry Nodes editor,
 frame all nodes, and (re)start the layout socket server.
 
-Run it in the LIVE Blender (paste via the blender-mcp `execute_blender_code`
-tool, or from the Text editor). Not a headless script -- the MCP needs a live UI.
+Run it in the LIVE Blender (paste via the geonode-layout `execute_blender_code`
+tool -- the bridge's own, no blender-mcp needed -- or from the Text editor).
+Not a headless script: the MCP needs a live UI.
 
     prepare(tree="GN_NormalTransfer", filepath="D:/.../GN_NormalTransfer.blend")
     prepare()  # active object's active GN tree, current file

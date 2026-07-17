@@ -83,11 +83,37 @@ def tidy_layout(ng, col_gap=130, row_gap=55, band_gap=120, label_pad=48):
         for c in range(maxld + 1): lcolx[c] = lx; lx += lcolw[c] + col_gap
         bycol = defaultdict(list)
         for n in bn: bycol[ldepth[n]].append(n)
-        pad = label_pad if b is not None else 0.0; band_h = 0.0
+        pad = label_pad if b is not None else 0.0
         for c, ns in bycol.items():
             ns.sort(key=lambda n: n.name); yy = top - pad
             for n in ns: n.location = (lcolx[c], yy); yy -= (est_h(n) + row_gap)
-            band_h = max(band_h, (top - pad) - yy)
+        # SOCKET-ANCHORED Y (user image-diff GN_Wave 2026-07-10): a feeder aligns its
+        # OUTPUT to the Y of the input SOCKET it feeds, sweeping columns right-to-left.
+        # Tall consumers (Index/Menu Switch: inputs span 100s of px) get staggered
+        # feeder rows with short direct wires instead of one top-aligned row whose
+        # wires dive across the band -- and a feeder that anchors LOW vacates the
+        # straight path between its row neighbours (move the blocker, don't detour).
+        outl = defaultdict(list)
+        for l in ng.links:
+            if l.from_node in bset and l.to_node in bset:
+                outl[l.from_node.name].append(l)
+        for c in range(maxld - 1, -1, -1):
+            ns = bycol.get(c)
+            if not ns: continue
+            want = {}
+            for n in ns:
+                anchors = []
+                for l in outl.get(n.name, ()):
+                    if ldepth[l.to_node] > c:      # forward links only (later columns are final)
+                        off = _socket_y(n, l.from_socket, False) - n.location.y
+                        anchors.append(_socket_y(l.to_node, l.to_socket, True) - off)
+                want[n.name] = (sum(anchors) / len(anchors)) if anchors else n.location.y
+            ns.sort(key=lambda n: -want[n.name])
+            yy = top - pad
+            for n in ns:                           # greedy: keep anchor order, never overlap
+                n.location.y = min(want[n.name], yy)
+                yy = n.location.y - est_h(n) - row_gap
+        band_h = max((top - pad) - (n.location.y - est_h(n)) for n in bn)
         top -= (band_h + band_gap)
         band_x = lx + 140            # next band cascades right of this one's actual width
     g_in.location = (-340, top / 2.0)
@@ -586,6 +612,58 @@ def frame_reroutes(ng):
     return n
 
 
+def separate_frames(ng, margin=40):
+    """R7 ENFORCEMENT (root cause found 2026-07-10): post-layout extensions -- a
+    below-left localized GI, exit/gap reroutes -- poke past the band footprint the
+    cascade reserved, so at a diagonal band junction two frame boxes corner-cross
+    through EMPTY space. Detect partial overlap exactly like the audit (children
+    bbox, nesting allowed) and shift the LOWER frame's contents straight DOWN until
+    clear. Down-only on purpose: vertical lanes stay vertical under a pure Y shift,
+    so the orthogonal routing survives; an x-shift would shear cross-band lanes."""
+    def fbox(fname):
+        kids = [n for n in ng.nodes if n.parent is not None and n.parent.name == fname]
+        if not kids: return None
+        x0 = y0 = x1 = y1 = None
+        for k in kids:
+            w, h = (10.0, 10.0) if k.bl_idname == 'NodeReroute' else ((k.width or 140.0), est_h(k))
+            kx, ky = k.location.x, k.location.y
+            x0 = kx if x0 is None else min(x0, kx);          y0 = ky - h if y0 is None else min(y0, ky - h)
+            x1 = kx + w if x1 is None else max(x1, kx + w);  y1 = ky if y1 is None else max(y1, ky)
+        return (x0, y0, x1, y1)
+    def descendants(fname):
+        out = []
+        for n in ng.nodes:
+            if n.bl_idname == 'NodeFrame': continue
+            p = n.parent
+            while p is not None:
+                if p.name == fname: out.append(n); break
+                p = p.parent
+        return out
+    n_shift = 0
+    for _ in range(12):
+        frames = [f.name for f in ng.nodes if f.bl_idname == 'NodeFrame']
+        boxes = {fn: fbox(fn) for fn in frames}
+        boxes = {k: v for k, v in boxes.items() if v}
+        moved = False
+        names = sorted(boxes, key=lambda n: -boxes[n][3])          # top-most first
+        for i in range(len(names)):
+            for j in range(i + 1, len(names)):
+                A, B = boxes[names[i]], boxes[names[j]]            # A is the upper frame
+                if A[2] <= B[0] + 4 or B[2] <= A[0] + 4 or A[3] <= B[1] + 4 or B[3] <= A[1] + 4:
+                    continue                                       # no overlap
+                if (A[0] <= B[0] and A[1] <= B[1] and A[2] >= B[2] and A[3] >= B[3]) or \
+                   (B[0] <= A[0] and B[1] <= A[1] and B[2] >= A[2] and B[3] >= A[3]):
+                    continue                                       # full nesting is deliberate
+                dy = B[3] - (A[1] - margin)                        # push B's top below A's bottom
+                if dy <= 0: continue
+                for n in descendants(names[j]):
+                    n.location.y -= dy
+                boxes[names[j]] = fbox(names[j])
+                n_shift += 1; moved = True
+        if not moved: break
+    return n_shift
+
+
 # ---------------------------------------------------------------------------
 #  Importable pipeline API  (used by run_pipeline.py and the __main__ CLI below)
 # ---------------------------------------------------------------------------
@@ -606,8 +684,11 @@ def tidy_and_route(ng):
     n_ia = route_around_nodes(ng)
     declutter_reroutes(ng)
     n_fr = frame_reroutes(ng)                             # parent reroutes to their function frame
+    n_sep = separate_frames(ng)                           # R7: resolve band corner-crossings
+    if n_sep:
+        declutter_reroutes(ng)                            # shifted nodes may cover a gap bend
     return {"local_gis": n_gi, "node_entries": n_ne, "hv": n_hv, "fan": n_fb,
-            "around": n_ia, "framed_reroutes": n_fr}
+            "around": n_ia, "framed_reroutes": n_fr, "frame_shifts": n_sep}
 
 
 def eval_positions(obj, m, pid, preview):
