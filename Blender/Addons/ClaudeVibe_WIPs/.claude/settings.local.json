@@ -42,7 +42,15 @@
       "PowerShell(Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [System.IO.Compression.ZipFile]::OpenRead\\('D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\); $zip.Entries | Select-Object FullName, Length; $zip.Dispose\\(\\); \\(Get-Item 'D:\\\\Stephko_Tooling\\\\Toolings\\\\Blender\\\\Addons\\\\ClaudeVibe_WIPs\\\\SkinTransferSetup_v1.1.0.zip'\\).Length)",
       "Read(//d/Stephko_Tooling/Toolings/.serena/memories/**)",
       "Read(//d/Stephko_Tooling/Toolings/.serena/**)",
-      "Read(//d/Stephko_Tooling/Toolings/.claude/**)"
+      "Read(//d/Stephko_Tooling/Toolings/.claude/**)",
+      "PowerShell(& \"C:\\\\Program Files\\\\Blender Foundation\\\\Blender 5.0\\\\blender.exe\" --background --factory-startup \"D:\\\\Work_DistrictGames\\\\Assets\\\\Environment\\\\sm_env_masterfile_02.blend\" --python \"C:\\\\Users\\\\Stephko\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Stephko-Tooling-Toolings-Blender-Addons-ClaudeVibe-WIPs\\\\38258779-65d8-42f6-bb68-6937e2a63d7f\\\\scratchpad\\\\inspect_geonodes.py\")",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Start-Process \"C:\\\\Program Files\\\\Blender Foundation\\\\Blender 5.0\\\\blender.exe\" -ArgumentList '--python-expr', '\"import bpy; bpy.app.timers.register\\(lambda: \\(bpy.ops.blendermcp.start_server\\(\\), None\\)[1], first_interval=3.0\\)\"'; \"launched\")",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell($sp = \"C:\\\\Users\\\\Stephko\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Stephko-Tooling-Toolings-Blender-Addons-ClaudeVibe-WIPs\\\\cbe47d4b-9a73-4a38-8467-4275dbba3350\\\\scratchpad\"; & \"C:\\\\Program Files\\\\Blender Foundation\\\\Blender 5.0\\\\blender.exe\" --background --factory-startup --python \"$sp\\\\check_blend_deps.py\" -- \"$sp\\\\deps_report.json\" | Select-String -Pattern \"WROTE|Error|Traceback|Warning: \")",
+      "Read(//d/Stephko_Tooling/Toolings/Blender/Geonodes/**)",
+      "Bash(where blender *)",
+      "Read(//c/Program Files/Blender Foundation/**)"
     ],
     "deny": [],
     "ask": []
