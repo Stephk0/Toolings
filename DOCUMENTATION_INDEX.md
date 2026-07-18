@@ -43,7 +43,6 @@ All Blender addons live in `Blender/Addons/ClaudeVibe_WIPs/`. Each folder contai
 |------|-----|-------------|------|
 | **Mass Collection Exporter** | 13.6.2 | Batch export collections/objects (FBX, OBJ, DAE, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md) |
 | **Quick Animation Export** | 1.0.9 | Streamlined export of animation/action clips to game-engine-ready files | [README](Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport/README.md) |
-| **Animation Layers Quick Export** | 0.3.0 | One-click non-destructive merge + FBX export for [Animation Layers](https://blendermarket.com/products/animation-layers) rigs | [README](Blender/Addons/ClaudeVibe_WIPs/AnimLayersQuickExport/README.md) |
 
 ### Modeling
 

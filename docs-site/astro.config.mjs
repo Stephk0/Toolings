@@ -28,7 +28,6 @@ export default defineConfig({
             { label: 'Mass Exporter', slug: 'tools/mass-exporter' },
             { label: 'Edge Constraint Mode', slug: 'tools/edge-constraint-mode' },
             { label: 'Tile UV Projector', slug: 'tools/tile-uv-projector' },
-            { label: 'Anim Layers Quick Export', slug: 'tools/anim-layers-quick-export' },
             { label: 'Quick Animation Export', slug: 'tools/quick-animation-export' },
           ],
         },
