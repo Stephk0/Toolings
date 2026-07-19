@@ -7,7 +7,7 @@ TARGETS = ["GN_Spherify", "GN_Twist", "GN_Taper", "GN_Wave", "GN_Bend", "GN_Stre
            "GN_Displace", "GN_MeshBoolean", "GN_Cast", "GN_Scatter",
            "GN_ConvexHull", "GN_BoundingBox", "GN_FlipFaces", "GN_SetMaterial",
            "GN_DualMesh", "GN_VoxelRemesh", "GN_AutoSmooth", "GN_PointsToSpheres",
-           "GN_NormalTransfer"]
+           "GN_NormalTransfer", "GN_DeleteStrayGeometry"]
 
 def isock(node, ident): return next(s for s in node.inputs if s.identifier == ident)
 def osock(node, ident): return next(s for s in node.outputs if s.identifier == ident)
