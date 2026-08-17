@@ -11,3 +11,4 @@ bacd112a-8e87-47c2-afbc-818a11c75c08:ST3E/Deform:ST3E-Deform
 8872522f-45b7-4541-a557-5b69bcbfcee2:ST3E/Generate:ST3E-Generate
 9b90781b-f051-4cdb-9dcb-c8909914a87b:ST3E/Modify:ST3E-Modify
 25b9ecc2-4cf7-41b3-83c3-152a2eccbc77:ST3E/Scatter & Instancing:ST3E-Scatter & Instancing
+3c7d5e91-2b64-4f8a-9d13-6a0e5f2c8b47:ST3E/Shading:ST3E-Shading

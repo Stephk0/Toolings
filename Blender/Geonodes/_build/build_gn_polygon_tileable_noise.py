@@ -62,10 +62,30 @@ def add_node(ng, bl_idname, *, location=(0, 0), label="", parent=None):
     return n
 
 
+def _resolve_socket(node_or_socket, key, io):
+    """Accept a node (find socket `key` on side `io`) or a socket directly.
+    Match order: identifier, then enabled-socket name, then any name — Group
+    Input outputs carry Socket_N identifiers, so name matching must work too."""
+    if isinstance(node_or_socket, bpy.types.NodeSocket):
+        return node_or_socket
+    socks = getattr(node_or_socket, io)
+    for s in socks:
+        if s.identifier == key:
+            return s
+    for s in socks:
+        if s.enabled and s.name == key:
+            return s
+    for s in socks:
+        if s.name == key:
+            return s
+    raise KeyError(f"no {io} socket '{key}' on {node_or_socket.name}")
+
+
 def link(ng, src, src_socket, dst, dst_socket):
-    """Robust link by SOCKET IDENTIFIER (display names can collide)."""
-    out = next(s for s in src.outputs if s.identifier == src_socket)
-    inp = next(s for s in dst.inputs if s.identifier == dst_socket)
+    """Robust link: identifier first, display-name fallback; src/dst may be
+    sockets themselves (then the name args are ignored for that side)."""
+    out = _resolve_socket(src, src_socket, "outputs")
+    inp = _resolve_socket(dst, dst_socket, "inputs")
     return ng.links.new(out, inp)
 
 
@@ -100,12 +120,17 @@ def add_menu_socket(ng, *, name, items, default, description=""):
 
 
 def set_menu_items(menu_switch, names):
-    """Replace a Menu Switch's enum items. Starts with 2 (A/B); add as needed."""
+    """Set a Menu Switch's enum items. RENAME the stock items in place instead
+    of delete+recreate: item IDs are ever-increasing, and the modifier's menu
+    override int is the item ID — recreating would give IDs 2,3 instead of 0,1."""
     ed = menu_switch.enum_definition
-    while len(ed.enum_items):
+    while len(ed.enum_items) > len(names):
         ed.enum_items.remove(ed.enum_items[-1])
-    for n in names:
-        ed.enum_items.new(n)
+    for i, n in enumerate(names):
+        if i < len(ed.enum_items):
+            ed.enum_items[i].name = n
+        else:
+            ed.enum_items.new(n)
 
 
 def set_tooltip(ng, name, text):
@@ -149,9 +174,8 @@ def build():
 
     # Helper to add a socket into a specific panel
     def add_to_panel(panel, name, socket_type, default=None, min=None, max=None, description=""):
-        s = ng.interface.new_socket(name, in_out="INPUT", socket_type=socket_type)
-        if panel is not None:
-            ng.interface.move_to_parent(s, panel, len(panel.contents))
+        s = ng.interface.new_socket(name, in_out="INPUT", socket_type=socket_type,
+                                    parent=panel)
         if default is not None:
             try:
                 s.default_value = default
@@ -171,9 +195,16 @@ def build():
                           location=(-2000, -300))
     menu_noise.data_type = "INT"
     set_menu_items(menu_noise, ["Perlin", "Voronoi"])
-    noise_sock = add_to_panel(noise_panel, "Noise Type", "NodeSocketMenu", default="Perlin",
+    noise_sock = add_to_panel(noise_panel, "Noise Type", "NodeSocketMenu",
                               description="Piecewise-linear (triangulated) Perlin-like value, or Voronoi F1 distance to feature points.")
+    # A Menu Switch outputs the SELECTED ITEM'S VALUE, not the index — give the
+    # items explicit INT values (Perlin=0, Voronoi=1) to drive the mode switch.
+    menu_noise.inputs["Perlin"].default_value = 0
+    menu_noise.inputs["Voronoi"].default_value = 1
     link(ng, gi, "Noise Type", menu_noise, "Menu")
+    # Menu socket default must be set AFTER wiring, once the enum exists
+    # (memory: feedback_gn_menu_socket_default)
+    noise_sock.default_value = "Perlin"
 
     # The remaining Noise panel params
     add_to_panel(noise_panel, "Noise Scale", "NodeSocketInt", default=4, min=1, max=64,
@@ -257,8 +288,9 @@ def build():
     sw_uv = add_node(ng, "GeometryNodeSwitch", label="UV or Pos?",
                      location=(X_BASE + 3 * DX, 100), parent=f_tile)
     sw_uv.input_type = "VECTOR"
-    link(ng, na_uv, "Attribute", sw_uv, "False")
-    link(ng, comb_pos_xy, "Vector", sw_uv, "True")
+    # Exists == True -> take the UV; False -> fall back to Position.xy
+    link(ng, comb_pos_xy, "Vector", sw_uv, "False")
+    link(ng, na_uv, "Attribute", sw_uv, "True")
     link(ng, na_uv, "Exists", sw_uv, "Switch")
 
     coord = sw_uv.outputs["Output"]  # the chosen 2D coordinate, VECTOR
@@ -287,11 +319,13 @@ def build():
     mul.operation = "SCALE"
     link(ng, sw_uv, "Output", mul, "Vector")
     # The scale value = tile_size * noise_scale  (computed below)
-    mul_t = add_node(ng, "ShaderNodeMath", label="Tile * N",
+    # cells-per-UV-unit = N / tile_size  (a tile spanning `tile_size` UV units
+    # holds N cells, so larger Tile Size = larger features)
+    mul_t = add_node(ng, "ShaderNodeMath", label="N / Tile",
                      location=(X_BASE + 4 * DX - 180, 200), parent=f_lattice)
-    mul_t.operation = "MULTIPLY"
-    link(ng, gi, "Tile Size", mul_t, "Value")
-    link(ng, gi, "Noise Scale", mul_t, "Value_001")
+    mul_t.operation = "DIVIDE"
+    link(ng, gi, "Noise Scale", mul_t, "Value")
+    link(ng, gi, "Tile Size", mul_t, "Value_001")
     link(ng, mul_t, "Value", mul, "Scale")
 
     # Decompose s into (col, row) + (fu, fv)
@@ -382,9 +416,12 @@ def build():
         # 3-component key. Hash Value's Value input is INT, so a sum of
         # (vx * 1000003) + (vy * 10007) + seed works (assuming values are
         # small ints).
-        m_vx = add_node(ng, "ShaderNodeMath", label="vx*1e6", location=out_x, parent=parent)
-        m_vx.operation = "MULTIPLY"
+        # vx*1000003 + 999331 — the offset keeps the key nonzero at vertex
+        # (0,0) with Seed 0, where hash(0, 0) would return exactly 0
+        m_vx = add_node(ng, "ShaderNodeMath", label="vx*1e6+c", location=out_x, parent=parent)
+        m_vx.operation = "MULTIPLY_ADD"
         m_vx.inputs[1].default_value = 1000003
+        m_vx.inputs[2].default_value = 999331
         link(ng, vx_node, "Value", m_vx, "Value")
         m_vy = add_node(ng, "ShaderNodeMath", label="vy*1e4", location=out_y, parent=parent)
         m_vy.operation = "MULTIPLY"
@@ -405,21 +442,45 @@ def build():
                      parent=parent)
         h.data_type = "INT"
         link(ng, seed2, "Value", h, "Seed")
-        return h.outputs["Hash"]
+        # Hash outputs a full-range INT — normalize to [0, 1):
+        #   h01 = floored_mod(hash, 65536) / 65536
+        h_mod = add_node(ng, "ShaderNodeMath", label=label + " mod",
+                         location=(out_x[0] + 760, out_x[1]), parent=parent)
+        h_mod.operation = "FLOORED_MODULO"
+        h_mod.inputs[1].default_value = 65536
+        link(ng, h, "Hash", h_mod, "Value")
+        h01 = add_node(ng, "ShaderNodeMath", label=label + " 0..1",
+                       location=(out_x[0] + 940, out_x[1]), parent=parent)
+        h01.operation = "DIVIDE"
+        h01.inputs[1].default_value = 65536.0
+        link(ng, h_mod, "Value", h01, "Value")
+        return h01.outputs["Value"]
 
     # Vertex inputs:
     #   A_vx = col_w, A_vy = row_w
     #   B_vx = col_w+1, B_vy = row_w
     #   C_vx = col_w, C_vy = row_w+1
     #   D_vx = col_w+1, D_vy = row_w+1
-    col_p1 = add_node(ng, "ShaderNodeMath", label="col+1", location=(X_BASE + 7 * DX, 500), parent=f_lattice)
-    col_p1.operation = "ADD"
-    col_p1.inputs[1].default_value = 1
-    link(ng, col_w, "Value", col_p1, "Value")
-    row_p1 = add_node(ng, "ShaderNodeMath", label="row+1", location=(X_BASE + 7 * DX, 250), parent=f_lattice)
-    row_p1.operation = "ADD"
-    row_p1.inputs[1].default_value = 1
-    link(ng, row_w, "Value", row_p1, "Value")
+    col_p1_raw = add_node(ng, "ShaderNodeMath", label="col+1", location=(X_BASE + 7 * DX, 500), parent=f_lattice)
+    col_p1_raw.operation = "ADD"
+    col_p1_raw.inputs[1].default_value = 1
+    link(ng, col_w, "Value", col_p1_raw, "Value")
+    row_p1_raw = add_node(ng, "ShaderNodeMath", label="row+1", location=(X_BASE + 7 * DX, 250), parent=f_lattice)
+    row_p1_raw.operation = "ADD"
+    row_p1_raw.inputs[1].default_value = 1
+    link(ng, row_w, "Value", row_p1_raw, "Value")
+    # Wrap the +1 vertices too, or the last cell's right/top edge hashes
+    # differently from the first cell's left/bottom edge (tile seam!)
+    col_p1 = add_node(ng, "ShaderNodeMath", label="(col+1) mod N",
+                      location=(X_BASE + 7 * DX + 180, 500), parent=f_lattice)
+    col_p1.operation = "FLOORED_MODULO"
+    link(ng, col_p1_raw, "Value", col_p1, "Value")
+    link(ng, gi, "Noise Scale", col_p1, "Value_001")
+    row_p1 = add_node(ng, "ShaderNodeMath", label="(row+1) mod N",
+                      location=(X_BASE + 7 * DX + 180, 250), parent=f_lattice)
+    row_p1.operation = "FLOORED_MODULO"
+    link(ng, row_p1_raw, "Value", row_p1, "Value")
+    link(ng, gi, "Noise Scale", row_p1, "Value_001")
 
     # Hash nodes
     P_X0 = X_BASE + 8 * DX
@@ -434,8 +495,10 @@ def build():
     one_minus_fufv = add_node(ng, "ShaderNodeMath", label="1 - (fu+fv)",
                               location=(P_X1, 300), parent=f_perlin)
     one_minus_fufv.operation = "SUBTRACT"
+    # 1 - x: the constant must live in input 0 and the link in input 1
+    # ("Value" IS input 0 — linking there would clobber the constant)
     one_minus_fufv.inputs[0].default_value = 1.0
-    link(ng, sum_f, "Value", one_minus_fufv, "Value")
+    link(ng, sum_f, "Value", one_minus_fufv, "Value_001")
     # alpha_lo = one_minus_fufv
     # beta_lo = fu
     # gamma_lo = fv
@@ -475,21 +538,24 @@ def build():
                             location=(P_X1, 80), parent=f_perlin)
     one_minus_fv.operation = "SUBTRACT"
     one_minus_fv.inputs[0].default_value = 1.0
-    link(ng, fv, "Value", one_minus_fv, "Value")
+    link(ng, fv, "Value", one_minus_fv, "Value_001")
     one_minus_fu = add_node(ng, "ShaderNodeMath", label="1 - fu",
                             location=(P_X1, 10), parent=f_perlin)
     one_minus_fu.operation = "SUBTRACT"
     one_minus_fu.inputs[0].default_value = 1.0
-    link(ng, fu, "Value", one_minus_fu, "Value")
+    link(ng, fu, "Value", one_minus_fu, "Value_001")
 
-    # Upper triangle perlin = alpha*hB + beta*hD + gamma*hC
-    u_aB = add_node(ng, "ShaderNodeMath", label="alpha*hB (up)", location=(P_X1 + 200, 140), parent=f_perlin)
+    # Upper triangle perlin: point = wB*B + wD*D + wC*C with
+    #   wB = 1 - fv,  wD = (fu+fv) - 1,  wC = 1 - fu
+    # (solves x = wB + wD = fu, y = wD + wC = fv, weights sum to 1;
+    #  matches the lower triangle exactly on the shared diagonal)
+    u_aB = add_node(ng, "ShaderNodeMath", label="wB*hB (up)", location=(P_X1 + 200, 140), parent=f_perlin)
     u_aB.operation = "MULTIPLY"
-    link(ng, fufv_m1, "Value", u_aB, "Value")
+    link(ng, one_minus_fv, "Value", u_aB, "Value")
     link(ng, hB, "Hash", u_aB, "Value_001")
-    u_aD = add_node(ng, "ShaderNodeMath", label="beta*hD", location=(P_X1 + 200, 70), parent=f_perlin)
+    u_aD = add_node(ng, "ShaderNodeMath", label="wD*hD", location=(P_X1 + 200, 70), parent=f_perlin)
     u_aD.operation = "MULTIPLY"
-    link(ng, one_minus_fv, "Value", u_aD, "Value")
+    link(ng, fufv_m1, "Value", u_aD, "Value")
     link(ng, hD, "Hash", u_aD, "Value_001")
     u_aC = add_node(ng, "ShaderNodeMath", label="gamma*hC (up)", location=(P_X1 + 200, 0), parent=f_perlin)
     u_aC.operation = "MULTIPLY"
@@ -510,8 +576,9 @@ def build():
     sw_perlin = add_node(ng, "GeometryNodeSwitch", label="pick triangle",
                          location=(P_X1 + 800, 175), parent=f_perlin)
     sw_perlin.input_type = "FLOAT"
-    link(ng, l_sum2, "Value", sw_perlin, "False")
-    link(ng, u_sum2, "Value", sw_perlin, "True")
+    # is_lower == True -> lower-triangle sum
+    link(ng, u_sum2, "Value", sw_perlin, "False")
+    link(ng, l_sum2, "Value", sw_perlin, "True")
     link(ng, is_lower, "Result", sw_perlin, "Switch")
     perlin_value = sw_perlin.outputs["Output"]
 
@@ -617,14 +684,20 @@ def build():
                              location=(V_X + 1200, 175), parent=f_voronoi)
     one_minus_2F1.operation = "SUBTRACT"
     one_minus_2F1.inputs[0].default_value = 1.0
-    link(ng, two_F1, "Value", one_minus_2F1, "Value")
-    voronoi_value = one_minus_2F1.outputs["Value"]
+    link(ng, two_F1, "Value", one_minus_2F1, "Value_001")
+    clamp0 = add_node(ng, "ShaderNodeMath", label="max(0, ...)",
+                      location=(V_X + 1400, 175), parent=f_voronoi)
+    clamp0.operation = "MAXIMUM"
+    clamp0.inputs[1].default_value = 0.0
+    link(ng, one_minus_2F1, "Value", clamp0, "Value")
+    voronoi_value = clamp0.outputs["Value"]
 
     # ----------------------------------------------------------------------------
     # Frame: MODE SWITCH  (Pick perlin or voronoi via the master Menu Switch)
     # ----------------------------------------------------------------------------
     f_switch = frame(ng, label="Mode Switch")
     f_switch.location = (0, 0)
+    menu_noise.parent = f_switch  # the master Menu Switch belongs to this function
 
     sw_mode = add_node(ng, "GeometryNodeSwitch", label="Perlin or Voronoi",
                        location=(P_X1 + 1100, 175), parent=f_switch)
@@ -712,15 +785,11 @@ def build():
     mod.node_group = ng
 
     # Set a few non-default modifier inputs so the user sees a meaningful
-    # first preview
-    try:
-        mod["Socket_3"] = 8  # Noise Scale
-    except Exception:
-        pass
-    try:
-        mod["Socket_10"] = "TileableTriNoise"  # Output Attribute
-    except Exception:
-        pass
+    # first preview. Look up socket identifiers by display name — never guess
+    # Socket_N indices.
+    sock_ids = {it.name: it.identifier for it in ng.interface.items_tree
+                if it.item_type == "SOCKET" and it.in_out == "INPUT"}
+    mod[sock_ids["Noise Scale"]] = 8
 
     # Save full mainfile
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -734,8 +803,12 @@ def build():
 
 if __name__ == "__main__":
     log_path = r"D:\Stephko_Tooling\Toolings\Blender\Geonodes\_build\build.log"
+    ok = False
     try:
         build()
+        ok = True
+        with open(log_path, "w") as f:
+            f.write("BUILD OK\n")
     except Exception as e:
         import traceback
         with open(log_path, "w") as f:
@@ -746,4 +819,4 @@ if __name__ == "__main__":
     finally:
         sys.stdout.flush()
         sys.stderr.flush()
-        os._exit(0)
+        os._exit(0 if ok else 1)
