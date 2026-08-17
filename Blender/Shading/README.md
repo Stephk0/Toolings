@@ -1,0 +1,235 @@
+# Shading
+
+Blender material shader networks — ports from other engines, and shader node
+groups that reproduce viewport-only features inside a render engine.
+
+---
+
+## SH_Cavity.blend
+
+A shader node group that reproduces Blender's **Solid-viewport Cavity overlay**
+inside **EEVEE** and **Material Preview**.
+
+| | |
+|---|---|
+| Node group | `SH_Cavity` (7 inputs in 2 panels, 4 outputs) |
+| Materials | `M_SH_Cavity_Demo` (Principled), `M_SH_Cavity_Demo_Flat` (Emission — the literal overlay) |
+| Objects | `SH_Cavity_Demo`, `SH_Cavity_Demo_Flat` |
+| Asset | catalog `ST3E/Shading`, tag `ST3E` |
+| Engine | EEVEE (works in Cycles too) |
+| Built with | Blender 5.0 |
+
+![SH_Cavity in EEVEE](assets/sh_cavity_eevee.png)
+
+*Above: `SH_Cavity` in EEVEE. Below: the same two heads rendered by Workbench
+with its own Cavity overlay at the same Ridge/Valley values, for comparison.*
+
+![Workbench reference](assets/sh_cavity_workbench_reference.png)
+
+### Using it
+
+Append `SH_Cavity` (File ▸ Append ▸ NodeTree), or drag it out of the Asset
+Browser under **ST3E/Shading**. Then either:
+
+- **Tint an existing material** — plug `Color` into Principled ▸ Base Color,
+  with the group's `Base Color` set to the albedo you wanted.
+- **Get the raw overlay** — use the `Factor` output (1.0 = untouched, below 1 a
+  valley, above 1 a ridge) and multiply it into whatever you like.
+- **Reproduce the viewport look exactly** — `Color` into an **Emission**, as in
+  `M_SH_Cavity_Demo_Flat`.
+
+`Concave` and `Convex` are also exposed as plain 0–1 masks — useful as dirt and
+edge-wear masks independently of the cavity look.
+
+### What it reproduces, exactly
+
+Workbench composites the overlay in one line
+(`workbench_composite.bsl.hh`):
+
+```glsl
+color.rgb *= clamp((1 - cavity) * (1 + edges) * (1 + curvature), 0, 4);
+```
+
+`cavity`/`edges` are the "World" type (an Alchemy SSAO over the depth buffer,
+scaled by the Valley and Ridge factors); `curvature` is the "Screen Space" type
+(the screen-space derivative of the normal buffer, split by sign and
+soft-clamped):
+
+```glsl
+curvature_soft_clamp(c, ctrl) = c < 0.5/ctrl ? c * (1 - c*ctrl) : 0.25/ctrl
+curvature = normal_diff < 0 ? -2 * soft_clamp(-normal_diff, valley_ctrl)
+                            :  2 * soft_clamp( normal_diff, ridge_ctrl)
+ridge_ctrl = 0.5 / max(ridge², 1e-4)    valley_ctrl = 0.7 / max(valley², 1e-4)
+```
+
+**All of that maths is reproduced node for node**, including the 0.5/0.7
+asymmetry and the 0–4 output clamp. So the Ridge and Valley sliders respond the
+way the viewport's do: 0 disables a term, and the soft clamp ceilings a ridge at
++1.0 and a valley at −0.714 with the sliders at 1.0.
+
+### What it cannot reproduce, and what replaces it
+
+Shader nodes cannot sample the depth or normal buffer, and there is no
+derivative node — so the two *sources* feeding that maths had to be replaced.
+Both become an **Ambient Occlusion probe pair**: outward (`inside` off) reads
+concavity, inward (`inside` on) reads convexity, and `normal_diff` becomes
+`convex − concave`. The World section runs that pair at `World Distance`, the
+Screen section at the much smaller `Screen Distance`.
+
+Consequences worth knowing:
+
+- **Radius, not pixels.** The viewport's Screen Space curvature is one pixel
+  wide, so it changes as you zoom. `Screen Distance` is a world-space radius, so
+  it does not — it is stable under camera motion, but you must scale it with
+  your model (default 0.05 suits a ~2 m object).
+- **Valley reads weaker than Ridge.** The inward probe hits geometry more
+  readily than the outward one, so `convex − concave` is biased toward ridge.
+  Push `Screen Valley` / `World Valley` above 1.0, or widen the distance, to
+  balance them. The sliders go to 2.5 for this reason.
+- **Cost.** Four AO evaluations per pixel. If you only need one scale, delete
+  the probe pair you are not using and wire that section's inputs to 0 — a
+  slider at 0 removes the *effect* but not the trace.
+- Object-space by nature, so unlike the viewport overlay it does not swim, and
+  it also works in Cycles.
+
+Geometry ▸ **Pointiness** was checked as a curvature source first and rejected:
+it is Cycles-only and returns a flat 0.5 in EEVEE. A screen-space derivative
+smuggled out of the **Bump** node's internals was also prototyped — it does
+carry a real signal, but it is harsh, aliased, and breaks under normal maps.
+
+### Rebuilding
+
+```
+blender.exe --background --factory-startup --python _build/build_sh_cavity.py
+blender.exe --background --factory-startup SH_Cavity.blend --python _build/tidy_sh_cavity.py
+blender.exe --background --factory-startup SH_Cavity.blend --python _build/verify_sh_cavity.py
+```
+
+`tidy_sh_cavity.py` runs the deterministic layout engine from
+`Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/` (it keys only on generic node
+idnames, so it works on a shader tree) and gates the save on audit rules
+R1–R11. `verify_sh_cavity.py` runs 17 checks — interface contract, the identity
+case, per-slider direction, both soft-clamp ceilings, the 0–4 clamp, distance
+response, mask ranges — and writes the two comparison renders above.
+
+> Numeric probes there render with `filter_size = 0.01`. At the default 1.5 px
+> reconstruction filter, EEVEE mixes the transparent background into pixels that
+> still report alpha 1.0, so even a constant emission of 1.0 reads back as 0.985
+> near the silhouette and every tolerance test picks up a phantom 1.5 % error.
+
+---
+
+## ash_char_base_SSS.blend
+
+Blender re-creation of the Unity URP shader
+`ash_char_base_SSS` (Amplify Shader Editor 1.9.9.4), from
+`Project Main/unity/Assets/ProjectAres/Assets/Shader/ash_char_base_SSS.shader`.
+
+| | |
+|---|---|
+| Node group | `ASH_CharBase_SSS` (38 inputs, grouped into 7 panels) |
+| Material | `M_ash_char_base_SSS` |
+| Object | `Sphere_ash_char_base_SSS` (64×32 UV sphere, smooth shaded) |
+| Engine | EEVEE |
+| Built with | Blender 5.0 |
+
+### What the Unity shader actually is
+
+Despite the PBR-sounding property names it is **not** a lit shader.
+`UniversalMaterialType = "Unlit"`, the forward pass compiles as
+`SHADERPASS_UNLIT`, and the final colour is written straight to the target —
+metallic, smoothness and "specular" are all just inputs to hand-rolled
+stylised maths. It is a character shader that fakes rim light, a matcap-style
+highlight and back-lit translucency, then composites them with two
+**colour-dodge** blends.
+
+Only the `Forward` pass carries colour logic; `GBuffer` duplicates it and the
+remaining passes (`ShadowCaster`, `DepthOnly`, `DepthNormals`, `MotionVectors`,
+`SceneSelection`, `ScenePicking`, `Meta`) only reuse `Alpha`.
+
+### Feature map (Unity → Blender)
+
+Frame names in the node group match the Unity intermediates (`Fresnel51`,
+`ReflectionDot264`, …) so the two can be read side by side.
+
+| Unity | Blender |
+|---|---|
+| `smoothstep(e0, e1, x)` | **Map Range**, interpolation `Smoothstep` |
+| `saturate()` | **Clamp** node / `use_clamp` on Math |
+| Colour Dodge `dest / max(1-src, 1e-5)` | **Mix Color**, blend `Dodge`, Factor 1, Clamp Result — identical formula |
+| `_MaskTexture` R/A | Separate Color → `Metallic114 = mask.r * _Metallic`, `Smoothness115 = _Smoothness * mask.a` |
+| `dot(N, V)` fresnel | Geometry **Normal** · **Incoming** (`Incoming` = surface→camera = `ViewDirWS`) |
+| `saturate(dot(NormalWS, (0,1,0)))` | dot with `(0,0,1)` — Unity is Y-up, Blender Z-up |
+| `dot(positionOS, _FresnelMaskDirection)` | **Vector Transform** World→Object (Point) → Dot → Map Range |
+| `saturate(sign(dot(normalOS, viewDirOS)))` | `1 - ` Geometry **Backfacing** (exact, and cheaper) |
+| `mul(UNITY_MATRIX_IT_MV, normal)` | **Vector Transform** World→Camera (Normal) **× (1,1,-1)** — see note below |
+| Parallax `viewDirTS` | Tangent + `cross(N,T)` bitangent + 3 dot products, in the material tree (it has to drive an Image Texture's Vector) |
+| `_ALPHATEST_ON`, clip 0.5 | Math `Greater Than` 0.5 → **Mix Shader** between Transparent BSDF and Emission |
+| `Cull Off` | `use_backface_culling = False` |
+| Unlit output | **Emission** shader (strength 1.0) |
+
+**View-space Z flip.** Blender's Vector Transform `Camera` space puts +Z *into*
+the screen; Unity's view matrix follows the GL convention (camera looks down
+−Z, so a normal facing the viewer has z = +1). This was verified by rendering
+the transformed normal and reading pixels, not assumed. Without the flip any
+`Specular Vector` with a Z component points the wrong way.
+
+### The pipeline
+
+```
+BaseColorTex × BaseColorTint × lerp(InsideFaceTint, white, FrontFace·AlphaMap)
+        ─── COLOR DODGE ◄── Fresnel51 · FrontFaceMask · AlphaMap
+                │
+                ├── + Secondary_Lights186
+                └── + Translucency110
+                        │
+                ─── COLOR DODGE ◄── ReflectionDot264 · Smoothness · SpecAmount · MetallicTint
+                        │
+                     Emission ── Mix Shader ── Material Output
+                                     ▲
+                          Greater Than(Alpha, 0.5)
+```
+
+- **Fresnel51** — `pow(1-NdotV, Power)·Scale + Bias`, masked by a world-up
+  dot and an object-space gradient, then pushed through two smoothsteps
+  (`Edge1 × Amount + Edge2`) and saturated. Two-band = a soft inner falloff
+  plus a hard outer lip.
+- **ReflectionDot264** — matcap-style. `dot(viewSpaceNormal, normalize(_SpecularVector + (smoothness·offset, 0, 0)))`,
+  raised to `_SpecularPower`, then the same two-band smoothstep. With the Unity
+  default `_SpecularVector = (1,0,0)` the highlight sits on the right-hand
+  silhouette.
+- **Translucency110** — the "SSS". `TranslucencyColor × TranslucencyTex ×
+  pow(1-NdotV, _TranslucencyPower) × ViewToMainLightMask`, where the mask is
+  `lerp(AmountBase, Amount, pow(saturate(dot(lightDir, -viewDir)), DirLightPower))`
+  — i.e. it peaks when the main light is **behind** the subject.
+
+### Two things Blender cannot do natively
+
+1. **`Main Light Direction`** replaces URP's `_MainLightPosition.xyz`. Shader
+   nodes cannot query a light, so this is a manual vector: the world-space
+   direction *towards* the sun. The `MainLight` sun object in the scene is
+   oriented to match the default `(0.30, 0.75, 0.59)`; if you move the sun,
+   update this input too (or drive it with a driver off the sun's rotation).
+2. **`Secondary Lights Color`** replaces the URP additional-lights loop
+   (`AdditionalLightsLambertMask10x` / `AdditionalLightsFlatMask10x`), which
+   iterates every point/spot light per fragment. Blender has no equivalent, so
+   it is a manual colour, defaulting to black. The Unity logic around it —
+   `smoothstep(0.5, 0.6, luminance(...)) × lightColor × BaseColorTex` — is
+   reproduced faithfully, so feeding a colour in behaves the same way.
+
+`VColor Occlusion` is exposed for parity but the Unity source hardcodes it to
+`1.0` (`VColorOcclusion112 = 1.0 * 1.0`).
+
+### Textures
+
+The five image slots hold flat 8×8 placeholders matching Unity's declared
+fallbacks — `_BaseColorTexture` gray, `_MaskTexture` white, `_height` white,
+`_Alpha` white. The one deviation is `_TranslucencyTexture`: Unity falls back
+to **black** (SSS off), so a warm value is used instead to make the
+translucency term visible on the demo sphere. Swap all five for the real maps.
+
+Per-texture `_ST` tiling/offset is a single shared **Mapping** node; split it
+if the Unity material uses different tiling per texture.
+
+`_Alpha` is sampled twice, as in the original: once at the parallax-offset UV
+(feeds the tint/rim masks) and once at the plain UV (drives the alpha clip).
