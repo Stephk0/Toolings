@@ -1,7 +1,7 @@
 # Single source of truth for the addon version. bl_info + blender_manifest.toml
 # both derive from this; the panel title does NOT show the version. Bump here
 # and in blender_manifest.toml only.
-VERSION = (13, 6, 3)
+VERSION = (13, 7, 0)
 
 bl_info = {
     "name": "Mass Collection Exporter",
@@ -866,6 +866,17 @@ class MassExporterProperties(PropertyGroup):
     apply_modifiers: BoolProperty(
         name="Apply Modifiers",
         description="Apply all object modifiers before export",
+        default=True
+    )
+
+    apply_only_visible_modifiers: BoolProperty(
+        name="Only Visible Modifiers",
+        description=(
+            "Only bake modifiers that are enabled in the viewport (monitor icon on). "
+            "Blender's own Apply Modifier operator ignores that toggle and bakes disabled "
+            "modifiers anyway, so they are stripped from the temporary export copy first. "
+            "Armature modifiers kept for rig binding are never stripped"
+        ),
         default=True
     )
 
@@ -2604,7 +2615,7 @@ class MASSEXPORTER_OT_export_all(Operator):
                     mat.name = "M_" + mat.name
 
     @staticmethod
-    def _apply_modifiers_to_selection(context, objects, skip_armature=False):
+    def _apply_modifiers_to_selection(context, objects, skip_armature=False, only_visible=False):
         """Apply modifiers non-destructively on temporary copies of mesh objects.
         Swaps the selection so copies replace originals.
         Returns (copies, originals, original_names) for cleanup after export.
@@ -2614,6 +2625,17 @@ class MASSEXPORTER_OT_export_all(Operator):
         FBX even though the rig ships in the same file. `skip_armature` is
         kept as a manual override that suppresses ALL armature modifiers
         regardless of whether the rig is in the selection.
+
+        `only_visible` limits the bake to modifiers enabled in the viewport.
+        bpy.ops.object.modifier_apply has no notion of show_viewport — it bakes
+        a modifier that is switched off in the stack just the same — so the
+        workaround is to DELETE the disabled modifiers from the temporary copy
+        before applying anything. The copy is throwaway, so the source object's
+        stack is never touched. Deleting rather than skipping also keeps the
+        stack order intact: whatever follows a stripped modifier evaluates on
+        the previous result, which is exactly what the viewport shows.
+        Preserved armature modifiers are exempt — stripping a hidden armature
+        modifier would silently unbind the mesh from its rig in the FBX.
         """
         copies = []
         originals_swapped = []
@@ -2628,13 +2650,19 @@ class MASSEXPORTER_OT_export_all(Operator):
                 return True
             return mod.object in rigs_in_selection
 
+        def _is_hidden(mod):
+            """Disabled in the viewport, and not a preserved armature binding."""
+            return only_visible and not mod.show_viewport and not _should_skip(mod)
+
         for obj in objects:
             if obj.type != 'MESH':
                 continue  # armatures/empties: leave in selection as-is
 
-            mods_to_apply = [m for m in obj.modifiers if not _should_skip(m)]
+            mods_to_apply = [
+                m for m in obj.modifiers if not _should_skip(m) and not _is_hidden(m)
+            ]
             if not mods_to_apply:
-                continue  # nothing to do for this object
+                continue  # nothing to bake — export the source object untouched
 
             try:
                 original_name = obj.name
@@ -2645,6 +2673,14 @@ class MASSEXPORTER_OT_export_all(Operator):
                 bpy.ops.object.duplicate(linked=False)
                 copy = context.active_object
                 copy.name = original_name  # copy now has the clean original name
+
+                # Strip viewport-disabled modifiers off the copy BEFORE applying,
+                # otherwise modifier_apply bakes them regardless of show_viewport.
+                for mod in list(copy.modifiers):
+                    if _is_hidden(mod):
+                        print(f"[MassExporter] Skipping viewport-disabled modifier "
+                              f"'{mod.name}' on '{original_name}'")
+                        copy.modifiers.remove(mod)
 
                 for mod in list(copy.modifiers):
                     if _should_skip(mod):
@@ -2903,7 +2939,9 @@ class MASSEXPORTER_OT_export_all(Operator):
         if props.apply_modifiers:
             modifier_copies, modifier_originals, modifier_original_names = \
                 MASSEXPORTER_OT_export_all._apply_modifiers_to_selection(
-                    bpy.context, selected, skip_armature=props.skip_armature_modifier
+                    bpy.context, selected,
+                    skip_armature=props.skip_armature_modifier,
+                    only_visible=props.apply_only_visible_modifiers
                 )
 
         try:
@@ -3728,6 +3766,9 @@ class MASSEXPORTER_PT_modifier_rig(Panel):
         header.label(text="Modifiers", icon='MODIFIER')
         if body is not None:
             body.prop(props, "apply_modifiers")
+            sub = body.row()
+            sub.enabled = props.apply_modifiers
+            sub.prop(props, "apply_only_visible_modifiers")
 
         header, body = layout.panel("massexporter_modrig_armature", default_closed=False)
         header.label(text="Rig / Armature", icon='ARMATURE_DATA')
