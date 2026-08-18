@@ -1,17 +1,21 @@
 bl_info = {
     "name": "Tile UV Projector",
     "author": "Stephan Viranyi",
-    "version": (1, 2, 1),
+    "version": (1, 6, 0),
     "blender": (4, 5, 0),
     "location": "View3D > Sidebar > Tile UV",
     "description": "Tile-based UV projection and placement on texture atlas grids",
     "category": "UV",
 }
 
+import math
+import os
+
 import bpy
 import bmesh
 import gpu
 import blf
+from gpu.types import Buffer, GPUTexture
 from gpu_extras.batch import batch_for_shader
 from bpy.types import Operator, Panel, PropertyGroup, UIList
 from bpy.app.handlers import persistent
@@ -26,6 +30,15 @@ from bpy.props import (
     FloatVectorProperty,
 )
 from mathutils import Vector
+
+
+# Snap increments. A move snaps to a fraction of a TILE rather than to a fixed
+# UV step: on a 4x4 grid the tiles sit at 0.125, 0.375, ... which no round UV
+# increment can express, so a fixed grid would drag every tile off the tile it
+# was just placed on. Eighths keep tile centres and tile edges on the grid.
+_SNAP_TILE_FRACTION = 8.0
+_SNAP_SCALE = 0.1
+_SNAP_ANGLE_DEG = 5.0
 
 
 # ============================================================================
@@ -95,6 +108,28 @@ def normalize_and_place_uvs(uv_loops, uv_min, uv_max, target_min, target_max):
         ))
 
 
+def scale_uvs_in_tile(uv_loops, tile_min, tile_max, scale, pivot):
+    """Scale already-placed UVs inside their tile about a normalised pivot.
+
+    ``pivot`` is in 0..1 tile space: (0.5, 0.5) is the tile centre, (0, 0) the
+    lower-left corner, (1, 1) the upper-right. So a scale of (0.5, 1.0) about
+    (0.5, 0.5) leaves the UVs half as wide and still centred in the tile, while
+    the same scale about (0, 0.5) pins them to the tile's left edge.
+
+    The tile rect passed in is the *usable* rect, i.e. already inset by padding,
+    so scaling stays inside the padded area.
+    """
+    size = tile_max - tile_min
+    anchor_u = tile_min.x + size.x * pivot[0]
+    anchor_v = tile_min.y + size.y * pivot[1]
+    scale_u, scale_v = scale[0], scale[1]
+
+    for luv in uv_loops:
+        u, v = luv.uv
+        luv.uv = Vector((anchor_u + (u - anchor_u) * scale_u,
+                         anchor_v + (v - anchor_v) * scale_v))
+
+
 def clear_seams_on_selected(bm):
     """Clear all seams on edges that touch selected faces."""
     for edge in bm.edges:
@@ -109,6 +144,235 @@ def mark_boundary_seams(bm):
         total = len(edge.link_faces)
         if sel_count > 0 and (sel_count < total or total == 1):
             edge.seam = True
+
+
+# ============================================================================
+# ATLAS IMAGE STATE
+# ============================================================================
+#
+# The panel preview (template_icon) and the viewport picker overlay must always
+# show the SAME picture. The panel draws Blender's cached Image preview, the
+# overlay draws the live image pixels — either can go stale when a texture is
+# reloaded, repathed or re-generated. Everything below exists to keep the two in
+# sync and to never render Blender's magenta "missing image" placeholder as if
+# it were the atlas.
+
+# Bumped whenever the atlas pixel data may have changed. Used as the cache key
+# for the overlay's GPU texture so a reload is picked up on the next redraw.
+_atlas_refresh_token = 0
+
+# image name -> (token, GPUTexture) for the preview-pixel fallback path.
+_atlas_preview_tex_cache = {}
+
+# abspath -> (token, exists) so the overlay does not stat the disk every frame.
+_atlas_path_exists_cache = {}
+
+
+def bump_atlas_refresh_token():
+    """Invalidate every cached atlas GPU texture and path lookup."""
+    global _atlas_refresh_token
+    _atlas_refresh_token += 1
+    _atlas_preview_tex_cache.clear()
+    _atlas_path_exists_cache.clear()
+
+
+def get_image_abspath(img):
+    """Absolute on-disk path for a file-backed image, or "" if it has none."""
+    if img is None or img.source not in {'FILE', 'SEQUENCE', 'MOVIE', 'TILED'}:
+        return ""
+    raw = img.filepath_raw or img.filepath
+    if not raw:
+        return ""
+    try:
+        return bpy.path.abspath(raw, library=img.library)
+    except Exception:
+        return ""
+
+
+def image_is_packed(img):
+    """True if the image carries its own data inside the .blend."""
+    if img is None:
+        return False
+    if getattr(img, "packed_file", None) is not None:
+        return True
+    return bool(getattr(img, "packed_files", None))
+
+
+def image_file_missing(img):
+    """True if the image points at a file path that does not exist on disk.
+
+    This is the one condition that reliably produces Blender's magenta
+    "missing image" texture, so it is the only thing treated as a hard error.
+    """
+    if img is None or image_is_packed(img):
+        return False
+    path = get_image_abspath(img)
+    if not path:
+        return False
+    cached = _atlas_path_exists_cache.get(path)
+    if cached is not None and cached[0] == _atlas_refresh_token:
+        return not cached[1]
+    exists = os.path.exists(path)
+    _atlas_path_exists_cache[path] = (_atlas_refresh_token, exists)
+    return not exists
+
+
+def image_buffer_loaded(img):
+    """True if the image's pixel buffer happens to be cached in memory *now*.
+
+    NOT a health check. Blender loads image buffers lazily and frees them under
+    its image cache limit, and ``Image.reload()`` deliberately drops the buffer
+    so it is re-read on next use — so a perfectly good atlas reports False here
+    most of the time, and ``Image.size`` reads (0, 0) alongside it. Only use this
+    to decide whether a cheap shortcut is available, never to decide that an
+    image is broken.
+    """
+    if img is None:
+        return False
+    try:
+        return bool(img.has_data) and img.size[0] > 0 and img.size[1] > 0
+    except Exception:
+        return False
+
+
+def image_is_resolvable(img):
+    """True unless we can positively prove the image cannot supply pixels.
+
+    Deliberately optimistic: requesting the GPU texture is what forces Blender to
+    load the buffer, so anything that is packed, generated, or backed by a file
+    that exists on disk gets the benefit of the doubt.
+    """
+    if img is None:
+        return False
+    if img.source in {'GENERATED', 'VIEWER'} or image_is_packed(img):
+        return True
+    if not get_image_abspath(img):
+        # No usable path recorded — only trust it if pixels are already loaded.
+        return image_buffer_loaded(img)
+    return not image_file_missing(img)
+
+
+def describe_atlas_image(img):
+    """Return (ok, message, icon) summarising the atlas image's usability."""
+    if img is None:
+        return False, "No atlas texture set", 'ERROR'
+    if image_file_missing(img):
+        return False, f"File not found: {os.path.basename(get_image_abspath(img))}", 'ERROR'
+    try:
+        width, height = img.size[0], img.size[1]
+    except Exception:
+        width = height = 0
+    if width > 0 and height > 0:
+        return True, f"{width} x {height}", 'IMAGE_DATA'
+    # Buffer not cached right now — normal for a lazily loaded or just-reloaded
+    # image, and not a problem: it loads on the next draw.
+    return True, f"{img.name} (loads on use)", 'IMAGE_DATA'
+
+
+def refresh_atlas_image(img, reload_from_disk):
+    """Re-read an atlas image and its preview thumbnail.
+
+    Setting ``reload_from_disk`` re-reads the file (Image.reload), which also
+    drops Blender's cached GPU texture. Without it only the preview thumbnail is
+    regenerated from the pixel data already in memory.
+
+    Returns (ok, message).
+    """
+    if img is None:
+        return False, "No atlas image set"
+
+    if reload_from_disk:
+        try:
+            img.reload()
+        except Exception as exc:
+            return False, f"Could not reload image: {exc}"
+
+    # Regenerate the thumbnail the panel draws, so preview and overlay agree.
+    try:
+        img.preview_ensure()
+        if img.preview is not None:
+            img.preview.reload()
+    except Exception as exc:
+        bump_atlas_refresh_token()
+        return False, f"Could not refresh preview: {exc}"
+
+    bump_atlas_refresh_token()
+
+    if image_file_missing(img):
+        return False, f"File not found: {os.path.basename(get_image_abspath(img))}"
+
+    # Deliberately NOT checking has_data/size here: Image.reload() drops the
+    # pixel buffer so it is re-read lazily on next use, so a successful reload
+    # legitimately reports "no data" until something draws the image.
+    verb = "Reloaded" if reload_from_disk else "Refreshed"
+    return True, f"{verb} {img.name}"
+
+
+def _texture_from_preview_pixels(img):
+    """Build a GPU texture from the *preview thumbnail* the panel displays.
+
+    Fallback for images whose full-resolution buffer is unavailable (freed,
+    unloaded, or file missing while a thumbnail survives in the .blend). Low
+    resolution, but it is literally the picture shown in the preview window.
+    """
+    preview = getattr(img, "preview", None)
+    if preview is None:
+        return None
+    try:
+        width, height = preview.image_size[0], preview.image_size[1]
+    except Exception:
+        return None
+    if width <= 0 or height <= 0:
+        return None
+
+    count = width * height * 4
+    pixels = [0.0] * count
+    try:
+        preview.image_pixels_float.foreach_get(pixels)
+    except Exception:
+        try:
+            pixels = list(preview.image_pixels_float)
+        except Exception:
+            return None
+    if len(pixels) != count or not any(pixels):
+        return None
+
+    try:
+        return GPUTexture(
+            (width, height), format='RGBA16F',
+            data=Buffer('FLOAT', count, pixels),
+        )
+    except Exception:
+        return None
+
+
+def get_atlas_gpu_texture(img):
+    """Return (texture, source) for drawing the atlas behind the picker grid.
+
+    source is 'IMAGE' (live full-resolution pixels), 'PREVIEW' (the panel's
+    thumbnail) or '' when nothing drawable exists. Never returns Blender's
+    magenta missing-image placeholder.
+    """
+    if img is None:
+        return None, ""
+
+    # Requesting the GPU texture is what forces Blender to load a lazily-loaded
+    # or just-reloaded buffer, so ask for it unless the file is provably gone.
+    if image_is_resolvable(img):
+        try:
+            texture = gpu.texture.from_image(img)
+            if texture is not None:
+                return texture, 'IMAGE'
+        except Exception:
+            pass
+
+    cached = _atlas_preview_tex_cache.get(img.name)
+    if cached and cached[0] == _atlas_refresh_token:
+        return cached[1], ('PREVIEW' if cached[1] is not None else "")
+
+    texture = _texture_from_preview_pixels(img)
+    _atlas_preview_tex_cache[img.name] = (_atlas_refresh_token, texture)
+    return texture, ('PREVIEW' if texture is not None else "")
 
 
 # ============================================================================
@@ -249,6 +513,81 @@ class TILEUV_Settings(PropertyGroup):
         description="UV projection method",
     )
 
+    # Fine adjust
+    fine_adjust_enabled: BoolProperty(
+        name="Fine Adjust After Project",
+        default=False,
+        description="After placing UVs in a tile, enter an interactive transform "
+                    "mode to nudge, scale and rotate them inside the tile",
+    )
+    fine_adjust_hide_overlays: BoolProperty(
+        name="Hide Overlays & Gizmos",
+        default=True,
+        description="Temporarily switch off viewport overlays and gizmos for an "
+                    "unobstructed view. The previous state is restored on exit",
+    )
+    fine_adjust_flat_shading: BoolProperty(
+        name="Flat Textured Shading",
+        default=True,
+        description="Temporarily switch to Solid shading with flat lighting and "
+                    "texture colour, so the atlas is seen unlit. The previous "
+                    "shading is restored on exit",
+    )
+
+    # Default post-projection scale
+    use_default_scale: BoolProperty(
+        name="Default UV Scale",
+        default=False,
+        description="After fitting the UVs into a tile, scale them inside that "
+                    "tile by a fixed amount",
+    )
+    default_scale: FloatVectorProperty(
+        name="Scale",
+        size=2,
+        default=(1.0, 1.0),
+        min=0.001, max=10.0,
+        precision=3,
+        description="UV scale applied inside the tile after projecting. "
+                    "(0.5, 1.0) is half as wide at full height",
+    )
+    scale_pivot: FloatVectorProperty(
+        name="Pivot",
+        size=2,
+        default=(0.5, 0.5),
+        min=0.0, max=1.0,
+        precision=3,
+        description="Anchor for the default scale, in tile space. "
+                    "(0.5, 0.5) is the tile centre, (0, 0) its lower-left corner",
+    )
+
+    # Fine adjust snap increments (Ctrl)
+    snap_move_divisions: IntProperty(
+        name="Move",
+        default=int(_SNAP_TILE_FRACTION), min=1, max=64,
+        description="Ctrl-snap step when moving: one Nth of a tile on each "
+                    "axis. Divisions of a tile keep tile centres and edges on "
+                    "the grid at any grid size",
+    )
+    snap_scale_step: FloatProperty(
+        name="Scale",
+        default=_SNAP_SCALE, min=0.001, max=1.0,
+        precision=3, step=1,
+        description="Ctrl-snap step when scaling",
+    )
+    snap_rotate_degrees: FloatProperty(
+        name="Rotate",
+        default=_SNAP_ANGLE_DEG, min=0.1, max=90.0,
+        precision=2,
+        description="Ctrl-snap step when rotating, in degrees",
+    )
+
+    fine_adjust_debug: BoolProperty(
+        name="Debug Log",
+        default=True,
+        description="Print what fine adjust is doing to the system console "
+                    "(Window > Toggle System Console). Turn off once it works",
+    )
+
     # Advanced grid
     use_advanced_grid: BoolProperty(
         name="Advanced Grid", default=False,
@@ -376,8 +715,13 @@ class TILEUV_OT_apply_to_tile(Operator):
         # Normalize and place
         normalize_and_place_uvs(uv_loops, uv_min, uv_max, usable_min, usable_max)
 
+        if settings.use_default_scale:
+            scale_uvs_in_tile(uv_loops, usable_min, usable_max,
+                              settings.default_scale, settings.scale_pivot)
+
         bmesh.update_edit_mesh(me)
         self.report({'INFO'}, f"UVs placed in tile ({self.col_index}, {self.row_index})")
+        maybe_start_fine_adjust(context, settings)
         return {'FINISHED'}
 
 
@@ -477,9 +821,15 @@ class TILEUV_OT_apply_to_custom_tile(Operator):
             return {'CANCELLED'}
 
         normalize_and_place_uvs(uv_loops, uv_min, uv_max, usable_min, usable_max)
+
+        if settings.use_default_scale:
+            scale_uvs_in_tile(uv_loops, usable_min, usable_max,
+                              settings.default_scale, settings.scale_pivot)
+
         bmesh.update_edit_mesh(me)
 
         self.report({'INFO'}, f"UVs placed in custom tile '{tile.name}'")
+        maybe_start_fine_adjust(context, settings)
         return {'FINISHED'}
 
 
@@ -616,16 +966,52 @@ class TILEUV_OT_pick_tile(Operator):
     _initial_scroll: float = 0.0
 
     @classmethod
+    def is_running(cls):
+        """True if the modal picker is genuinely still alive.
+
+        Blender can tear a modal operator down without routing through modal()
+        — file load, area close, script reload, an undo that swallows the modal.
+        The draw handler is the reliable witness: if it is gone the operator is
+        gone too, so clear the stale flag instead of blocking the picker from
+        ever being opened again.
+        """
+        if cls._is_active and cls._handle is None:
+            cls._is_active = False
+            cls._should_close = False
+        return cls._is_active
+
+    @classmethod
+    def force_reset(cls):
+        """Drop a leaked draw handler and clear all picker state."""
+        if cls._handle is not None:
+            try:
+                bpy.types.SpaceView3D.draw_handler_remove(cls._handle, 'UI')
+            except Exception:
+                pass
+            cls._handle = None
+        cls._is_active = False
+        cls._should_close = False
+
+    @classmethod
     def poll(cls, context):
         obj = context.active_object
         return (obj is not None
                 and obj.type == 'MESH'
                 and obj.mode == 'EDIT'
-                and not cls._is_active)
+                and not cls.is_running())
 
     def invoke(self, context, event):
         cls = self.__class__
         grid, settings = get_grid_settings(context)
+
+        # Warn about a genuinely broken atlas, but never block the picker: the
+        # grid stays usable even with no texture behind it.
+        img = grid.atlas_image
+        if img is not None and image_file_missing(img):
+            self.report(
+                {'WARNING'},
+                f"Atlas file not found: {os.path.basename(get_image_abspath(img))}",
+            )
 
         # Find the UI region (N-panel)
         ui_region = None
@@ -742,9 +1128,11 @@ class TILEUV_OT_pick_tile(Operator):
             if col >= 0 and row >= 0:
                 cls._last_click_col = col
                 cls._last_click_row = row
-                # Apply UV to tile and close picker
-                bpy.ops.uv.tileuv_apply_to_tile(col_index=col, row_index=row)
+                # Close the picker *before* applying: the apply operator may
+                # hand straight over to the fine adjust modal, and two of our
+                # modals must never be live at the same time.
                 self._cleanup(context)
+                bpy.ops.uv.tileuv_apply_to_tile(col_index=col, row_index=row)
                 return {'FINISHED'}
             # Click outside overlay — pass through to Blender
             return {'PASS_THROUGH'}
@@ -771,14 +1159,15 @@ class TILEUV_OT_pick_tile(Operator):
         row = min(int(ry * settings.grid_rows), settings.grid_rows - 1)
         return col, row
 
+    def cancel(self, context):
+        """Called by Blender when the modal is torn down outside modal()."""
+        self._cleanup(context)
+
     def _cleanup(self, context):
-        cls = self.__class__
-        if cls._handle:
-            bpy.types.SpaceView3D.draw_handler_remove(cls._handle, 'UI')
-            cls._handle = None
-        cls._is_active = False
-        cls._should_close = False
-        context.area.tag_redraw()
+        self.__class__.force_reset()
+        area = getattr(context, "area", None)
+        if area is not None:
+            area.tag_redraw()
 
     @staticmethod
     def _draw_callback(cls, context):
@@ -798,11 +1187,13 @@ class TILEUV_OT_pick_tile(Operator):
         shader = gpu.shader.from_builtin('UNIFORM_COLOR')
 
         # --- Atlas image ---
+        # Resolve the texture first: an image with no pixel data would otherwise
+        # be drawn as Blender's magenta "missing image" placeholder.
         img = grid.atlas_image
+        texture, tex_source = get_atlas_gpu_texture(img)
         drew_image = False
-        if img:
+        if texture is not None:
             try:
-                texture = gpu.texture.from_image(img)
                 shader_img = gpu.shader.from_builtin('IMAGE')
                 batch_img = batch_for_shader(
                     shader_img, 'TRI_FAN',
@@ -896,6 +1287,23 @@ class TILEUV_OT_pick_tile(Operator):
                 blf.position(font_id, ox + c * tw + 3, oy + r * th + 3, 0)
                 blf.draw(font_id, f"{c},{r}")
 
+        # --- Texture-state notice (instead of a magenta placeholder) ---
+        if not drew_image:
+            _, state_msg, _ = describe_atlas_image(img)
+            blf.size(font_id, 12)
+            blf.color(font_id, 1.0, 0.35, 0.3, 1.0)
+            msg_w = blf.dimensions(font_id, state_msg)[0]
+            blf.position(font_id, ox + max(4, (ow - msg_w) / 2), oy + oh / 2, 0)
+            blf.draw(font_id, state_msg)
+        elif tex_source == 'PREVIEW':
+            # Drawing the panel thumbnail, not the full-resolution image.
+            note = "preview thumbnail — press Reload"
+            blf.size(font_id, 10)
+            blf.color(font_id, 1.0, 0.7, 0.2, 0.9)
+            note_w = blf.dimensions(font_id, note)[0]
+            blf.position(font_id, ox + max(2, (ow - note_w) / 2), oy + 4, 0)
+            blf.draw(font_id, note)
+
         # --- Hover tooltip (inside overlay, top-center) ---
         if cls._hover_col >= 0 and cls._hover_row >= 0:
             blf.size(font_id, 12)
@@ -914,8 +1322,905 @@ class TILEUV_OT_close_picker(Operator):
     bl_label = "Close Tile Picker"
 
     def execute(self, context):
-        TILEUV_OT_pick_tile._should_close = True
+        if TILEUV_OT_pick_tile.is_running():
+            TILEUV_OT_pick_tile._should_close = True
+        else:
+            # Modal already gone — clear any leaked state so the panel button
+            # flips back to "Pick Tile" instead of getting stuck on "Close".
+            TILEUV_OT_pick_tile.force_reset()
+        _tag_ui_redraw(context)
         return {'FINISHED'}
+
+
+
+# ============================================================================
+# FINE ADJUST TRANSFORM MODE
+# ============================================================================
+
+# event.type -> character, for Blender-style numeric input during a transform.
+_NUMERIC_KEYS = {
+    'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4',
+    'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9',
+    'NUMPAD_0': '0', 'NUMPAD_1': '1', 'NUMPAD_2': '2', 'NUMPAD_3': '3',
+    'NUMPAD_4': '4', 'NUMPAD_5': '5', 'NUMPAD_6': '6', 'NUMPAD_7': '7',
+    'NUMPAD_8': '8', 'NUMPAD_9': '9',
+    'PERIOD': '.', 'NUMPAD_PERIOD': '.',
+}
+
+# Added to both sides of the scale drag ratio so a transform started near the
+# anchor still scales, while zero mouse movement still means a factor of 1.0.
+_DRAG_SOFTEN_PX = 60.0
+
+# Axis constraint keys -> the UV axis they lock to. Z is the V-axis key so an
+# XZ modelling habit carries straight over; Y stays wired up as an alias.
+_AXIS_KEYS = {'X': 'U', 'Z': 'V', 'Y': 'V'}
+
+# What to call each axis in the header — matching the keys above, not U/V.
+_AXIS_LABELS = {'U': 'X', 'V': 'Z'}
+
+_CTRL_KEYS = {'LEFT_CTRL', 'RIGHT_CTRL'}
+_SHIFT_KEYS = {'LEFT_SHIFT', 'RIGHT_SHIFT'}
+
+
+# Events passed straight through so the user can still navigate the viewport
+# while deciding what to adjust.
+_NAV_EVENTS = {
+    'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE',
+    'WHEELINMOUSE', 'WHEELOUTMOUSE', 'TRACKPADPAN', 'TRACKPADZOOM',
+    'NUMPAD_1', 'NUMPAD_2', 'NUMPAD_3', 'NUMPAD_4', 'NUMPAD_5',
+    'NUMPAD_6', 'NUMPAD_7', 'NUMPAD_8', 'NUMPAD_9', 'NUMPAD_0',
+    'NUMPAD_PERIOD', 'NUMPAD_PLUS', 'NUMPAD_MINUS',
+}
+
+
+class ViewportStateSnapshot:
+    """Records only the viewport properties we actually change, so they can be
+    put back exactly as the user had them.
+
+    Nothing is hard-coded on the way out: a property that already held the
+    wanted value is neither recorded nor restored, and every restore writes back
+    the value that was read at capture time. If the user had overlays off before
+    entering fine adjust, they stay off afterwards.
+    """
+
+    def __init__(self):
+        self._changes = []
+
+    def set_tracked(self, owner, attr, value):
+        """Set owner.attr, remembering the previous value for restore()."""
+        if owner is None:
+            return
+        try:
+            old = getattr(owner, attr)
+        except Exception:
+            return
+        if old == value:
+            # Already what we want — do not touch it, do not restore it.
+            return
+        try:
+            setattr(owner, attr, value)
+        except Exception:
+            return
+        self._changes.append((owner, attr, old))
+
+    def restore(self):
+        """Put every recorded property back, most recent change first."""
+        while self._changes:
+            owner, attr, old = self._changes.pop()
+            try:
+                setattr(owner, attr, old)
+            except Exception:
+                pass
+
+    @property
+    def is_empty(self):
+        return not self._changes
+
+
+class TILEUV_OT_fine_adjust(Operator):
+    """Interactively move, scale and rotate the selected UVs
+
+    Uses the familiar Blender transform keys: G/S/R to start, X or Y to
+    constrain, type a number for an exact value, Ctrl to snap, Shift for
+    precision. Enter confirms, Esc cancels
+    """
+    bl_idname = "uv.tileuv_fine_adjust"
+    bl_label = "Fine Adjust UVs"
+    bl_options = {'REGISTER'}
+
+    _is_active: bool = False
+    # Kept on the class so a session that loses its events can still be undone
+    # from the panel — otherwise a stuck modal leaves overlays off for good.
+    _live_view_state = None
+
+    @classmethod
+    def is_running(cls):
+        return cls._is_active
+
+    @classmethod
+    def force_reset(cls):
+        if cls._live_view_state is not None:
+            try:
+                cls._live_view_state.restore()
+            except Exception:
+                pass
+            cls._live_view_state = None
+        cls._is_active = False
+
+    def _dbg(self, message):
+        """Console trace, gated on the Debug Log setting."""
+        if getattr(self, "_debug", False):
+            print(f"[TileUV fine adjust] {message}")
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return (obj is not None
+                and obj.type == 'MESH'
+                and obj.mode == 'EDIT'
+                and not cls._is_active)
+
+    # -- lifecycle ---------------------------------------------------------
+
+    def invoke(self, context, event):
+        cls = self.__class__
+        grid, settings = get_grid_settings(context)
+        self._debug = settings.fine_adjust_debug
+        self._events = 0
+        self._applies = 0
+        self._dbg(f"invoke: area={getattr(context.area, 'type', None)} "
+                  f"space={getattr(context.space_data, 'type', None)}")
+
+        self._mesh = None
+        self._bm = None
+        self._bm_id = None
+        self._loops = None
+        self._uv_base = None
+        self._warned = False
+        self._verified = False
+
+        loops = self._fetch_loops(context)
+        if loops is None:
+            return {'CANCELLED'}
+
+        self._uv_entry = [Vector(luv.uv) for luv in loops]
+        if not self._uv_entry:
+            self.report({'WARNING'}, "No faces selected")
+            return {'CANCELLED'}
+
+        self._uv_base = list(self._uv_entry)
+        self._dbg(f"invoke: {len(self._uv_entry)} selected uv loops, "
+                  f"first={tuple(self._uv_entry[0])}")
+
+        # Aspect of the atlas, so rotation looks square on a non-square texture.
+        try:
+            self._aspect = max(1e-6, grid.proportion_x / grid.proportion_y)
+        except Exception:
+            self._aspect = 1.0
+
+        # Snap increments, from the user's settings and the tile layout.
+        try:
+            cols = max(1, int(grid.grid_cols))
+            rows = max(1, int(grid.grid_rows))
+        except Exception:
+            cols = rows = 4
+        divisions = max(1, int(settings.snap_move_divisions))
+        self._snap_u = 1.0 / (cols * divisions)
+        self._snap_v = 1.0 / (rows * divisions)
+        self._snap_scale = max(1e-4, float(settings.snap_scale_step))
+        self._snap_angle = math.radians(
+            max(0.01, float(settings.snap_rotate_degrees)))
+        self._dbg(f"invoke: snap move u={self._snap_u:.5f} v={self._snap_v:.5f} "
+                  f"(1/{divisions} of a {cols}x{rows} tile) "
+                  f"scale={self._snap_scale} "
+                  f"rotate={settings.snap_rotate_degrees}deg")
+
+        self._region = None
+        for reg in context.area.regions:
+            if reg.type == 'WINDOW':
+                self._region = reg
+                break
+        if self._region is None:
+            self.report({'WARNING'}, "No 3D viewport region found")
+            return {'CANCELLED'}
+
+        self._mode = 'NONE'
+        self._axis = None
+        self._numeric = ""
+        self._snap = False
+        self._precise = False
+        self._start_mouse = (event.mouse_x, event.mouse_y)
+        self._pivot = Vector((0.0, 0.0))
+        self._finished = False
+        self._dirty = False
+
+        # View state is captured and applied only for the options the user
+        # switched on; everything else is left untouched.
+        self._view_state = ViewportStateSnapshot()
+        space = context.space_data
+        if space is not None and getattr(space, "type", "") == 'VIEW_3D':
+            if settings.fine_adjust_hide_overlays:
+                self._view_state.set_tracked(space.overlay, "show_overlays", False)
+                self._view_state.set_tracked(space, "show_gizmo", False)
+            if settings.fine_adjust_flat_shading:
+                self._view_state.set_tracked(space.shading, "type", 'SOLID')
+                self._view_state.set_tracked(space.shading, "light", 'FLAT')
+                self._view_state.set_tracked(space.shading, "color_type", 'TEXTURE')
+
+        cls._is_active = True
+        cls._live_view_state = self._view_state
+        self._update_status(context)
+        added = context.window_manager.modal_handler_add(self)
+        self._dbg(f"invoke: modal_handler_add -> {added}")
+        if not added:
+            # Without a handler no event ever reaches modal(); bailing out beats
+            # sitting there looking active while doing nothing.
+            self.report({'ERROR'}, "Could not start the fine adjust modal")
+            self._finish(context, revert=False)
+            return {'CANCELLED'}
+        context.area.tag_redraw()
+        return {'RUNNING_MODAL'}
+
+    def cancel(self, context):
+        """Called by Blender when the modal is torn down outside modal()."""
+        self._finish(context, revert=True)
+
+    def _finish(self, context, revert):
+        """Single exit path — idempotent, so a double teardown is harmless."""
+        if self._finished:
+            return
+        self._finished = True
+
+        if revert:
+            self._write_uvs(context, self._uv_entry)
+        elif self._dirty:
+            try:
+                bpy.ops.ed.undo_push(message="Fine Adjust UVs")
+            except Exception:
+                pass
+
+        self._dbg(f"finish: revert={revert} events={self._events} "
+                  f"applies={self._applies}")
+        self._view_state.restore()
+        self.__class__._live_view_state = None
+        self.__class__._is_active = False
+
+        area = getattr(context, "area", None)
+        if area is not None:
+            try:
+                area.header_text_set(None)
+            except Exception:
+                pass
+            area.tag_redraw()
+        workspace = getattr(context, "workspace", None)
+        if workspace is not None:
+            try:
+                workspace.status_text_set(None)
+            except Exception:
+                pass
+
+    # -- modal -------------------------------------------------------------
+
+    def modal(self, context, event):
+        self._events += 1
+        if event.type not in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'} \
+                or self._events <= 3:
+            self._dbg(f"event #{self._events}: {event.type} {event.value} "
+                      f"mode={self._mode}")
+
+        obj = context.active_object
+        if not obj or obj.type != 'MESH' or obj.mode != 'EDIT':
+            self._dbg("leaving: not in mesh edit mode any more")
+            self._finish(context, revert=False)
+            return {'CANCELLED'}
+
+        if self._mode == 'NONE':
+            return self._modal_idle(context, event)
+        return self._modal_transform(context, event)
+
+    def _modal_idle(self, context, event):
+        if event.value != 'PRESS':
+            if event.type in _NAV_EVENTS:
+                return {'PASS_THROUGH'}
+            return {'RUNNING_MODAL'}
+
+        if event.type in {'G', 'S', 'R'}:
+            self._begin(context, event)
+            return {'RUNNING_MODAL'}
+
+        if event.type in {'RET', 'NUMPAD_ENTER', 'SPACE'}:
+            self._finish(context, revert=False)
+            self.report({'INFO'}, "Fine adjust applied")
+            return {'FINISHED'}
+
+        if event.type == 'ESC':
+            self._finish(context, revert=True)
+            self.report({'INFO'}, "Fine adjust cancelled")
+            return {'CANCELLED'}
+
+        if event.type in _NAV_EVENTS:
+            return {'PASS_THROUGH'}
+
+        # Swallow everything else so stray keys cannot edit the mesh.
+        return {'RUNNING_MODAL'}
+
+    def _sync_modifiers(self, event):
+        """Track Ctrl/Shift from their own key events, not just event flags.
+
+        Reading event.ctrl off whichever event happens to be in hand is not
+        reliable — modifier flags on synthetic movement events can lag, which is
+        why holding Ctrl appeared to do nothing while Shift worked. The dedicated
+        modifier key events are authoritative for going down and coming back up;
+        the flags on any other event are only ever used to turn a state on, never
+        to clear one.
+        """
+        if event.type in _CTRL_KEYS:
+            self._snap = event.value == 'PRESS'
+        elif event.type in _SHIFT_KEYS:
+            self._precise = event.value == 'PRESS'
+        if getattr(event, "ctrl", False):
+            self._snap = True
+        if getattr(event, "shift", False):
+            self._precise = True
+
+    def _modal_transform(self, context, event):
+        self._sync_modifiers(event)
+
+        # Pressing or releasing a modifier has to take effect straight away,
+        # otherwise snapping only appears once the mouse happens to move again
+        # and reads as "Ctrl does nothing".
+        if event.type in _CTRL_KEYS or event.type in _SHIFT_KEYS:
+            if not self._numeric:
+                self._apply(context, event)
+            else:
+                self._update_status(context)
+            return {'RUNNING_MODAL'}
+
+        # INBETWEEN_MOUSEMOVE is what a high-rate mouse or tablet mostly sends;
+        # ignoring it makes the drag stutter.
+        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+            if not self._numeric:
+                self._apply(context, event)
+            return {'RUNNING_MODAL'}
+
+        if event.value == 'PRESS':
+            # Switch transform type mid-flight, like Blender does.
+            if event.type in {'G', 'S', 'R'}:
+                self._write_uvs(context, self._uv_base)
+                self._begin(context, event)
+                return {'RUNNING_MODAL'}
+
+            if event.type in _AXIS_KEYS:
+                axis = _AXIS_KEYS[event.type]
+                self._axis = None if self._axis == axis else axis
+                self._apply(context, event)
+                return {'RUNNING_MODAL'}
+
+            if event.type == 'MIDDLEMOUSE':
+                # Blender-style: the middle mouse picks the axis from the
+                # direction dragged so far, and picking the current one drops
+                # the constraint again.
+                axis = self._axis_from_drag(event)
+                self._axis = None if self._axis == axis else axis
+                self._apply(context, event)
+                return {'RUNNING_MODAL'}
+
+            if event.type in _NUMERIC_KEYS:
+                self._numeric += _NUMERIC_KEYS[event.type]
+                self._apply(context, event)
+                return {'RUNNING_MODAL'}
+
+            if event.type in {'MINUS', 'NUMPAD_MINUS'}:
+                if self._numeric.startswith('-'):
+                    self._numeric = self._numeric[1:]
+                else:
+                    self._numeric = '-' + self._numeric
+                self._apply(context, event)
+                return {'RUNNING_MODAL'}
+
+            if event.type == 'BACK_SPACE':
+                self._numeric = self._numeric[:-1]
+                self._apply(context, event)
+                return {'RUNNING_MODAL'}
+
+            if event.type in {'RET', 'NUMPAD_ENTER', 'LEFTMOUSE'}:
+                self._dirty = True
+                self._end_transform(context)
+                return {'RUNNING_MODAL'}
+
+            if event.type in {'ESC', 'RIGHTMOUSE'}:
+                self._write_uvs(context, self._uv_base)
+                self._end_transform(context)
+                return {'RUNNING_MODAL'}
+
+        if event.type in {'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'}
+
+        return {'RUNNING_MODAL'}
+
+    # -- transform helpers -------------------------------------------------
+
+    def _begin(self, context, event):
+        """Start a translate/scale/rotate from the current UV state."""
+        self._mode = {'G': 'TRANSLATE', 'S': 'SCALE', 'R': 'ROTATE'}[event.type]
+        self._dbg(f"begin {self._mode} at mouse "
+                  f"({event.mouse_x}, {event.mouse_y})")
+        self._axis = None
+        self._numeric = ""
+        self._snap = bool(getattr(event, "ctrl", False))
+        self._precise = bool(getattr(event, "shift", False))
+        self._start_mouse = (event.mouse_x, event.mouse_y)
+        loops = self._fetch_loops(context)
+        if loops is not None:
+            self._uv_base = [Vector(luv.uv) for luv in loops]
+        self._pivot = self._compute_pivot()
+        self._update_status(context)
+
+    def _axis_from_drag(self, event):
+        """The axis the pointer has travelled furthest along since the start."""
+        dx = abs(event.mouse_x - self._start_mouse[0])
+        dy = abs(event.mouse_y - self._start_mouse[1])
+        return 'U' if dx >= dy else 'V'
+
+    def _end_transform(self, context):
+        """Commit or discard the running transform and return to idle."""
+        self._mode = 'NONE'
+        self._axis = None
+        self._numeric = ""
+        self._snap = False
+        self._precise = False
+        self._update_status(context)
+
+    def _compute_pivot(self):
+        """Bounding-box centre of the selected UVs — i.e. the tile's centre."""
+        if not self._uv_base:
+            return Vector((0.0, 0.0))
+        min_u = min(uv.x for uv in self._uv_base)
+        max_u = max(uv.x for uv in self._uv_base)
+        min_v = min(uv.y for uv in self._uv_base)
+        max_v = max(uv.y for uv in self._uv_base)
+        return Vector(((min_u + max_u) * 0.5, (min_v + max_v) * 0.5))
+
+    def _numeric_value(self):
+        try:
+            return float(self._numeric)
+        except (TypeError, ValueError):
+            return None
+
+    def _edit_mesh(self, context):
+        """The mesh datablock currently open in Edit Mode, from live context.
+
+        context.edit_object is the authority here. A Mesh reference captured in
+        invoke() is not: resolving the BMesh through a stale datablock hands
+        back a throwaway BMesh rebuilt from the stored mesh, so every write
+        lands in a copy that is discarded before the next event — the edit
+        appears to work and nothing ever changes.
+        """
+        obj = getattr(context, "edit_object", None)
+        if obj is None:
+            obj = getattr(context, "active_object", None)
+        if obj is None or obj.type != 'MESH' or obj.mode != 'EDIT':
+            return None
+        return obj.data
+
+    @staticmethod
+    def _bm_alive(bm):
+        try:
+            return bool(bm.is_valid)
+        except Exception:
+            return False
+
+    def _get_bm(self, context):
+        """The session BMesh, re-acquired only when Blender invalidates it.
+
+        Holding one BMesh for the whole modal is what working UV modals do, and
+        it means a write and the next read are guaranteed to hit the same data.
+        Any change of identity here is logged, because a BMesh silently swapped
+        between events is exactly the kind of thing that makes edits evaporate.
+        """
+        me = self._edit_mesh(context)
+        if me is None:
+            return self._fetch_failed("no mesh is in Edit Mode")
+
+        bm = self._bm
+        if bm is None or not self._bm_alive(bm) or me is not self._mesh:
+            try:
+                bm = bmesh.from_edit_mesh(me)
+            except Exception as exc:
+                return self._fetch_failed(f"could not open the mesh ({exc})")
+            self._bm = bm
+            self._mesh = me
+            self._loops = None
+
+        if id(bm) != self._bm_id:
+            self._dbg(f"bmesh id {self._bm_id} -> {id(bm)} on mesh "
+                      f"{getattr(me, 'name', '?')} (loops re-collected)")
+            self._bm_id = id(bm)
+            self._loops = None
+        return bm
+
+    def _fetch_loops(self, context):
+        """The UV loops being transformed, from the session BMesh.
+
+        Collected with the same helper and iteration order as the apply
+        operators, so index N here is index N in _uv_base.
+
+        Returns None if the mesh cannot supply the loops, after saying so once —
+        a silent None here is what made this bug so hard to see.
+        """
+        bm = self._get_bm(context)
+        if bm is None:
+            return None
+
+        if self._loops is None:
+            try:
+                uv_layer = bm.loops.layers.uv.active
+                if uv_layer is None:
+                    return self._fetch_failed("mesh has no active UV layer")
+                self._loops = get_selected_face_uv_loops(bm, uv_layer)
+            except Exception as exc:
+                return self._fetch_failed(f"could not read the mesh ({exc})")
+
+        if self._uv_base is not None and len(self._loops) != len(self._uv_base):
+            return self._fetch_failed(
+                f"selection changed ({len(self._loops)} loops, expected "
+                f"{len(self._uv_base)})")
+        return self._loops
+
+    def _fetch_failed(self, reason):
+        """Report once why the UVs cannot be reached, then stay quiet."""
+        if not self._warned:
+            self._warned = True
+            self.report({'WARNING'}, f"Fine adjust: {reason}")
+            print(f"[Tile UV Projector] fine adjust stopped — {reason}")
+        return None
+
+    def _flush(self):
+        """Push UV edits to the mesh and force the viewport to repaint.
+
+        Full default update on purpose. Skipping the loop-triangle rebuild is
+        tempting for a per-mouse-move path, but the viewport draws textures from
+        the tessellated loop data — without it the UVs change in the mesh and
+        the screen keeps showing the old ones.
+        """
+        before_id = id(self._bm) if self._bm is not None else None
+        try:
+            bmesh.update_edit_mesh(self._mesh)
+        except Exception as exc:
+            self._fetch_failed(f"could not update the mesh ({exc})")
+            return
+        areas = self._redraw_areas()
+        for area in areas:
+            area.tag_redraw()
+        if self._applies <= 5:
+            alive = self._bm_alive(self._bm) if self._bm is not None else False
+            self._dbg(f"flush: mesh={getattr(self._mesh, 'name', '?')} "
+                      f"redrew {len(areas)} area(s) "
+                      f"bmesh id={before_id} still_valid={alive}")
+
+    @staticmethod
+    def _redraw_areas():
+        """Every 3D view and UV editor, so both show the edit as it happens."""
+        areas = []
+        try:
+            for window in bpy.context.window_manager.windows:
+                for area in window.screen.areas:
+                    if area.type in {'VIEW_3D', 'IMAGE_EDITOR'}:
+                        areas.append(area)
+        except Exception:
+            pass
+        return areas
+
+    def _write_uvs(self, context, values):
+        """Write an absolute set of UVs — used to revert a cancelled step."""
+        loops = self._fetch_loops(context)
+        if loops is None:
+            return
+        try:
+            for luv, uv in zip(loops, values):
+                luv.uv = Vector(uv)
+        except (ReferenceError, AttributeError, TypeError):
+            return
+        self._flush()
+
+    def _apply(self, context, event):
+        """Recompute the UVs from _uv_base and push them live to the viewport."""
+        loops = self._fetch_loops(context)
+        if loops is None:
+            return
+
+        before = tuple(loops[0].uv)
+        try:
+            if self._mode == 'TRANSLATE':
+                self._apply_translate(loops, event)
+            elif self._mode == 'SCALE':
+                self._apply_scale(loops, event)
+            elif self._mode == 'ROTATE':
+                self._apply_rotate(loops, event)
+        except Exception as exc:
+            # Never silent: a swallowed write here is exactly what made this
+            # look like "the modal runs but nothing happens".
+            import traceback
+            traceback.print_exc()
+            self._fetch_failed(f"could not write the UVs ({exc})")
+            return
+
+        after = tuple(loops[0].uv)
+        self._applies += 1
+        if self._applies <= 5:
+            self._dbg(f"apply {self._mode} axis={self._axis} "
+                      f"num={self._numeric!r} snap={self._snap} "
+                      f"precise={self._precise}: {before} -> {after}")
+        self._flush()
+        self._dirty = True
+        self._verify_persisted(context, after)
+        self._update_status(context)
+
+    def _verify_persisted(self, context, expected):
+        """Confirm once that an edit survives to the next read.
+
+        A write that lands in a discarded BMesh looks perfect from inside the
+        transform — the value reads back correctly right after assignment — and
+        is simply gone by the next event. Checking it once turns that from an
+        invisible failure into a message.
+        """
+        if self._verified or self._applies < 2:
+            return
+        self._verified = True
+        prior = self._fetch_loops(context)
+        self._checked_loop = prior[0] if prior else None
+        loops = self._fetch_loops(context)
+        if loops is None:
+            return
+        got = tuple(loops[0].uv)
+        if abs(got[0] - expected[0]) > 1e-6 or abs(got[1] - expected[1]) > 1e-6:
+            message = "UV edits are not sticking"
+            self.report({'ERROR'}, f"Fine adjust: {message}")
+            print(f"[TileUV fine adjust] {message}: wrote {expected}, "
+                  f"read back {got}, bmesh id={self._bm_id}, "
+                  f"same_loop_object={loops[0] is self._checked_loop}")
+            self._probe(context)
+        else:
+            self._dbg(f"verified: edit persisted as {got}")
+
+    def _recollect(self, context):
+        """Force a fresh collection of the loops, bypassing the cached list."""
+        self._loops = None
+        return self._fetch_loops(context)
+
+    def _probe(self, context):
+        """Isolate where a UV write is lost, in one controlled experiment.
+
+        Writes a known value, reads it back through a freshly collected loop
+        list before flushing, then again after flushing. Between them that
+        separates the two remaining explanations:
+
+          write_lands=False -> the assignment never reaches the mesh at all
+          write_lands=True, survives_flush=False -> update_edit_mesh discards it
+
+        The probe value is written and then put back, so nothing is left behind.
+        """
+        loops = self._recollect(context)
+        if not loops:
+            print("[TileUV fine adjust] probe: no loops to test")
+            return
+
+        original = Vector(loops[0].uv)
+        probe_value = Vector((0.123456, 0.654321))
+        try:
+            loops[0].uv = probe_value
+
+            fresh = self._recollect(context)
+            lands = tuple(fresh[0].uv) if fresh else None
+
+            bmesh.update_edit_mesh(self._mesh)
+            after = self._recollect(context)
+            survives = tuple(after[0].uv) if after else None
+
+            print(f"[TileUV fine adjust] probe: wrote {tuple(probe_value)} | "
+                  f"before flush read {lands} | after flush read {survives} | "
+                  f"mesh={getattr(self._mesh, 'name', '?')} "
+                  f"bmesh_id={self._bm_id}")
+            print(f"[TileUV fine adjust] probe: write_lands="
+                  f"{lands is not None and abs(lands[0] - 0.123456) < 1e-5} "
+                  f"survives_flush="
+                  f"{survives is not None and abs(survives[0] - 0.123456) < 1e-5}")
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            print(f"[TileUV fine adjust] probe raised: {exc}")
+        finally:
+            restore = self._recollect(context)
+            if restore:
+                try:
+                    restore[0].uv = original
+                    bmesh.update_edit_mesh(self._mesh)
+                except Exception:
+                    pass
+
+    def _mouse_delta(self, event):
+        """Mouse travel in UV units — one region width equals 1.0 UV."""
+        ref = max(self._region.width, 1)
+        return ((event.mouse_x - self._start_mouse[0]) / ref,
+                (event.mouse_y - self._start_mouse[1]) / ref)
+
+    def _region_center(self):
+        return (self._region.x + self._region.width * 0.5,
+                self._region.y + self._region.height * 0.5)
+
+    def _apply_translate(self, loops, event):
+        value = self._numeric_value()
+        if value is not None:
+            # Unconstrained numeric goes to U, matching Blender's first field.
+            dx, dy = (0.0, value) if self._axis == 'V' else (value, 0.0)
+        else:
+            dx, dy = self._mouse_delta(event)
+            if self._precise:
+                dx *= 0.1
+                dy *= 0.1
+            if self._axis == 'U':
+                dy = 0.0
+            elif self._axis == 'V':
+                dx = 0.0
+            if self._snap:
+                # Snap where the tile LANDS, not how far it moved. Rounding the
+                # delta leaves the tile off-grid by whatever offset it started
+                # with, which does not read as snapping at all.
+                pivot = self._pivot
+                if self._axis != 'V':
+                    dx = (round((pivot.x + dx) / self._snap_u) * self._snap_u
+                          - pivot.x)
+                if self._axis != 'U':
+                    dy = (round((pivot.y + dy) / self._snap_v) * self._snap_v
+                          - pivot.y)
+
+        offset = Vector((dx, dy))
+        for luv, base in zip(loops, self._uv_base):
+            luv.uv = base + offset
+
+    def _apply_scale(self, loops, event):
+        value = self._numeric_value()
+        if value is not None:
+            factor = value
+        else:
+            cx, cy = self._region_center()
+            start_d = math.hypot(self._start_mouse[0] - cx,
+                                 self._start_mouse[1] - cy)
+            now_d = math.hypot(event.mouse_x - cx, event.mouse_y - cy)
+            # Softened ratio. A plain now/start ratio is dead on arrival when
+            # the transform starts near the anchor (start_d ~ 0 pinned the
+            # factor at 1.0 and scaling did nothing). Adding the same constant
+            # to both keeps factor == 1.0 for zero movement at any starting
+            # distance, and approaches the plain ratio further out.
+            factor = (now_d + _DRAG_SOFTEN_PX) / (start_d + _DRAG_SOFTEN_PX)
+            if self._precise:
+                factor = 1.0 + (factor - 1.0) * 0.1
+            if self._snap:
+                factor = round(factor / self._snap_scale) * self._snap_scale
+
+        sx = sy = factor
+        if self._axis == 'U':
+            sy = 1.0
+        elif self._axis == 'V':
+            sx = 1.0
+
+        pivot = self._pivot
+        for luv, base in zip(loops, self._uv_base):
+            luv.uv = Vector((pivot.x + (base.x - pivot.x) * sx,
+                             pivot.y + (base.y - pivot.y) * sy))
+
+    def _apply_rotate(self, loops, event):
+        value = self._numeric_value()
+        if value is not None:
+            angle = math.radians(value)
+        else:
+            cx, cy = self._region_center()
+            start_dx = self._start_mouse[0] - cx
+            start_dy = self._start_mouse[1] - cy
+            now_dx = event.mouse_x - cx
+            now_dy = event.mouse_y - cy
+            if math.hypot(start_dx, start_dy) < 1.0 or \
+                    math.hypot(now_dx, now_dy) < 1.0:
+                # Sitting exactly on the anchor — the angle is meaningless.
+                return
+            angle = math.atan2(now_dy, now_dx) - math.atan2(start_dy, start_dx)
+            # Take the short way round so crossing the -pi/pi seam does not
+            # snap the tile through a half turn.
+            angle = (angle + math.pi) % (2.0 * math.pi) - math.pi
+            if self._precise:
+                angle *= 0.1
+            if self._snap:
+                step = self._snap_angle
+                angle = round(angle / step) * step
+
+        cos_a = math.cos(angle)
+        sin_a = math.sin(angle)
+        pivot = self._pivot
+        aspect = self._aspect
+        for luv, base in zip(loops, self._uv_base):
+            # Rotate in image-aspect space so a circle stays a circle on a
+            # non-square atlas, then convert back to UV space.
+            x = (base.x - pivot.x) * aspect
+            y = base.y - pivot.y
+            luv.uv = Vector((pivot.x + (x * cos_a - y * sin_a) / aspect,
+                             pivot.y + (x * sin_a + y * cos_a)))
+
+    # -- feedback ----------------------------------------------------------
+
+    def _update_status(self, context):
+        area = getattr(context, "area", None)
+        if self._mode == 'NONE':
+            header = "Fine Adjust UVs"
+            keys = ("G Move   S Scale   R Rotate   |   "
+                    "Enter Confirm   Esc Cancel")
+        else:
+            label = {'TRANSLATE': "Move", 'SCALE': "Scale",
+                     'ROTATE': "Rotate"}[self._mode]
+            shown = self._numeric if self._numeric else "drag"
+            axis = f" {_AXIS_LABELS[self._axis]}" if self._axis else ""
+            flags = []
+            if self._snap:
+                flags.append("snap")
+            if self._precise:
+                flags.append("precise")
+            suffix = f"  [{', '.join(flags)}]" if flags else ""
+            header = f"Fine Adjust — {label}{axis}: {shown}{suffix}"
+            keys = ("X / Z Constrain axis   MMB Pick axis   "
+                    "Type a number for an exact value   "
+                    "Ctrl Snap   Shift Precision   |   "
+                    "Enter / LMB Confirm   Esc / RMB Cancel")
+        if area is not None:
+            try:
+                area.header_text_set(header)
+            except Exception:
+                pass
+            area.tag_redraw()
+        workspace = getattr(context, "workspace", None)
+        if workspace is not None:
+            try:
+                workspace.status_text_set(keys)
+            except Exception:
+                pass
+
+
+class TILEUV_OT_fine_adjust_abort(Operator):
+    """Release a fine adjust session that has stopped responding
+
+    Restores the viewport overlays and shading that were recorded on entry
+    """
+    bl_idname = "uv.tileuv_fine_adjust_abort"
+    bl_label = "Force Exit Fine Adjust"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        TILEUV_OT_fine_adjust.force_reset()
+        area = getattr(context, "area", None)
+        if area is not None:
+            try:
+                area.header_text_set(None)
+            except Exception:
+                pass
+        workspace = getattr(context, "workspace", None)
+        if workspace is not None:
+            try:
+                workspace.status_text_set(None)
+            except Exception:
+                pass
+        _tag_ui_redraw(context)
+        self.report({'INFO'}, "Fine adjust released")
+        return {'FINISHED'}
+
+
+def maybe_start_fine_adjust(context, settings):
+    """Enter fine adjust after a tile was applied, if the user enabled it."""
+    if not settings.fine_adjust_enabled:
+        return
+    if not TILEUV_OT_fine_adjust.poll(context):
+        return
+    try:
+        bpy.ops.uv.tileuv_fine_adjust('INVOKE_DEFAULT')
+    except Exception as exc:
+        print(f"[Tile UV Projector] could not start fine adjust — {exc}")
 
 
 # ============================================================================
@@ -934,6 +2239,31 @@ class TILEUV_UL_custom_tiles(UIList):
 # ============================================================================
 # PANELS
 # ============================================================================
+
+def draw_atlas_texture_controls(layout, img):
+    """Status line plus the reload/refresh buttons for an atlas image.
+
+    Shared by Grid Settings and the Grid panel so the texture can be updated
+    from wherever the user happens to be looking.
+    """
+    if img is None:
+        return
+
+    ok, message, icon = describe_atlas_image(img)
+
+    col = layout.column(align=True)
+    col.alert = not ok
+    col.label(text=message, icon=icon)
+    col.alert = False
+
+    row = col.row(align=True)
+    row.operator("uv.tileuv_reload_atlas", text="Reload", icon='FILE_REFRESH')
+    row.operator("uv.tileuv_refresh_atlas_preview",
+                 text="Refresh Preview", icon='SEQ_PREVIEW')
+
+    if image_file_missing(img):
+        col.operator("file.find_missing_files",
+                     text="Find Missing Files", icon='VIEWZOOM')
 
 class TILEUV_PT_main(Panel):
     bl_label = "Tile UV Projector"
@@ -977,6 +2307,19 @@ class TILEUV_PT_grid_settings(Panel):
         row.prop(grid, "grid_rows", text="Y")
         layout.prop(grid, "padding")
 
+        # Default post-projection scale — a fixed value like padding, but with
+        # its own anchor so the result can be centred or pinned to an edge.
+        box = layout.box()
+        box.prop(settings, "use_default_scale")
+        col = box.column(align=True)
+        col.enabled = settings.use_default_scale
+        row = col.row(align=True)
+        row.prop(settings, "default_scale", index=0, text="Scale X")
+        row.prop(settings, "default_scale", index=1, text="Y")
+        row = col.row(align=True)
+        row.prop(settings, "scale_pivot", index=0, text="Pivot X")
+        row.prop(settings, "scale_pivot", index=1, text="Y")
+
         layout.separator()
         layout.label(text="Proportion (W:H):")
         row = layout.row(align=True)
@@ -986,6 +2329,7 @@ class TILEUV_PT_grid_settings(Panel):
         layout.separator()
         layout.label(text="Atlas Texture:")
         layout.template_ID(grid, "atlas_image", open="image.open")
+        draw_atlas_texture_controls(layout, grid.atlas_image)
 
 
 class TILEUV_PT_unwrap_settings(Panel):
@@ -1028,6 +2372,63 @@ class TILEUV_PT_projection(Panel):
         layout.prop(settings, "projection_method", expand=True)
 
 
+class TILEUV_PT_fine_adjust(Panel):
+    bl_label = "Fine Adjust"
+    bl_idname = "TILEUV_PT_fine_adjust"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Tile UV"
+    bl_parent_id = "TILEUV_PT_main"
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.tileuv_settings,
+                         "fine_adjust_enabled", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.tileuv_settings
+
+        col = layout.column()
+        col.active = settings.fine_adjust_enabled
+        col.prop(settings, "fine_adjust_hide_overlays")
+        col.prop(settings, "fine_adjust_flat_shading")
+
+        box = layout.box()
+        box.label(text="Snap Increments (Ctrl):", icon='SNAP_ON')
+        col = box.column(align=True)
+        col.prop(settings, "snap_move_divisions")
+        col.label(text=f"= 1/{max(1, settings.snap_move_divisions)} of a tile")
+        col.prop(settings, "snap_scale_step")
+        col.prop(settings, "snap_rotate_degrees")
+
+        layout.prop(settings, "fine_adjust_debug")
+
+        layout.separator()
+
+        # Also usable on its own, without re-projecting.
+        row = layout.row()
+        row.scale_y = 1.2
+        if TILEUV_OT_fine_adjust.is_running():
+            row.label(text="Adjusting — Enter to confirm", icon='CHECKMARK')
+            # A real button, not a dead label: if the modal ever stops getting
+            # events this is the only way to release the mode and put the
+            # viewport back.
+            layout.operator("uv.tileuv_fine_adjust_abort",
+                            text="Force Exit", icon='CANCEL')
+        else:
+            row.operator("uv.tileuv_fine_adjust",
+                         text="Adjust Current UVs", icon='MOD_MESHDEFORM')
+
+        box = layout.box()
+        box.scale_y = 0.8
+        for line in ("G Move   S Scale   R Rotate",
+                     "X / Z constrain to axis (MMB picks)",
+                     "Type a number for an exact value",
+                     "Ctrl snap   Shift precision",
+                     "Enter confirm   Esc cancel"):
+            box.label(text=line)
+
+
 class TILEUV_PT_grid_ui(Panel):
     bl_label = "Grid"
     bl_idname = "TILEUV_PT_grid_ui"
@@ -1046,29 +2447,30 @@ class TILEUV_PT_grid_ui(Panel):
         cols = grid.grid_cols
         rows = grid.grid_rows
 
-        # Atlas image preview — full width, using template_icon
-        if grid.atlas_image:
-            try:
-                preview = grid.atlas_image.preview_ensure()
-                if preview and preview.icon_id > 0:
-                    prop_x = grid.proportion_x
-                    prop_y = grid.proportion_y
-                    icon_scale = max(3.0, min(16.0, 12.0 * (prop_y / prop_x)))
-                    layout.template_icon(icon_value=preview.icon_id, scale=icon_scale)
-                    refresh_row = layout.row()
-                    refresh_row.alignment = 'CENTER'
-                    refresh_row.operator(
-                        "uv.tileuv_refresh_atlas_preview",
-                        text="Refresh Preview",
-                        icon='FILE_REFRESH',
-                    )
-            except Exception:
-                pass
+        # Atlas image preview — full width, using template_icon. This is the
+        # same picture the tile picker overlay draws behind its grid. It is
+        # hidden only when the file is provably missing, which is the one case
+        # that renders as Blender's magenta placeholder.
+        img = grid.atlas_image
+        if img:
+            image_ok, _, _ = describe_atlas_image(img)
+            if image_ok:
+                try:
+                    preview = img.preview_ensure()
+                    if preview and preview.icon_id > 0:
+                        prop_x = grid.proportion_x
+                        prop_y = grid.proportion_y
+                        icon_scale = max(3.0, min(16.0, 12.0 * (prop_y / prop_x)))
+                        layout.template_icon(icon_value=preview.icon_id,
+                                             scale=icon_scale)
+                except Exception:
+                    pass
+            draw_atlas_texture_controls(layout, img)
 
         # Open / Close picker button
         pick_row = layout.row(align=True)
         pick_row.scale_y = 1.2
-        if TILEUV_OT_pick_tile._is_active:
+        if TILEUV_OT_pick_tile.is_running():
             pick_row.operator("uv.tileuv_close_picker",
                               text="Close Picker", icon='CANCEL',
                               depress=True)
@@ -1078,6 +2480,14 @@ class TILEUV_PT_grid_ui(Panel):
         else:
             pick_row.operator("uv.tileuv_pick_tile",
                               text="Pick Tile", icon='MESH_GRID')
+
+        # The picker is a mesh Edit Mode tool — say so instead of just greying
+        # the button out, which reads as "the button is broken".
+        obj = context.active_object
+        if not (obj and obj.type == 'MESH' and obj.mode == 'EDIT'):
+            hint = layout.row()
+            hint.enabled = False
+            hint.label(text="Enter Edit Mode to pick tiles", icon='INFO')
 
         layout.separator()
 
@@ -1175,41 +2585,109 @@ def _tileuv_atlas_preview_handler(scene, depsgraph):
     Blender caches Image previews (the thumbnail used by template_icon), so a
     reload from disk or re-generation does not refresh the panel preview by
     itself. This handler clears the cached preview for any Image touched by the
-    depsgraph, forcing it to regenerate from the current pixel data on next draw.
+    depsgraph, forcing it to regenerate from the current pixel data on next draw,
+    and invalidates the picker overlay's cached GPU texture along with it so both
+    keep showing the same picture.
     """
+    touched = False
     for update in depsgraph.updates:
         if not isinstance(update.id, bpy.types.Image):
             continue
+        touched = True
         img = update.id
         try:
             if img.preview is not None:
                 img.preview.reload()
         except Exception:
             pass
+    if touched:
+        bump_atlas_refresh_token()
+
+
+@persistent
+def _tileuv_load_post_handler(dummy):
+    """Clear modal/texture state that cannot survive a file load."""
+    TILEUV_OT_pick_tile.force_reset()
+    TILEUV_OT_fine_adjust.force_reset()
+    bump_atlas_refresh_token()
 
 
 class TILEUV_OT_refresh_atlas_preview(Operator):
-    """Refresh the atlas texture preview to reflect changes in the source image"""
+    """Rebuild the atlas preview thumbnail from the image data currently in memory"""
     bl_idname = "uv.tileuv_refresh_atlas_preview"
     bl_label = "Refresh Atlas Preview"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
         grid, _ = get_grid_settings(context)
-        img = grid.atlas_image
-        if img is None:
+        ok, msg = refresh_atlas_image(grid.atlas_image, reload_from_disk=False)
+        _tag_ui_redraw(context)
+        if not ok:
+            self.report({'WARNING'}, msg)
+            return {'CANCELLED'}
+        return {'FINISHED'}
+
+
+class TILEUV_OT_reload_atlas(Operator):
+    """Re-read the atlas texture from disk and rebuild its preview
+
+    Use after editing or re-exporting the texture outside Blender, or when the
+    preview and the tile picker have gone out of sync
+    """
+    bl_idname = "uv.tileuv_reload_atlas"
+    bl_label = "Reload Atlas Texture"
+    bl_options = {'REGISTER'}
+
+    all_images: BoolProperty(
+        name="All Atlas Images",
+        default=False,
+        description="Reload every image used as an atlas in this file, "
+                    "not just the active one",
+    )
+
+    def execute(self, context):
+        grid, settings = get_grid_settings(context)
+
+        images = []
+        if self.all_images:
+            seen = set()
+            for src in (settings, *(o.tileuv_obj_settings for o in bpy.data.objects)):
+                img = getattr(src, "atlas_image", None)
+                if img is not None and img.name not in seen:
+                    seen.add(img.name)
+                    images.append(img)
+        elif grid.atlas_image is not None:
+            images.append(grid.atlas_image)
+
+        if not images:
             self.report({'WARNING'}, "No atlas image set")
             return {'CANCELLED'}
-        try:
-            img.preview_ensure()
-            if img.preview is not None:
-                img.preview.reload()
-        except Exception as e:
-            self.report({'WARNING'}, f"Could not refresh preview: {e}")
+
+        failures = []
+        for img in images:
+            ok, msg = refresh_atlas_image(img, reload_from_disk=True)
+            if not ok:
+                failures.append(f"{img.name}: {msg}")
+
+        _tag_ui_redraw(context)
+
+        if failures:
+            self.report({'WARNING'}, "; ".join(failures))
             return {'CANCELLED'}
-        for area in context.screen.areas:
-            area.tag_redraw()
+        self.report({'INFO'}, f"Reloaded {len(images)} atlas texture(s)")
         return {'FINISHED'}
+
+
+def _tag_ui_redraw(context):
+    """Redraw every area so panel preview and picker overlay update together."""
+    screen = getattr(context, "screen", None)
+    if screen is not None:
+        for area in screen.areas:
+            area.tag_redraw()
+        return
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            area.tag_redraw()
 
 
 # ============================================================================
@@ -1228,12 +2706,16 @@ classes = (
     TILEUV_OT_generate_grid_tiles,
     TILEUV_OT_pick_tile,
     TILEUV_OT_close_picker,
+    TILEUV_OT_fine_adjust,
+    TILEUV_OT_fine_adjust_abort,
     TILEUV_OT_refresh_atlas_preview,
+    TILEUV_OT_reload_atlas,
     TILEUV_UL_custom_tiles,
     TILEUV_PT_main,
     TILEUV_PT_grid_settings,
     TILEUV_PT_unwrap_settings,
     TILEUV_PT_projection,
+    TILEUV_PT_fine_adjust,
     TILEUV_PT_grid_ui,
     TILEUV_PT_advanced_grid,
 )
@@ -1246,9 +2728,16 @@ def register():
     bpy.types.Object.tileuv_obj_settings = PointerProperty(type=TILEUV_ObjectSettings)
     if _tileuv_atlas_preview_handler not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(_tileuv_atlas_preview_handler)
+    if _tileuv_load_post_handler not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_tileuv_load_post_handler)
 
 
 def unregister():
+    TILEUV_OT_pick_tile.force_reset()
+    TILEUV_OT_fine_adjust.force_reset()
+    bump_atlas_refresh_token()
+    if _tileuv_load_post_handler in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_tileuv_load_post_handler)
     if _tileuv_atlas_preview_handler in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.remove(_tileuv_atlas_preview_handler)
     del bpy.types.Object.tileuv_obj_settings
