@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# LibraryPublisher - alternative trigger: publish on every commit instead of on
+# push. Inert unless the config selects it:
+#   config set triggers.git_hook.hook=post-commit
+#
+# pre-push is the better default (one publish per push, not one per commit in a
+# rapid series), but this exists for a solo workflow that commits straight onto
+# the published branch.
+
+TOOL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CLI="$TOOL_DIR/source/cli.py"
+
+[ -f "$CLI" ] || exit 0
+
+PYTHON="python"
+command -v "$PYTHON" >/dev/null 2>&1 || PYTHON="py"
+command -v "$PYTHON" >/dev/null 2>&1 || exit 0
+
+"$PYTHON" "$CLI" hook --event post-commit
+exit 0

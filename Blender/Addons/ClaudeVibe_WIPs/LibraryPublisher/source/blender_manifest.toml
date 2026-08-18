@@ -1,0 +1,25 @@
+schema_version = "1.0.0"
+
+id = "library_publisher"
+version = "1.1.0"
+name = "Library Publisher"
+tagline = "Publish the ST3E asset library to a Google Shared Drive as ST3E_Ext"
+maintainer = "Stephko <stephko@viranyi.de>"
+type = "add-on"
+
+tags = ["Import-Export", "Pipeline"]
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+[permissions]
+files = "Read the asset library from the repo and write the published copy"
+network = "Upload the published library to the configured Google Shared Drive (via rclone)"
+
+[build]
+paths_exclude_pattern = [
+  "__pycache__/",
+  "tests/",
+  "*.pyc",
+]

@@ -1,0 +1,148 @@
+name: Publish Blender asset library
+
+# Trigger 3 of 4: the authoritative publish. Runs on the GitHub side, so the
+# shared library updates even when the machine that made the commit is offline.
+#
+# One-time setup (repo Settings > Secrets and variables > Actions):
+#   secret  GDRIVE_SERVICE_ACCOUNT   the service-account JSON, pasted whole
+#   secret  GDRIVE_TEAM_DRIVE_ID     the Shared Drive id (from its URL)
+#   secret  GDRIVE_TARGET_PATH       folder inside the Shared Drive, e.g. ST3E_Ext
+#
+# Service accounts work cleanly against a Google *Shared* Drive (unlike My
+# Drive): share the Shared Drive with the service account's email as Content
+# manager and nothing else is needed - no OAuth flow, no token to refresh.
+#
+# The rclone remote is defined purely through RCLONE_CONFIG_* environment
+# variables, so no rclone.conf ever has to exist in CI.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Blender/Geonodes/**'
+      - 'Blender/Shading/**'
+      - 'Blender/blender_assets.cats.txt'
+      - 'Blender/Addons/ClaudeVibe_WIPs/*/distribution/*.zip'
+      - 'Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/**'
+      - '.github/workflows/publish-library.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Report only, write nothing to the Shared Drive'
+        type: boolean
+        default: false
+      force:
+        description: 'Publish even if no file changed'
+        type: boolean
+        default: false
+      run_criteria:
+        description: 'Install Blender and run the criteria checks'
+        type: boolean
+        default: false
+
+concurrency:
+  # Never let two publishes race for the same Drive folder.
+  group: publish-library
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      TOOL: Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher
+      # rclone remote 'gdrive', configured entirely from the environment.
+      RCLONE_CONFIG_GDRIVE_TYPE: drive
+      RCLONE_CONFIG_GDRIVE_SCOPE: drive
+      RCLONE_CONFIG_GDRIVE_TEAM_DRIVE: ${{ secrets.GDRIVE_TEAM_DRIVE_ID }}
+      RCLONE_CONFIG_GDRIVE_SERVICE_ACCOUNT_FILE: ${{ github.workspace }}/.sa.json
+      ST3E_GDRIVE_SA_JSON: ${{ github.workspace }}/.sa.json
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The library .blend files live in git, so a normal checkout is all
+          # the publisher needs - no LFS, no artifact download.
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install rclone
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version
+
+      - name: Write service-account credentials
+        run: |
+          printf '%s' '${{ secrets.GDRIVE_SERVICE_ACCOUNT }}' > "$ST3E_GDRIVE_SA_JSON"
+          python -c "import json,os;json.load(open(os.environ['ST3E_GDRIVE_SA_JSON']));print('service account JSON parses')"
+
+      - name: Install Blender (only when criteria are requested)
+        if: ${{ inputs.run_criteria }}
+        run: |
+          sudo snap install blender --classic
+          blender --version
+
+      - name: Point the config at this runner
+        run: |
+          python "$TOOL/source/cli.py" config set \
+            "source.repo_root=$GITHUB_WORKSPACE" \
+            "delivery.backend=rclone" \
+            "delivery.rclone.remote=gdrive" \
+            "delivery.rclone.path=${{ secrets.GDRIVE_TARGET_PATH }}" \
+            "delivery.rclone.team_drive=${{ secrets.GDRIVE_TEAM_DRIVE_ID }}" \
+            "delivery.atomic=false"
+
+      - name: Switch criteria off unless requested
+        if: ${{ !inputs.run_criteria }}
+        run: |
+          # Without Blender on the runner a block-mode check cannot be verified,
+          # and the publisher refuses to pretend otherwise - so turn them off
+          # explicitly. The local pre-push hook is where checks normally run.
+          python "$TOOL/source/cli.py" config set \
+            criteria.geonode_layout.mode=off \
+            criteria.asset_marked.mode=off \
+            criteria.catalog_assigned.mode=off \
+            criteria.no_external_deps.mode=off
+
+      - name: Environment check
+        run: python "$TOOL/source/cli.py" config doctor
+
+      - name: Unit tests
+        run: python -m pytest "$TOOL/source/tests" -q
+
+      - name: Publish
+        run: |
+          # --dry-run is a global flag (before the subcommand), --force is not.
+          GLOBAL=""
+          SUB="--reason github-action"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then GLOBAL="--dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then SUB="$SUB --force"; fi
+          python "$TOOL/source/cli.py" $GLOBAL publish $SUB 2>&1 | tee publish.log
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo '## Library publish'
+            echo '```'
+            tail -n 60 publish.log 2>/dev/null || echo 'no log produced'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-manifest
+          path: |
+            ${{ env.TOOL }}/.last_publish/publish_manifest.json
+            publish.log
+          if-no-files-found: warn
+
+      - name: Shred credentials
+        if: always()
+        run: rm -f "$ST3E_GDRIVE_SA_JSON"

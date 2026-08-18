@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# LibraryPublisher - publish the Blender asset library on push.
+#
+# Tracked in the repo (not in .git/hooks) so it is versioned; activate with
+#   python "Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/source/cli.py" install-hooks
+# which points git's core.hooksPath at this folder.
+#
+# Every decision - enabled or not, which branches, foreground or background -
+# lives in publish_config.json, so this stays a launcher. It always exits 0:
+# a publish problem must never stand between you and your remote.
+
+TOOL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CLI="$TOOL_DIR/source/cli.py"
+
+if [ ! -f "$CLI" ]; then
+    echo "[library-publisher] cli.py not found at $CLI - skipping"
+    exit 0
+fi
+
+PYTHON="python"
+command -v "$PYTHON" >/dev/null 2>&1 || PYTHON="py"
+command -v "$PYTHON" >/dev/null 2>&1 || {
+    echo "[library-publisher] no python on PATH - skipping"
+    exit 0
+}
+
+"$PYTHON" "$CLI" hook --event pre-push
+exit 0

@@ -27,3 +27,17 @@ desktop.ini
 
 # Local test exports
 **/__alqe_test_exports/
+
+# LibraryPublisher working state (staging trees, last-publish cache, hook logs)
+**/LibraryPublisher/.staging/
+**/LibraryPublisher/.staging_batch/
+**/LibraryPublisher/.last_publish/
+
+# Bundled rclone binary used by LibraryPublisher (85MB - never commit it;
+# delivery.rclone.executable in publish_config.json points at it)
+/rclone/
+
+# LibraryPublisher config is per-machine AND carries the Shared Drive id /
+# internal folder paths - this repo is public. Generate your own with:
+#   python .../LibraryPublisher/source/cli.py config init
+**/LibraryPublisher/publish_config.json
