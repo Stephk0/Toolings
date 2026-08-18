@@ -93,19 +93,19 @@ Consequences worth knowing:
   it also works in Cycles.
 
 Geometry ▸ **Pointiness** was checked as a curvature source first and rejected:
-it is Cycles-only and returns a flat 0.5 in EEVEE. A screen-space derivative
-smuggled out of the **Bump** node's internals was also prototyped — it does
-carry a real signal, but it is harsh, aliased, and breaks under normal maps.
+it is Cycles-only and returns a flat 0.5 in EEVEE. The other route — a
+screen-space derivative smuggled out of the **Bump** node's internals — needs no
+ray tracing at all and ships separately as **`SH_ScreenCavity`** below.
 
 ### Rebuilding
 
 ```
 blender.exe --background --factory-startup --python _build/build_sh_cavity.py
-blender.exe --background --factory-startup SH_Cavity.blend --python _build/tidy_sh_cavity.py
+blender.exe --background --factory-startup SH_Cavity.blend --python _build/tidy_shader_group.py
 blender.exe --background --factory-startup SH_Cavity.blend --python _build/verify_sh_cavity.py
 ```
 
-`tidy_sh_cavity.py` runs the deterministic layout engine from
+`tidy_shader_group.py` runs the deterministic layout engine from
 `Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/` (it keys only on generic node
 idnames, so it works on a shader tree) and gates the save on audit rules
 R1–R11. `verify_sh_cavity.py` runs 17 checks — interface contract, the identity
@@ -116,6 +116,113 @@ response, mask ranges — and writes the two comparison renders above.
 > reconstruction filter, EEVEE mixes the transparent background into pixels that
 > still report alpha 1.0, so even a constant emission of 1.0 reads back as 0.985
 > near the silhouette and every tolerance test picks up a phantom 1.5 % error.
+
+---
+
+## SH_ScreenCavity.blend
+
+The same overlay's **Screen Space** half, computed the way the viewport actually
+computes it — from the screen-space derivative of the view normal — with **no
+Ambient Occlusion node and no ray tracing at all**.
+
+| | |
+|---|---|
+| Node group | `SH_ScreenCavity` (5 inputs in 1 panel, 4 outputs) |
+| Materials | `M_SH_ScreenCavity_Demo` (Principled), `M_SH_ScreenCavity_Demo_Flat` (Emission — the literal overlay) |
+| Objects | `SH_ScreenCavity_Demo`, `SH_ScreenCavity_Demo_Flat` |
+| Asset | catalog `ST3E/Shading`, tag `ST3E` |
+| Engine | EEVEE (works in Cycles too) |
+| Built with | Blender 5.0 |
+
+![SH_ScreenCavity in EEVEE](assets/sh_screencavity_eevee.png)
+
+*Above: `SH_ScreenCavity` at its defaults. Below: Workbench rendering the same
+heads with its own Cavity ▸ Screen Space overlay.*
+
+![Workbench reference](assets/sh_screencavity_workbench_reference.png)
+
+### The algorithm
+
+`workbench_curvature_lib.glsl` samples the normal buffer one pixel up, down,
+left and right and sums two differences:
+
+```glsl
+normal_diff = (normal_up - normal_down) + (normal_right - normal_left);
+```
+
+`normal_up`/`normal_down` are the view normal's **.y**, `normal_right`/`.left`
+its **.x** — so `normal_diff` is the **screen-space divergence of the view-space
+normal**. It is then split by sign and soft-clamped, exactly as in `SH_Cavity`,
+and composited as `color *= clamp(1 + curvature, 0, 4)`.
+
+### Getting a derivative without a derivative node
+
+Shader nodes have no `dFdx`. **Bump is the only node that exposes one**: its
+GLSL builds `surfgrad = dHdx*Rx + dHdy*Ry` from the screen derivatives of its
+Height input. Feeding it the view normal's components and differencing the two
+bump directions recovers that derivative:
+
+```
+dot( Bump(h, invert off) - Bump(h, invert on), axis )  ~  -2*D * dH(axis) / det
+```
+
+Four Bump nodes — two per screen axis — give the two terms of `normal_diff`
+directly. Everything downstream is Blender's own maths, node for node.
+
+Measured, not assumed (`verify_sh_screencavity.py`, 21 checks):
+
+- a **flat plane returns exactly 1.0**, and `Normal Diff` exactly 0
+- a **convex sphere returns a ridge**, uniformly
+- the soft clamp ceilings land on **2.0000** and **0.2856**, as the formula demands
+- **Pearson r = 0.73 against Workbench's own Screen Space cavity** on the same
+  geometry, at the same Ridge/Valley — Workbench with Lighting=Flat and a white
+  single colour outputs precisely this group's `Factor`, so the two are directly
+  comparable pixel for pixel
+- the default `Curvature Scale` of 2.0 was **calibrated** against that reference:
+  it reproduces the viewport's output level (mean factor **1.1903 vs 1.1901**) at
+  the lowest RMSE across a sweep
+
+### Where it differs from the viewport
+
+- **Amplitude is world-normalised, not pixel-scaled.** Bump divides `surfgrad`
+  by `det`, which cancels the pixel footprint — verified invariant to zoom,
+  camera distance and resolution. The *sampling footprint is still one pixel*
+  (`dFdx`), so the effect stays as crisp as the viewport's; only its strength
+  stops depending on the camera. That is why `Curvature Scale` exists at all:
+  the viewport gets its amplitude from the pixel size, this gets it from you.
+  Set `Distance Scaling` to 1.0 to put the viewport's distance dependence back.
+- **Bump saturates if pushed through `Distance`.** The probe step is therefore
+  fixed at 0.01 internally and `Curvature Scale` multiplies afterwards, which
+  keeps the control exactly linear (verified: 2.0 → 4.0 gives a 2.008× ratio).
+- **Faceting on coarse meshes.** Differentiating a piecewise-linear normal field
+  gives piecewise-*constant* curvature, so low-poly or lightly subdivided
+  surfaces show the topology. Subdivide, or lower `Curvature Scale`.
+- **No silhouette rejection.** The viewport compares object IDs at the four taps
+  and bails on outlines; `dFdx` stays within one primitive's quad, so the case
+  mostly does not arise, but a 2×2 quad straddling a silhouette can still flare.
+- Bump flips its `dist` on backfaces, so the sign is corrected with
+  Geometry ▸ Backfacing — verified that flipping a mesh's normals leaves the
+  reading identical.
+
+### Which one to use
+
+| | `SH_Cavity` | `SH_ScreenCavity` |
+|---|---|---|
+| Source | Ambient Occlusion probes | Bump screen derivative |
+| Cost | 4 AO traces/pixel | 4 Bump nodes, no tracing |
+| Covers | World **and** Screen Space | Screen Space only |
+| Reads | broad occlusion + edges | crisp creases and edges |
+| Weakness | ray-trace cost, ridge-biased | faceting on coarse meshes |
+
+They compose: multiply the two `Factor` outputs for the viewport's "Both".
+
+### Rebuilding
+
+```
+blender.exe --background --factory-startup --python _build/build_sh_screencavity.py
+blender.exe --background --factory-startup SH_ScreenCavity.blend --python _build/tidy_shader_group.py
+blender.exe --background --factory-startup SH_ScreenCavity.blend --python _build/verify_sh_screencavity.py
+```
 
 ---
 
