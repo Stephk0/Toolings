@@ -31,16 +31,15 @@ Smart Collapse analyzes your selection and automatically:
 
 ## 📦 Installation
 
-### Method 1: Install from File
-1. Download `smart_collapse.py`
-2. Open Blender
-3. Go to `Edit` → `Preferences` → `Add-ons`
-4. Click `Install...` button
-5. Navigate to and select `smart_collapse.py`
-6. Enable the checkbox next to **"Mesh: Smart Collapse"**
+### Method 1: Install from Zip (recommended)
+1. Grab `distribution/SmartCollapse_v1.0.0.zip`
+2. Open Blender (version 4.0 or later)
+3. Drag and drop the zip into the Blender window (or use
+   `Edit` → `Preferences` → `Add-ons` → `Install from Disk...` and pick the zip)
+4. Enable the checkbox next to **"Mesh: Smart Collapse"**
 
 ### Method 2: Manual Installation
-1. Copy `smart_collapse.py` to Blender's addons folder:
+1. Copy `source/smart_collapse.py` to Blender's addons folder:
    - **Windows:** `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
    - **Mac:** `~/Library/Application Support/Blender/[version]/scripts/addons/`
    - **Linux:** `~/.config/blender/[version]/scripts/addons/`

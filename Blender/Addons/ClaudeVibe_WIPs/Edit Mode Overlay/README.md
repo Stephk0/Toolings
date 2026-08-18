@@ -23,12 +23,10 @@ A Blender addon that displays a customizable overlay banner when working in edit
 
 ## Installation
 
-1. Download the `edit_mode_overlay_addon_Opus.py` file
-2. Open Blender
-3. Go to `Edit` > `Preferences` > `Add-ons`
-4. Click `Install...` button
-5. Navigate to the downloaded `.py` file and select it
-6. Enable the addon by checking the checkbox next to "3D View: Edit Mode Overlay"
+1. Grab `distribution/EditModeOverlay_v1.1.0.zip`
+2. Open Blender and drag the zip straight into the Blender window
+   (or go to `Edit` > `Preferences` > `Add-ons` > `Install from Disk...` and pick the zip)
+3. Enable the addon by checking the checkbox next to "3D View: Edit Mode Overlay"
 
 ## Usage
 

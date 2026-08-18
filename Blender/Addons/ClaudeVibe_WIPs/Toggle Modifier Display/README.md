@@ -16,11 +16,10 @@ Instead of manually enabling/disabling modifiers in the modifier panel, you can 
 
 ## Installation
 
-1. Download the `modifier_display_toggle_edit_only.py` file
-2. Open Blender and go to `Edit > Preferences > Add-ons`
-3. Click `Install...` button
-4. Navigate to and select the downloaded Python file
-5. Enable the addon by checking the checkbox next to "3D View: Modifier Display Toggle (Edit Mode)"
+1. Grab `distribution/ToggleModifierDisplay_v1.3.0.zip`
+2. Open Blender and drag the zip straight into the Blender window
+   (or go to `Edit > Preferences > Add-ons > Install from Disk...` and pick the zip)
+3. Enable the addon by checking the checkbox next to "3D View: Modifier Display Toggle (Edit Mode)"
 
 ## Usage
 

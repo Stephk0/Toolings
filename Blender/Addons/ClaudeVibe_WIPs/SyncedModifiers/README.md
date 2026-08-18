@@ -13,8 +13,8 @@ driver system — now with Geometry Nodes support.
 - Find original source by tracing the driver chain; resync when GN inputs change
 
 ## Install
-Drag-and-drop the latest zip from [`distribution/`](distribution/) onto Blender
-(4.2+), or install it via *Edit ▸ Preferences ▸ Add-ons ▸ Install from Disk*.
+Drag-and-drop [`distribution/SyncedModifiers_v2.5.0.zip`](distribution/SyncedModifiers_v2.5.0.zip)
+onto Blender (4.2+), or install it via *Edit ▸ Preferences ▸ Add-ons ▸ Install from Disk*.
 
 ## Folder layout
 - `source/` — addon source (`__init__.py`, modules, and dev/design docs:

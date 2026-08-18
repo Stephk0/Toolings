@@ -19,11 +19,11 @@ Smart Set Orientation is a Blender addon that intelligently manages transform or
 
 ## Installation
 
-1. Download `smart_set_orientation_addon.py`
-2. Open Blender
-3. Go to `Edit > Preferences > Add-ons`
-4. Click `Install...` and select the downloaded file
-5. Enable the addon by checking the box next to "Smart Set Orientation"
+1. Grab `distribution/SmartSetOrientation_v1.5.0.zip`
+2. Open Blender (version 3.0 or later)
+3. Drag and drop the zip into the Blender window (or go to
+   `Edit > Preferences > Add-ons > Install from Disk...` and pick the zip)
+4. Enable the addon by checking the box next to "Smart Set Orientation"
 
 ## Usage
 

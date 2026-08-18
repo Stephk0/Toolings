@@ -26,14 +26,14 @@ Automatically rename objects with their bounding box dimensions. Perfect for pro
 
 ## Installation
 
-### Method 1: Install Single File (Recommended)
-1. Open Blender → Edit → Preferences → Add-ons
-2. Click **"Install..."**
-3. Navigate to: `AddBoundsToName/source/add_bounds_to_name.py`
-4. Enable the checkbox
+### Method 1: Install the Zip (Recommended)
+1. Drag `distribution/AddBoundsToName_v1.1.3.zip` into the Blender window, or open
+   Blender → Edit → Preferences → Add-ons and click **"Install from Disk..."**
+2. Select the zip
+3. Enable the checkbox
 
 ### Method 2: Manual Folder Installation
-1. Copy entire `AddBoundsToName` folder to Blender addons directory:
+1. Copy the `source` folder, renamed to `AddBoundsToName`, into the Blender addons directory:
    - Windows: `%APPDATA%\Blender Foundation\Blender\4.5\scripts\addons\`
    - macOS: `~/Library/Application Support/Blender/4.5/scripts/addons/`
    - Linux: `~/.config/blender/4.5/scripts/addons/`

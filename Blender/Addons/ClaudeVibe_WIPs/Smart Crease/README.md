@@ -61,11 +61,11 @@ Integrates particullary well with Solidify Plus using crease edges from vertex c
 
 ## Installation
 
-1. Download `smart_crease.py`
+1. Grab `distribution/SmartCrease_v1.5.1.zip`
 2. Open Blender (version 4.0 or later)
-3. Go to: **Edit > Preferences > Add-ons**
-4. Click **"Install..."** and select `smart_crease.py`
-5. Enable the add-on by checking the checkbox next to **"Mesh: Smart Crease"**
+3. Drag and drop the zip into the Blender window (or go to
+   **Edit > Preferences > Add-ons > Install from Disk...** and pick the zip)
+4. Enable the add-on by checking the checkbox next to **"Mesh: Smart Crease"**
 
 ---
 

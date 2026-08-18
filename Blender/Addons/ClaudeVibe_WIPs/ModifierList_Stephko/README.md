@@ -6,8 +6,8 @@ A fork of the *Modifier List* addon with Stephko-specific fixes — notably rest
 **Geometry Nodes Input Attribute Toggle** in the list view on Blender 5.
 
 ## Install
-Drag-and-drop the latest zip from [`distribution/`](distribution/) onto Blender
-(4.2+), or install it via *Edit ▸ Preferences ▸ Add-ons ▸ Install from Disk*.
+Drag-and-drop [`distribution/ModifierList_Stephko_v1.9.89.zip`](distribution/ModifierList_Stephko_v1.9.89.zip)
+onto Blender (4.2+), or install it via *Edit ▸ Preferences ▸ Add-ons ▸ Install from Disk*.
 
 ## Folder layout
 - `source/` — full addon tree (`__init__.py`, `modules/`, `addon_registration.py`,
