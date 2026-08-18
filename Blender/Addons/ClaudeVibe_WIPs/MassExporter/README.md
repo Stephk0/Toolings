@@ -1,9 +1,11 @@
-# Mass Collection Exporter v13.6.3
+# Mass Collection Exporter v13.7.0
 
 A powerful Blender addon for batch exporting collections with advanced parent-child relationship handling, automatic joining, and flexible export options.
 Allows specifying a collection for export with subcollections (Main Collection Env_Buildings > SubCollections Building_01, Building_02, Building_03, etc)
 
 > 📘 **New:** Step-by-step tutorial with screenshots: [TUTORIAL.md](TUTORIAL.md)
+>
+> **v13.7.0:** new **Only Visible Modifiers** option (Modifier & Rig Options → Modifiers, **on by default**). Exports now bake only the modifiers that are enabled in the viewport, matching what you actually see. ⚠️ This changes export output for objects that carry viewport-disabled modifiers — see [Only Visible Modifiers](#only-visible-modifiers-v1370).
 >
 > **v13.6.3:** restored the per-collection **Group by Suffix** checkbox in Collection Options (the setting existed and drove the export flow, but the checkbox was lost in the v13 UI rewrite).
 
@@ -58,7 +60,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 1: Direct Install (Recommended)
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.6.3.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.7.0.zip`)
 2. Open Blender
 3. Go to: **Edit → Preferences → Add-ons**
 4. Click **Install...** button
@@ -67,7 +69,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 2: Manual Install
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.6.3.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.7.0.zip`)
 2. Locate your Blender addons folder:
    - **Windows**: `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
    - **macOS**: `~/Library/Application Support/Blender/[version]/scripts/addons/`
@@ -221,6 +223,52 @@ Two powerful debug buttons for testing:
 **Add M_ Prefix**
 - Automatically adds "M_" prefix to material names
 - Follows common game engine naming conventions
+
+### Modifier Options
+
+Panel: **Modifier & Rig Options → Modifiers**
+
+**Apply Modifiers**
+- Bakes object modifiers into the exported mesh
+- Always runs on a temporary copy — your source objects are never modified
+
+#### Only Visible Modifiers (v13.7.0)
+
+- **Default: ON**
+- Only bakes modifiers whose **viewport toggle (monitor icon) is enabled**
+- Greyed out unless *Apply Modifiers* is on
+
+**Why this option exists.** Blender's own `Apply Modifier` operator has no notion
+of the viewport toggle — it bakes a modifier that is switched *off* in the stack
+exactly as if it were on. So "apply all modifiers" silently produced geometry
+that never matched the viewport. Measured on a cube with a visible Subsurf and a
+disabled 3× Array:
+
+| | Vertices |
+|---|---|
+| What the viewport shows | 26 |
+| Vanilla "apply all modifiers" | **78** ← the disabled Array got baked |
+| *Only Visible Modifiers* ON | 26 ✅ |
+
+**The workaround.** Modifiers disabled in the viewport are **deleted from the
+temporary export copy before anything is applied**. Deleting rather than skipping
+matters: whatever sits *after* a stripped modifier then evaluates on the previous
+result, which is exactly the stack the viewport evaluates. The source object's
+modifier stack is never touched.
+
+**Exception — armature bindings.** An Armature modifier that is preserved for rig
+binding (rig included in the export, and *Skip Armature Modifier* off) is never
+stripped, even when its viewport toggle is off. Removing it would silently unbind
+the mesh from its rig in the FBX.
+
+**Turn it OFF** to restore the pre-v13.7 behaviour of baking every modifier
+regardless of visibility.
+
+> The per-collection **Only Visible Modifiers** checkbox under *Apply Modifiers
+> Before Join* is a separate, older setting that governs the **Join Empty
+> Children** path only. It still defaults to OFF.
+
+---
 
 ### FBX Specific Options
 
@@ -674,8 +722,16 @@ For Unity:
 
 ## 📝 Version History
 
-### v13.6.2 (Current)
+### v13.7.0 (Current)
+- ✅ **Only Visible Modifiers** — exports bake only viewport-enabled modifiers (default ON)
+- ✅ Workaround for Blender's `modifier_apply` ignoring `show_viewport`: disabled modifiers are stripped from the temporary export copy before applying
+- ✅ Objects whose modifiers are *all* hidden now skip duplication entirely and export as-is
+- ✅ Preserved armature bindings are exempt from the visibility filter
+- ⚠️ Behaviour change: objects carrying viewport-disabled modifiers now export differently. Turn the option off to restore v13.6 output.
 - See `source/__init__.py` `VERSION` for the authoritative current build.
+
+### v13.6.2
+- See git history.
 
 ### v12.0.0
 - ✅ **Export meshes even when no empties present**

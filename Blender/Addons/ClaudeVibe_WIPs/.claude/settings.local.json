@@ -50,7 +50,14 @@
       "PowerShell($sp = \"C:\\\\Users\\\\Stephko\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Stephko-Tooling-Toolings-Blender-Addons-ClaudeVibe-WIPs\\\\cbe47d4b-9a73-4a38-8467-4275dbba3350\\\\scratchpad\"; & \"C:\\\\Program Files\\\\Blender Foundation\\\\Blender 5.0\\\\blender.exe\" --background --factory-startup --python \"$sp\\\\check_blend_deps.py\" -- \"$sp\\\\deps_report.json\" | Select-String -Pattern \"WROTE|Error|Traceback|Warning: \")",
       "Read(//d/Stephko_Tooling/Toolings/Blender/Geonodes/**)",
       "Bash(where blender *)",
-      "Read(//c/Program Files/Blender Foundation/**)"
+      "Read(//c/Program Files/Blender Foundation/**)",
+      "Bash(\"/c/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --factory-startup --python \"D:/Stephko_Tooling/Toolings/Blender/Geonodes/_build/build_gn_polygon_tileable_noise.py\")",
+      "Bash(\"/c/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --factory-startup --python \"D:/Stephko_Tooling/Toolings/Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/run_pipeline.py\" -- GN_PolygonTileableNoise)",
+      "mcp__geonode-layout__get_scene_info",
+      "mcp__serena__read_memory",
+      "Bash(\"C:/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --factory-startup --python probe_twist.py)",
+      "Bash(\"/c/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --factory-startup --python build_gn_tileable_mesh_noise.py)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
