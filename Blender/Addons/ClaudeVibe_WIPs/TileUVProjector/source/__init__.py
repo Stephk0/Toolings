@@ -1,7 +1,10 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Stephan Viranyi
+
 bl_info = {
     "name": "Tile UV Projector",
     "author": "Stephan Viranyi",
-    "version": (1, 6, 0),
+    "version": (1, 8, 0),
     "blender": (4, 5, 0),
     "location": "View3D > Sidebar > Tile UV",
     "description": "Tile-based UV projection and placement on texture atlas grids",
@@ -83,29 +86,156 @@ def compute_uv_bounds(uv_loops):
 
 
 def normalize_and_place_uvs(uv_loops, uv_min, uv_max, target_min, target_max):
-    """Normalize UVs to 0-1, then scale and translate into target rect."""
-    extent = uv_max - uv_min
-    sx = extent.x
-    sy = extent.y
+    """Normalize UVs to 0-1, then scale and translate into target rect.
 
-    # Guard against zero-area
-    if sx < 1e-8:
-        sx = 1.0
-    if sy < 1e-8:
-        sy = 1.0
+    An island that is degenerate along one axis (all UVs collinear, which an
+    edge-on Project From View produces readily) is CENTRED on that axis rather
+    than divided by a 1.0 fallback, which used to pin every coordinate to the
+    tile's left or bottom padded edge with no warning.
+    """
+    extent = uv_max - uv_min
+    flat_u = extent.x < 1e-8
+    flat_v = extent.y < 1e-8
+    sx = 1.0 if flat_u else extent.x
+    sy = 1.0 if flat_v else extent.y
 
     target_size = target_max - target_min
 
     for luv in uv_loops:
         u, v = luv.uv
         # Normalize to 0-1
-        nu = (u - uv_min.x) / sx
-        nv = (v - uv_min.y) / sy
+        nu = 0.5 if flat_u else (u - uv_min.x) / sx
+        nv = 0.5 if flat_v else (v - uv_min.y) / sy
         # Scale + translate into target tile
         luv.uv = Vector((
             nu * target_size.x + target_min.x,
             nv * target_size.y + target_min.y,
         ))
+
+
+def get_edit_mesh_targets(context):
+    """Every mesh currently open in Edit Mode, as (object, mesh) pairs.
+
+    Blender's uv operators act on ALL objects in multi-object Edit Mode, so the
+    placement pass has to cover them too. Collecting only the active object's
+    loops left every other selected mesh projected and unwrapped but never
+    placed — its old UVs destroyed and the new ones dumped wherever the
+    projection happened to land.
+    """
+    objects = getattr(context, "objects_in_mode_unique_data", None)
+    if not objects:
+        active = getattr(context, "active_object", None)
+        objects = [active] if active is not None else []
+    return [(obj, obj.data) for obj in objects
+            if obj is not None and obj.type == 'MESH' and obj.mode == 'EDIT']
+
+
+def collect_edit_uv_loops(targets):
+    """Selected-face UV loops across every edit-mode mesh, plus those meshes.
+
+    Returns (loops, meshes). The UV layer is created here via verify(), so call
+    this only once the operation is known to be valid.
+    """
+    loops = []
+    meshes = []
+    for _obj, me in targets:
+        bm = bmesh.from_edit_mesh(me)
+        uv_layer = bm.loops.layers.uv.verify()
+        found = get_selected_face_uv_loops(bm, uv_layer)
+        if found:
+            loops.extend(found)
+            meshes.append(me)
+    return loops, meshes
+
+
+def count_selected_faces(targets):
+    """Selected faces across every edit-mode mesh."""
+    total = 0
+    for _obj, me in targets:
+        bm = bmesh.from_edit_mesh(me)
+        total += sum(1 for f in bm.faces if f.select)
+    return total
+
+
+def warn_unapplied_scale(operator, targets):
+    """Warn once if any edit-mode object carries a non-uniform object scale.
+
+    Only non-uniformity distorts a view projection; a uniform 2.0 is harmless,
+    so this deliberately does not fire on it.
+    """
+    for obj, _me in targets:
+        scale = obj.scale
+        if max(scale) - min(scale) > 1e-3:
+            operator.report(
+                {'WARNING'},
+                f"{obj.name} has non-uniform scale — apply transforms (Ctrl+A) "
+                f"for an undistorted projection")
+            return
+
+
+def has_view3d_context(context):
+    """True when the operator is running somewhere uv projection can work."""
+    space = getattr(context, "space_data", None)
+    return space is not None and getattr(space, "type", "") == 'VIEW_3D'
+
+
+def run_projection_ops(operator, context, settings):
+    """Project / unwrap / relax. Returns False if it could not run."""
+    method = settings.projection_method
+
+    if method in {'PROJECT_AND_UNWRAP', 'PROJECT_ONLY'}:
+        if not has_view3d_context(context):
+            operator.report({'ERROR'},
+                            "Project From View needs the 3D Viewport — run this "
+                            "from the sidebar, or pick an Unwrap Only method")
+            return False
+        bpy.ops.uv.project_from_view(
+            camera_bounds=False,
+            correct_aspect=True,
+            scale_to_bounds=False,
+        )
+
+    if method in {'PROJECT_AND_UNWRAP', 'UNWRAP_ONLY'}:
+        bpy.ops.uv.unwrap(method=settings.unwrap_method, margin=0.0)
+
+    if settings.do_relax and method != 'PROJECT_ONLY':
+        # One call with N iterations, not N operator invocations — the loop
+        # pushed an undo step and a mesh sync per iteration, up to 500 times.
+        bpy.ops.uv.minimize_stretch(iterations=settings.relax_iterations)
+
+    return True
+
+
+def place_loops_in_tile(operator, settings, loops, meshes, usable_min, usable_max):
+    """Fit collected loops into the tile rect and flush every mesh touched."""
+    bounds = compute_uv_bounds(loops)
+    if bounds is None:
+        operator.report({'WARNING'}, "Could not compute UV bounds")
+        return False
+
+    uv_min, uv_max = bounds
+    extent = uv_max - uv_min
+    if extent.x < 1e-8 and extent.y < 1e-8:
+        operator.report({'WARNING'}, "Zero-area UV selection, nothing to place")
+        return False
+
+    normalize_and_place_uvs(loops, uv_min, uv_max, usable_min, usable_max)
+
+    if settings.use_tile_scale:
+        scale_uvs_in_tile(loops, usable_min, usable_max,
+                          settings.tile_scale, settings.tile_scale_pivot)
+
+    for me in meshes:
+        bmesh.update_edit_mesh(me)
+    return True
+
+
+def strip_split_suffix(name):
+    """Drop a trailing split marker so repeated splits do not stack them up."""
+    for suffix in (" (bottom)", " (top)", " (left)", " (right)"):
+        if name.endswith(suffix):
+            return name[:-len(suffix)]
+    return name
 
 
 def scale_uvs_in_tile(uv_loops, tile_min, tile_max, scale, pivot):
@@ -177,8 +307,13 @@ def bump_atlas_refresh_token():
 
 
 def get_image_abspath(img):
-    """Absolute on-disk path for a file-backed image, or "" if it has none."""
-    if img is None or img.source not in {'FILE', 'SEQUENCE', 'MOVIE', 'TILED'}:
+    """Absolute on-disk path for a file-backed image, or "" if it has none.
+
+    TILED (UDIM) images are excluded on purpose: their filepath carries a
+    <UDIM> token that never exists on disk, so an existence check on it would
+    mark every UDIM atlas as missing.
+    """
+    if img is None or img.source not in {'FILE', 'SEQUENCE', 'MOVIE'}:
         return ""
     raw = img.filepath_raw or img.filepath
     if not raw:
@@ -395,11 +530,26 @@ def get_grid_settings(context):
 
 class TILEUV_CustomTile(PropertyGroup):
     """A single custom atlas tile with arbitrary UV rect."""
-    name: StringProperty(name="Name", default="Tile")
-    min_u: FloatProperty(name="Min U", default=0.0, min=0.0, max=1.0)
-    min_v: FloatProperty(name="Min V", default=0.0, min=0.0, max=1.0)
-    max_u: FloatProperty(name="Max U", default=0.25, min=0.0, max=1.0)
-    max_v: FloatProperty(name="Max V", default=0.25, min=0.0, max=1.0)
+    name: StringProperty(
+        name="Name", default="Tile",
+        description="Label for this tile in the list",
+    )
+    min_u: FloatProperty(
+        name="Min U", default=0.0, min=0.0, max=1.0,
+        description="Left edge of the tile in UV space",
+    )
+    min_v: FloatProperty(
+        name="Min V", default=0.0, min=0.0, max=1.0,
+        description="Bottom edge of the tile in UV space",
+    )
+    max_u: FloatProperty(
+        name="Max U", default=0.25, min=0.0, max=1.0,
+        description="Right edge of the tile in UV space",
+    )
+    max_v: FloatProperty(
+        name="Max V", default=0.25, min=0.0, max=1.0,
+        description="Top edge of the tile in UV space",
+    )
 
 
 
@@ -534,14 +684,14 @@ class TILEUV_Settings(PropertyGroup):
                     "shading is restored on exit",
     )
 
-    # Default post-projection scale
-    use_default_scale: BoolProperty(
-        name="Default UV Scale",
+    # Tile scale, applied after projecting
+    use_tile_scale: BoolProperty(
+        name="Tile Scale",
         default=False,
         description="After fitting the UVs into a tile, scale them inside that "
                     "tile by a fixed amount",
     )
-    default_scale: FloatVectorProperty(
+    tile_scale: FloatVectorProperty(
         name="Scale",
         size=2,
         default=(1.0, 1.0),
@@ -550,7 +700,7 @@ class TILEUV_Settings(PropertyGroup):
         description="UV scale applied inside the tile after projecting. "
                     "(0.5, 1.0) is half as wide at full height",
     )
-    scale_pivot: FloatVectorProperty(
+    tile_scale_pivot: FloatVectorProperty(
         name="Pivot",
         size=2,
         default=(0.5, 0.5),
@@ -581,20 +731,19 @@ class TILEUV_Settings(PropertyGroup):
         description="Ctrl-snap step when rotating, in degrees",
     )
 
-    fine_adjust_debug: BoolProperty(
-        name="Debug Log",
-        default=True,
-        description="Print what fine adjust is doing to the system console "
-                    "(Window > Toggle System Console). Turn off once it works",
-    )
-
     # Advanced grid
     use_advanced_grid: BoolProperty(
         name="Advanced Grid", default=False,
         description="Use custom atlas tiles instead of uniform grid",
     )
-    custom_tiles: CollectionProperty(type=TILEUV_CustomTile)
-    active_custom_tile: IntProperty(name="Active Tile", default=0)
+    custom_tiles: CollectionProperty(
+        type=TILEUV_CustomTile,
+        description="Custom atlas tiles with arbitrary UV rectangles",
+    )
+    active_custom_tile: IntProperty(
+        name="Active Tile", default=0, min=0,
+        description="Index of the selected custom tile",
+    )
 
     # Split direction for advanced grid
     split_direction: EnumProperty(
@@ -604,6 +753,7 @@ class TILEUV_Settings(PropertyGroup):
             ('VERTICAL', "Vertical", "Split tile vertically"),
         ],
         default='HORIZONTAL',
+        description="Direction to split the active custom tile in",
     )
 
 
@@ -617,8 +767,16 @@ class TILEUV_OT_apply_to_tile(Operator):
     bl_label = "Apply to Tile"
     bl_options = {'REGISTER', 'UNDO'}
 
-    col_index: IntProperty()
-    row_index: IntProperty()
+    col_index: IntProperty(
+        name="Column", default=0, min=0,
+        description="Grid column of the target tile, counted from the left",
+        options={'SKIP_SAVE'},
+    )
+    row_index: IntProperty(
+        name="Row", default=0, min=0,
+        description="Grid row of the target tile, counted from the bottom",
+        options={'SKIP_SAVE'},
+    )
 
     @classmethod
     def poll(cls, context):
@@ -629,27 +787,18 @@ class TILEUV_OT_apply_to_tile(Operator):
 
     def execute(self, context):
         grid, settings = get_grid_settings(context)
-        obj = context.active_object
-        me = obj.data
-        bm = bmesh.from_edit_mesh(me)
 
-        # Check selection
-        selected_faces = [f for f in bm.faces if f.select]
-        if not selected_faces:
+        targets = get_edit_mesh_targets(context)
+        if not targets:
+            self.report({'WARNING'}, "No mesh in Edit Mode")
+            return {'CANCELLED'}
+
+        if not count_selected_faces(targets):
             self.report({'WARNING'}, "No faces selected")
             return {'CANCELLED'}
 
-        # Check transforms
-        scale = obj.scale
-        if abs(scale.x - 1.0) > 0.001 or abs(scale.y - 1.0) > 0.001 or abs(scale.z - 1.0) > 0.001:
-            self.report({'WARNING'}, "Object has non-uniform scale. Consider applying transforms (Ctrl+A).")
-
-        # Ensure UV map exists
-        if not me.uv_layers:
-            me.uv_layers.new(name="UVMap")
-        uv_layer = bm.loops.layers.uv.verify()
-
-        # Compute tile bounds
+        # Validate the tile BEFORE touching any mesh, so a rejected apply
+        # cannot leave a freshly created UV layer or modified seams behind.
         tile_min, tile_max = get_tile_bounds(
             self.col_index, self.row_index,
             grid.grid_cols, grid.grid_rows
@@ -662,64 +811,31 @@ class TILEUV_OT_apply_to_tile(Operator):
             self.report({'ERROR'}, "Padding too large for tile size")
             return {'CANCELLED'}
 
-        # Clear seams
-        if settings.clear_seams:
-            clear_seams_on_selected(bm)
+        warn_unapplied_scale(self, targets)
 
-        # Auto seams
-        if settings.auto_seams:
-            mark_boundary_seams(bm)
-
+        # Seams, on every mesh in Edit Mode
         if settings.clear_seams or settings.auto_seams:
-            bmesh.update_edit_mesh(me)
+            for _obj, me in targets:
+                bm = bmesh.from_edit_mesh(me)
+                if settings.clear_seams:
+                    clear_seams_on_selected(bm)
+                if settings.auto_seams:
+                    mark_boundary_seams(bm)
+                bmesh.update_edit_mesh(me)
 
-        # Projection (project from view)
-        if settings.projection_method in {'PROJECT_AND_UNWRAP', 'PROJECT_ONLY'}:
-            bpy.ops.uv.project_from_view(
-                camera_bounds=False,
-                correct_aspect=True,
-                scale_to_bounds=False,
-            )
+        if not run_projection_ops(self, context, settings):
+            return {'CANCELLED'}
 
-        # Unwrap
-        if settings.projection_method in {'PROJECT_AND_UNWRAP', 'UNWRAP_ONLY'}:
-            bpy.ops.uv.unwrap(method=settings.unwrap_method, margin=0.0)
-
-        # Relax
-        if settings.do_relax and settings.projection_method != 'PROJECT_ONLY':
-            for _ in range(settings.relax_iterations):
-                bpy.ops.uv.minimize_stretch(iterations=1)
-
-        # Re-acquire bmesh after operator calls
-        bm = bmesh.from_edit_mesh(me)
-        uv_layer = bm.loops.layers.uv.verify()
-
-        # Gather UVs of selected faces
-        uv_loops = get_selected_face_uv_loops(bm, uv_layer)
+        # Re-collect after the operator calls, across every edit-mode mesh.
+        uv_loops, meshes = collect_edit_uv_loops(targets)
         if not uv_loops:
             self.report({'WARNING'}, "No UV data found")
             return {'CANCELLED'}
 
-        # Compute bounds
-        bounds = compute_uv_bounds(uv_loops)
-        if bounds is None:
-            self.report({'WARNING'}, "Could not compute UV bounds")
+        if not place_loops_in_tile(self, settings, uv_loops, meshes,
+                                   usable_min, usable_max):
             return {'CANCELLED'}
 
-        uv_min, uv_max = bounds
-        extent = uv_max - uv_min
-        if extent.x < 1e-8 and extent.y < 1e-8:
-            self.report({'WARNING'}, "Zero-area UV selection, skipping normalization")
-            return {'CANCELLED'}
-
-        # Normalize and place
-        normalize_and_place_uvs(uv_loops, uv_min, uv_max, usable_min, usable_max)
-
-        if settings.use_default_scale:
-            scale_uvs_in_tile(uv_loops, usable_min, usable_max,
-                              settings.default_scale, settings.scale_pivot)
-
-        bmesh.update_edit_mesh(me)
         self.report({'INFO'}, f"UVs placed in tile ({self.col_index}, {self.row_index})")
         maybe_start_fine_adjust(context, settings)
         return {'FINISHED'}
@@ -731,7 +847,11 @@ class TILEUV_OT_apply_to_custom_tile(Operator):
     bl_label = "Apply to Custom Tile"
     bl_options = {'REGISTER', 'UNDO'}
 
-    tile_index: IntProperty()
+    tile_index: IntProperty(
+        name="Tile", default=0, min=0,
+        description="Index of the custom tile to place the UVs in",
+        options={'SKIP_SAVE'},
+    )
 
     @classmethod
     def poll(cls, context):
@@ -741,32 +861,35 @@ class TILEUV_OT_apply_to_custom_tile(Operator):
                 and obj.mode == 'EDIT')
 
     def execute(self, context):
-        settings = context.scene.tileuv_settings
+        grid, settings = get_grid_settings(context)
 
         if self.tile_index < 0 or self.tile_index >= len(settings.custom_tiles):
             self.report({'ERROR'}, "Invalid tile index")
             return {'CANCELLED'}
 
         tile = settings.custom_tiles[self.tile_index]
-        obj = context.active_object
-        me = obj.data
-        bm = bmesh.from_edit_mesh(me)
 
-        selected_faces = [f for f in bm.faces if f.select]
-        if not selected_faces:
+        targets = get_edit_mesh_targets(context)
+        if not targets:
+            self.report({'WARNING'}, "No mesh in Edit Mode")
+            return {'CANCELLED'}
+
+        if not count_selected_faces(targets):
             self.report({'WARNING'}, "No faces selected")
             return {'CANCELLED'}
 
-        # Check transforms
-        scale = obj.scale
-        if abs(scale.x - 1.0) > 0.001 or abs(scale.y - 1.0) > 0.001 or abs(scale.z - 1.0) > 0.001:
-            self.report({'WARNING'}, "Object has non-uniform scale. Consider applying transforms (Ctrl+A).")
+        # An inverted or zero-size rect used to be diagnosed as "padding too
+        # large", which fires even at zero padding and sends the user to the
+        # wrong setting.
+        if tile.max_u <= tile.min_u or tile.max_v <= tile.min_v:
+            self.report({'ERROR'},
+                        f"Tile '{tile.name}' has no area — Max U/V must be "
+                        f"greater than Min U/V")
+            return {'CANCELLED'}
 
-        if not me.uv_layers:
-            me.uv_layers.new(name="UVMap")
-        uv_layer = bm.loops.layers.uv.verify()
-
-        pad = settings.padding
+        # Padding comes from the same source as the uniform grid, so Per Object
+        # settings are honoured in both modes.
+        pad = grid.padding
         usable_min = Vector((tile.min_u + pad, tile.min_v + pad))
         usable_max = Vector((tile.max_u - pad, tile.max_v - pad))
 
@@ -774,59 +897,28 @@ class TILEUV_OT_apply_to_custom_tile(Operator):
             self.report({'ERROR'}, "Padding too large for tile size")
             return {'CANCELLED'}
 
-        # Clear seams
-        if settings.clear_seams:
-            clear_seams_on_selected(bm)
-
-        if settings.auto_seams:
-            mark_boundary_seams(bm)
+        warn_unapplied_scale(self, targets)
 
         if settings.clear_seams or settings.auto_seams:
-            bmesh.update_edit_mesh(me)
+            for _obj, me in targets:
+                bm = bmesh.from_edit_mesh(me)
+                if settings.clear_seams:
+                    clear_seams_on_selected(bm)
+                if settings.auto_seams:
+                    mark_boundary_seams(bm)
+                bmesh.update_edit_mesh(me)
 
-        # Projection (project from view)
-        if settings.projection_method in {'PROJECT_AND_UNWRAP', 'PROJECT_ONLY'}:
-            bpy.ops.uv.project_from_view(
-                camera_bounds=False,
-                correct_aspect=True,
-                scale_to_bounds=False,
-            )
+        if not run_projection_ops(self, context, settings):
+            return {'CANCELLED'}
 
-        # Unwrap
-        if settings.projection_method in {'PROJECT_AND_UNWRAP', 'UNWRAP_ONLY'}:
-            bpy.ops.uv.unwrap(method=settings.unwrap_method, margin=0.0)
-
-        # Relax
-        if settings.do_relax and settings.projection_method != 'PROJECT_ONLY':
-            for _ in range(settings.relax_iterations):
-                bpy.ops.uv.minimize_stretch(iterations=1)
-
-        bm = bmesh.from_edit_mesh(me)
-        uv_layer = bm.loops.layers.uv.verify()
-
-        uv_loops = get_selected_face_uv_loops(bm, uv_layer)
+        uv_loops, meshes = collect_edit_uv_loops(targets)
         if not uv_loops:
             self.report({'WARNING'}, "No UV data found")
             return {'CANCELLED'}
 
-        bounds = compute_uv_bounds(uv_loops)
-        if bounds is None:
-            self.report({'WARNING'}, "Could not compute UV bounds")
+        if not place_loops_in_tile(self, settings, uv_loops, meshes,
+                                   usable_min, usable_max):
             return {'CANCELLED'}
-
-        uv_min, uv_max = bounds
-        extent = uv_max - uv_min
-        if extent.x < 1e-8 and extent.y < 1e-8:
-            self.report({'WARNING'}, "Zero-area UV selection")
-            return {'CANCELLED'}
-
-        normalize_and_place_uvs(uv_loops, uv_min, uv_max, usable_min, usable_max)
-
-        if settings.use_default_scale:
-            scale_uvs_in_tile(uv_loops, usable_min, usable_max,
-                              settings.default_scale, settings.scale_pivot)
-
-        bmesh.update_edit_mesh(me)
 
         self.report({'INFO'}, f"UVs placed in custom tile '{tile.name}'")
         maybe_start_fine_adjust(context, settings)
@@ -863,7 +955,8 @@ class TILEUV_OT_remove_custom_tile(Operator):
         settings = context.scene.tileuv_settings
         idx = settings.active_custom_tile
         settings.custom_tiles.remove(idx)
-        settings.active_custom_tile = min(idx, len(settings.custom_tiles) - 1)
+        settings.active_custom_tile = max(
+            0, min(idx, len(settings.custom_tiles) - 1))
         return {'FINISHED'}
 
 
@@ -894,7 +987,7 @@ class TILEUV_OT_split_custom_tile(Operator):
             # Modify original to be bottom half
             orig_max_v = src.max_v
             src.max_v = mid_v
-            src.name = src.name + " (bottom)"
+            src.name = strip_split_suffix(src.name) + " (bottom)"
             # Add top half
             new_tile = settings.custom_tiles.add()
             new_tile.name = src.name.replace("(bottom)", "(top)")
@@ -906,7 +999,7 @@ class TILEUV_OT_split_custom_tile(Operator):
             mid_u = (src.min_u + src.max_u) / 2.0
             orig_max_u = src.max_u
             src.max_u = mid_u
-            src.name = src.name + " (left)"
+            src.name = strip_split_suffix(src.name) + " (left)"
             new_tile = settings.custom_tiles.add()
             new_tile.name = src.name.replace("(left)", "(right)")
             new_tile.min_u = mid_u
@@ -924,11 +1017,11 @@ class TILEUV_OT_generate_grid_tiles(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        settings = context.scene.tileuv_settings
+        grid, settings = get_grid_settings(context)
         settings.custom_tiles.clear()
 
-        cols = settings.grid_cols
-        rows = settings.grid_rows
+        cols = grid.grid_cols
+        rows = grid.grid_rows
 
         for row in range(rows):
             for col in range(cols):
@@ -964,6 +1057,10 @@ class TILEUV_OT_pick_tile(Operator):
     _ui_region_x: int = 0
     _ui_region_y: int = 0
     _initial_scroll: float = 0.0
+    # The viewport the picker was opened in. A SpaceView3D draw handler fires
+    # for EVERY 3D view, so without this the overlay is painted into every open
+    # viewport's sidebar at coordinates computed for a different one.
+    _space = None
 
     @classmethod
     def is_running(cls):
@@ -989,6 +1086,7 @@ class TILEUV_OT_pick_tile(Operator):
             except Exception:
                 pass
             cls._handle = None
+        cls._space = None
         cls._is_active = False
         cls._should_close = False
 
@@ -998,7 +1096,11 @@ class TILEUV_OT_pick_tile(Operator):
         return (obj is not None
                 and obj.type == 'MESH'
                 and obj.mode == 'EDIT'
-                and not cls.is_running())
+                and not cls.is_running()
+                # Two live modals fight over every event, and the older one
+                # starves. Adjust mode also caches UVs that a re-project would
+                # invalidate, so letting both run risks silent data loss.
+                and not TILEUV_OT_fine_adjust.is_running())
 
     def invoke(self, context, event):
         cls = self.__class__
@@ -1068,6 +1170,7 @@ class TILEUV_OT_pick_tile(Operator):
         cls._last_click_col = -1
         cls._last_click_row = -1
         cls._should_close = False
+        cls._space = context.space_data
         cls._is_active = True
 
         cls._handle = bpy.types.SpaceView3D.draw_handler_add(
@@ -1076,13 +1179,18 @@ class TILEUV_OT_pick_tile(Operator):
             'UI', 'POST_PIXEL',
         )
 
-        context.window_manager.modal_handler_add(self)
+        if not context.window_manager.modal_handler_add(self):
+            # Without a handler no event arrives, so the draw handler added
+            # above would linger with _is_active stuck True.
+            cls.force_reset()
+            self.report({'ERROR'}, "Could not start the tile picker")
+            return {'CANCELLED'}
         context.area.tag_redraw()
         return {'RUNNING_MODAL'}
 
     def modal(self, context, event):
         cls = self.__class__
-        context.area.tag_redraw()
+        area = getattr(context, "area", None)
         grid, settings = get_grid_settings(context)
 
         # External close request (from panel toggle button)
@@ -1117,11 +1225,16 @@ class TILEUV_OT_pick_tile(Operator):
             scroll_delta = 0.0
         adj_oy = cls._overlay_y - int(scroll_delta)
 
-        if event.type == 'MOUSEMOVE':
-            cls._hover_col, cls._hover_row = self._tile_at_scrolled(
-                ui_mx, ui_my, adj_oy, grid,
-            )
+        if event.type in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'}:
+            col, row = self._tile_at_scrolled(ui_mx, ui_my, adj_oy, grid)
+            if (col, row) != (cls._hover_col, cls._hover_row):
+                cls._hover_col, cls._hover_row = col, row
+                if area is not None:
+                    area.tag_redraw()
             return {'RUNNING_MODAL'}
+
+        if area is not None:
+            area.tag_redraw()
 
         if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
             col, row = self._tile_at_scrolled(ui_mx, ui_my, adj_oy, grid)
@@ -1171,6 +1284,21 @@ class TILEUV_OT_pick_tile(Operator):
 
     @staticmethod
     def _draw_callback(cls, context):
+        # Only paint into the viewport this picker belongs to.
+        if cls._space is not None and context.space_data != cls._space:
+            return
+        try:
+            cls._draw_overlay(context)
+        except Exception:
+            # A raise here would repeat on every redraw forever. Drop the
+            # overlay instead of wallpapering the console.
+            import traceback
+            traceback.print_exc()
+            cls.force_reset()
+
+    @staticmethod
+    def _draw_overlay(context):
+        cls = TILEUV_OT_pick_tile
         grid, settings = get_grid_settings(context)
         ow, oh = cls._overlay_w, cls._overlay_h
         cols = grid.grid_cols
@@ -1279,13 +1407,16 @@ class TILEUV_OT_pick_tile(Operator):
         gpu.state.line_width_set(1.0)
 
         # --- Tile labels ---
+        # Skipped once a cell is too small to read them in: a 64x64 grid would
+        # otherwise issue 4096 text draws on every single mouse move.
         font_id = 0
         blf.size(font_id, 10)
         blf.color(font_id, 1.0, 1.0, 1.0, 0.45)
-        for r in range(rows):
-            for c in range(cols):
-                blf.position(font_id, ox + c * tw + 3, oy + r * th + 3, 0)
-                blf.draw(font_id, f"{c},{r}")
+        if tw >= 22 and th >= 14:
+            for r in range(rows):
+                for c in range(cols):
+                    blf.position(font_id, ox + c * tw + 3, oy + r * th + 3, 0)
+                    blf.draw(font_id, f"{c},{r}")
 
         # --- Texture-state notice (instead of a magenta placeholder) ---
         if not drew_image:
@@ -1322,11 +1453,13 @@ class TILEUV_OT_close_picker(Operator):
     bl_label = "Close Tile Picker"
 
     def execute(self, context):
-        if TILEUV_OT_pick_tile.is_running():
+        if TILEUV_OT_pick_tile.is_running() \
+                and not TILEUV_OT_pick_tile._should_close:
             TILEUV_OT_pick_tile._should_close = True
         else:
-            # Modal already gone — clear any leaked state so the panel button
-            # flips back to "Pick Tile" instead of getting stuck on "Close".
+            # Either the modal is already gone, or a previous request was never
+            # consumed — which means it is not listening. Force the reset so the
+            # panel button can never become permanently dead.
             TILEUV_OT_pick_tile.force_reset()
         _tag_ui_redraw(context)
         return {'FINISHED'}
@@ -1361,6 +1494,14 @@ _AXIS_LABELS = {'U': 'X', 'V': 'Z'}
 _CTRL_KEYS = {'LEFT_CTRL', 'RIGHT_CTRL'}
 _SHIFT_KEYS = {'LEFT_SHIFT', 'RIGHT_SHIFT'}
 
+# Passed through to the UI when the pointer is not over the 3D view, so the
+# sidebar stays usable while the mode is running.
+_MOUSE_BUTTONS = {'LEFTMOUSE', 'RIGHTMOUSE', 'MIDDLEMOUSE'}
+
+# Above this many tiles the sidebar shows the picker hint instead of a button
+# per tile — the buttons are rebuilt on every redraw.
+_MAX_GRID_BUTTONS = 1024
+
 
 # Events passed straight through so the user can still navigate the viewport
 # while deciding what to adjust.
@@ -1371,6 +1512,28 @@ _NAV_EVENTS = {
     'NUMPAD_6', 'NUMPAD_7', 'NUMPAD_8', 'NUMPAD_9', 'NUMPAD_0',
     'NUMPAD_PERIOD', 'NUMPAD_PLUS', 'NUMPAD_MINUS',
 }
+
+
+def space_is_open(space):
+    """True if `space` is still present in some open area.
+
+    SpaceView3D / View3DOverlay / ARegion are not ID datablocks, so Blender does
+    not invalidate their Python wrappers when the area they belong to is closed
+    or the file is replaced. Writing to a freed one is not catchable by
+    try/except, so anything holding such a reference across events has to check
+    it is still reachable first.
+    """
+    if space is None:
+        return False
+    try:
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                for candidate in area.spaces:
+                    if candidate == space:
+                        return True
+    except Exception:
+        return False
+    return False
 
 
 class ViewportStateSnapshot:
@@ -1429,6 +1592,8 @@ class TILEUV_OT_fine_adjust(Operator):
     bl_options = {'REGISTER'}
 
     _is_active: bool = False
+    _should_close: bool = False
+    _space = None
     # Kept on the class so a session that loses its events can still be undone
     # from the panel — otherwise a stuck modal leaves overlays off for good.
     _live_view_state = None
@@ -1438,19 +1603,20 @@ class TILEUV_OT_fine_adjust(Operator):
         return cls._is_active
 
     @classmethod
-    def force_reset(cls):
+    def force_reset(cls, restore_view=True):
+        """Release the mode. `restore_view` False drops the recorded viewport
+        state without writing it back — used on file load, where the spaces it
+        refers to belong to the file being replaced."""
         if cls._live_view_state is not None:
-            try:
-                cls._live_view_state.restore()
-            except Exception:
-                pass
+            if restore_view:
+                try:
+                    cls._live_view_state.restore()
+                except Exception:
+                    pass
             cls._live_view_state = None
         cls._is_active = False
-
-    def _dbg(self, message):
-        """Console trace, gated on the Debug Log setting."""
-        if getattr(self, "_debug", False):
-            print(f"[TileUV fine adjust] {message}")
+        cls._should_close = False
+        cls._space = None
 
     @classmethod
     def poll(cls, context):
@@ -1458,19 +1624,15 @@ class TILEUV_OT_fine_adjust(Operator):
         return (obj is not None
                 and obj.type == 'MESH'
                 and obj.mode == 'EDIT'
-                and not cls._is_active)
+                and not cls._is_active
+                and not TILEUV_OT_pick_tile.is_running())
 
     # -- lifecycle ---------------------------------------------------------
 
     def invoke(self, context, event):
         cls = self.__class__
         grid, settings = get_grid_settings(context)
-        self._debug = settings.fine_adjust_debug
-        self._events = 0
         self._applies = 0
-        self._dbg(f"invoke: area={getattr(context.area, 'type', None)} "
-                  f"space={getattr(context.space_data, 'type', None)}")
-
         self._mesh = None
         self._bm = None
         self._bm_id = None
@@ -1489,8 +1651,6 @@ class TILEUV_OT_fine_adjust(Operator):
             return {'CANCELLED'}
 
         self._uv_base = list(self._uv_entry)
-        self._dbg(f"invoke: {len(self._uv_entry)} selected uv loops, "
-                  f"first={tuple(self._uv_entry[0])}")
 
         # Aspect of the atlas, so rotation looks square on a non-square texture.
         try:
@@ -1510,10 +1670,6 @@ class TILEUV_OT_fine_adjust(Operator):
         self._snap_scale = max(1e-4, float(settings.snap_scale_step))
         self._snap_angle = math.radians(
             max(0.01, float(settings.snap_rotate_degrees)))
-        self._dbg(f"invoke: snap move u={self._snap_u:.5f} v={self._snap_v:.5f} "
-                  f"(1/{divisions} of a {cols}x{rows} tile) "
-                  f"scale={self._snap_scale} "
-                  f"rotate={settings.snap_rotate_degrees}deg")
 
         self._region = None
         for reg in context.area.regions:
@@ -1538,6 +1694,7 @@ class TILEUV_OT_fine_adjust(Operator):
         # switched on; everything else is left untouched.
         self._view_state = ViewportStateSnapshot()
         space = context.space_data
+        cls._space = space
         if space is not None and getattr(space, "type", "") == 'VIEW_3D':
             if settings.fine_adjust_hide_overlays:
                 self._view_state.set_tracked(space.overlay, "show_overlays", False)
@@ -1548,10 +1705,10 @@ class TILEUV_OT_fine_adjust(Operator):
                 self._view_state.set_tracked(space.shading, "color_type", 'TEXTURE')
 
         cls._is_active = True
+        cls._should_close = False
         cls._live_view_state = self._view_state
         self._update_status(context)
         added = context.window_manager.modal_handler_add(self)
-        self._dbg(f"invoke: modal_handler_add -> {added}")
         if not added:
             # Without a handler no event ever reaches modal(); bailing out beats
             # sitting there looking active while doing nothing.
@@ -1579,11 +1736,17 @@ class TILEUV_OT_fine_adjust(Operator):
             except Exception:
                 pass
 
-        self._dbg(f"finish: revert={revert} events={self._events} "
-                  f"applies={self._applies}")
-        self._view_state.restore()
+        # Do not write viewport settings back into a space that has been
+        # closed since the mode started — those structs are freed and the write
+        # is not something try/except can save us from.
+        if space_is_open(self.__class__._space):
+            self._view_state.restore()
         self.__class__._live_view_state = None
+        self.__class__._space = None
         self.__class__._is_active = False
+        # Clear the request too, or the next session would close on its first
+        # event.
+        self.__class__._should_close = False
 
         area = getattr(context, "area", None)
         if area is not None:
@@ -1602,15 +1765,14 @@ class TILEUV_OT_fine_adjust(Operator):
     # -- modal -------------------------------------------------------------
 
     def modal(self, context, event):
-        self._events += 1
-        if event.type not in {'MOUSEMOVE', 'INBETWEEN_MOUSEMOVE'} \
-                or self._events <= 3:
-            self._dbg(f"event #{self._events}: {event.type} {event.value} "
-                      f"mode={self._mode}")
+        # Asked to stop from the panel. Checked before anything else so the
+        # request is honoured even mid-transform.
+        if self.__class__._should_close:
+            self._finish(context, revert=False)
+            return {'FINISHED'}
 
         obj = context.active_object
         if not obj or obj.type != 'MESH' or obj.mode != 'EDIT':
-            self._dbg("leaving: not in mesh edit mode any more")
             self._finish(context, revert=False)
             return {'CANCELLED'}
 
@@ -1618,7 +1780,20 @@ class TILEUV_OT_fine_adjust(Operator):
             return self._modal_idle(context, event)
         return self._modal_transform(context, event)
 
+    def _outside_viewport(self, event):
+        """True when the pointer is off the 3D view, e.g. over the sidebar."""
+        region = getattr(self, "_region", None)
+        if region is None:
+            return False
+        return not (region.x <= event.mouse_x < region.x + region.width
+                    and region.y <= event.mouse_y < region.y + region.height)
+
     def _modal_idle(self, context, event):
+        # Clicks over the sidebar have to reach the buttons there — swallowing
+        # them is what made Force Exit unclickable while adjusting.
+        if event.type in _MOUSE_BUTTONS and self._outside_viewport(event):
+            return {'PASS_THROUGH'}
+
         if event.value != 'PRESS':
             if event.type in _NAV_EVENTS:
                 return {'PASS_THROUGH'}
@@ -1743,8 +1918,6 @@ class TILEUV_OT_fine_adjust(Operator):
     def _begin(self, context, event):
         """Start a translate/scale/rotate from the current UV state."""
         self._mode = {'G': 'TRANSLATE', 'S': 'SCALE', 'R': 'ROTATE'}[event.type]
-        self._dbg(f"begin {self._mode} at mouse "
-                  f"({event.mouse_x}, {event.mouse_y})")
         self._axis = None
         self._numeric = ""
         self._snap = bool(getattr(event, "ctrl", False))
@@ -1833,8 +2006,6 @@ class TILEUV_OT_fine_adjust(Operator):
             self._loops = None
 
         if id(bm) != self._bm_id:
-            self._dbg(f"bmesh id {self._bm_id} -> {id(bm)} on mesh "
-                      f"{getattr(me, 'name', '?')} (loops re-collected)")
             self._bm_id = id(bm)
             self._loops = None
         return bm
@@ -1871,8 +2042,7 @@ class TILEUV_OT_fine_adjust(Operator):
         """Report once why the UVs cannot be reached, then stay quiet."""
         if not self._warned:
             self._warned = True
-            self.report({'WARNING'}, f"Fine adjust: {reason}")
-            print(f"[Tile UV Projector] fine adjust stopped — {reason}")
+            self.report({'WARNING'}, f"Adjust: {reason}")
         return None
 
     def _flush(self):
@@ -1883,20 +2053,13 @@ class TILEUV_OT_fine_adjust(Operator):
         the tessellated loop data — without it the UVs change in the mesh and
         the screen keeps showing the old ones.
         """
-        before_id = id(self._bm) if self._bm is not None else None
         try:
             bmesh.update_edit_mesh(self._mesh)
         except Exception as exc:
             self._fetch_failed(f"could not update the mesh ({exc})")
             return
-        areas = self._redraw_areas()
-        for area in areas:
+        for area in self._redraw_areas():
             area.tag_redraw()
-        if self._applies <= 5:
-            alive = self._bm_alive(self._bm) if self._bm is not None else False
-            self._dbg(f"flush: mesh={getattr(self._mesh, 'name', '?')} "
-                      f"redrew {len(areas)} area(s) "
-                      f"bmesh id={before_id} still_valid={alive}")
 
     @staticmethod
     def _redraw_areas():
@@ -1929,7 +2092,6 @@ class TILEUV_OT_fine_adjust(Operator):
         if loops is None:
             return
 
-        before = tuple(loops[0].uv)
         try:
             if self._mode == 'TRANSLATE':
                 self._apply_translate(loops, event)
@@ -1947,12 +2109,7 @@ class TILEUV_OT_fine_adjust(Operator):
 
         after = tuple(loops[0].uv)
         self._applies += 1
-        if self._applies <= 5:
-            self._dbg(f"apply {self._mode} axis={self._axis} "
-                      f"num={self._numeric!r} snap={self._snap} "
-                      f"precise={self._precise}: {before} -> {after}")
         self._flush()
-        self._dirty = True
         self._verify_persisted(context, after)
         self._update_status(context)
 
@@ -1967,76 +2124,16 @@ class TILEUV_OT_fine_adjust(Operator):
         if self._verified or self._applies < 2:
             return
         self._verified = True
-        prior = self._fetch_loops(context)
-        self._checked_loop = prior[0] if prior else None
+        # Drop the cached loop list first: comparing the values we just wrote
+        # against the very objects we wrote them to is a tautology, and would
+        # pass even in the failure case this check exists for.
+        self._loops = None
         loops = self._fetch_loops(context)
         if loops is None:
             return
         got = tuple(loops[0].uv)
         if abs(got[0] - expected[0]) > 1e-6 or abs(got[1] - expected[1]) > 1e-6:
-            message = "UV edits are not sticking"
-            self.report({'ERROR'}, f"Fine adjust: {message}")
-            print(f"[TileUV fine adjust] {message}: wrote {expected}, "
-                  f"read back {got}, bmesh id={self._bm_id}, "
-                  f"same_loop_object={loops[0] is self._checked_loop}")
-            self._probe(context)
-        else:
-            self._dbg(f"verified: edit persisted as {got}")
-
-    def _recollect(self, context):
-        """Force a fresh collection of the loops, bypassing the cached list."""
-        self._loops = None
-        return self._fetch_loops(context)
-
-    def _probe(self, context):
-        """Isolate where a UV write is lost, in one controlled experiment.
-
-        Writes a known value, reads it back through a freshly collected loop
-        list before flushing, then again after flushing. Between them that
-        separates the two remaining explanations:
-
-          write_lands=False -> the assignment never reaches the mesh at all
-          write_lands=True, survives_flush=False -> update_edit_mesh discards it
-
-        The probe value is written and then put back, so nothing is left behind.
-        """
-        loops = self._recollect(context)
-        if not loops:
-            print("[TileUV fine adjust] probe: no loops to test")
-            return
-
-        original = Vector(loops[0].uv)
-        probe_value = Vector((0.123456, 0.654321))
-        try:
-            loops[0].uv = probe_value
-
-            fresh = self._recollect(context)
-            lands = tuple(fresh[0].uv) if fresh else None
-
-            bmesh.update_edit_mesh(self._mesh)
-            after = self._recollect(context)
-            survives = tuple(after[0].uv) if after else None
-
-            print(f"[TileUV fine adjust] probe: wrote {tuple(probe_value)} | "
-                  f"before flush read {lands} | after flush read {survives} | "
-                  f"mesh={getattr(self._mesh, 'name', '?')} "
-                  f"bmesh_id={self._bm_id}")
-            print(f"[TileUV fine adjust] probe: write_lands="
-                  f"{lands is not None and abs(lands[0] - 0.123456) < 1e-5} "
-                  f"survives_flush="
-                  f"{survives is not None and abs(survives[0] - 0.123456) < 1e-5}")
-        except Exception as exc:
-            import traceback
-            traceback.print_exc()
-            print(f"[TileUV fine adjust] probe raised: {exc}")
-        finally:
-            restore = self._recollect(context)
-            if restore:
-                try:
-                    restore[0].uv = original
-                    bmesh.update_edit_mesh(self._mesh)
-                except Exception:
-                    pass
+            self.report({'ERROR'}, "Adjust: UV edits are not sticking")
 
     def _mouse_delta(self, event):
         """Mouse travel in UV units — one region width equals 1.0 UV."""
@@ -2184,16 +2281,25 @@ class TILEUV_OT_fine_adjust(Operator):
 
 
 class TILEUV_OT_fine_adjust_abort(Operator):
-    """Release a fine adjust session that has stopped responding
+    """Leave adjust mode, keeping the changes made so far
 
     Restores the viewport overlays and shading that were recorded on entry
     """
     bl_idname = "uv.tileuv_fine_adjust_abort"
-    bl_label = "Force Exit Fine Adjust"
+    bl_label = "Exit Adjust Mode"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
-        TILEUV_OT_fine_adjust.force_reset()
+        if TILEUV_OT_fine_adjust.is_running() \
+                and not TILEUV_OT_fine_adjust._should_close:
+            # Ask the modal to wind itself up. Resetting the class state behind
+            # its back would leave it running and eating every event.
+            TILEUV_OT_fine_adjust._should_close = True
+        else:
+            # Either nothing is running, or a previous request went unanswered —
+            # proof the modal is not listening. Force the release so the mode can
+            # never strand the user with their overlays switched off.
+            TILEUV_OT_fine_adjust.force_reset()
         area = getattr(context, "area", None)
         if area is not None:
             try:
@@ -2207,7 +2313,6 @@ class TILEUV_OT_fine_adjust_abort(Operator):
             except Exception:
                 pass
         _tag_ui_redraw(context)
-        self.report({'INFO'}, "Fine adjust released")
         return {'FINISHED'}
 
 
@@ -2219,8 +2324,8 @@ def maybe_start_fine_adjust(context, settings):
         return
     try:
         bpy.ops.uv.tileuv_fine_adjust('INVOKE_DEFAULT')
-    except Exception as exc:
-        print(f"[Tile UV Projector] could not start fine adjust — {exc}")
+    except Exception:
+        pass
 
 
 # ============================================================================
@@ -2239,6 +2344,28 @@ class TILEUV_UL_custom_tiles(UIList):
 # ============================================================================
 # PANELS
 # ============================================================================
+
+def compute_preview_scale(context, grid):
+    """template_icon scale, clamped to what the sidebar can actually show.
+
+    The picker overlay clamps its square to the sidebar width. If the thumbnail
+    underneath is not clamped the same way it draws wider than the overlay, and
+    the clickable columns stop lining up with the picture.
+    """
+    prop_x = max(1e-6, grid.proportion_x)
+    prop_y = max(1e-6, grid.proportion_y)
+    scale = max(3.0, min(16.0, 12.0 * (prop_y / prop_x)))
+
+    region = getattr(context, "region", None)
+    try:
+        ui_unit = (20.0 * (context.preferences.system.dpi / 72.0)
+                   * context.preferences.view.ui_scale)
+    except Exception:
+        return scale
+    if region is not None and region.width > 0 and ui_unit > 0:
+        scale = min(scale, max(3.0, (region.width - 12) / ui_unit))
+    return scale
+
 
 def draw_atlas_texture_controls(layout, img):
     """Status line plus the reload/refresh buttons for an atlas image.
@@ -2280,6 +2407,13 @@ class TILEUV_PT_main(Panel):
         row.prop(settings, "use_advanced_grid", toggle=True)
         row.prop(settings, "use_per_object", toggle=True, icon='OBJECT_DATA')
 
+        # The Grid panel that normally carries this button is hidden in
+        # Advanced Grid mode, which used to leave a running picker with no
+        # visible way out.
+        if TILEUV_OT_pick_tile.is_running():
+            layout.operator("uv.tileuv_close_picker",
+                            text="Close Picker", icon='CANCEL', depress=True)
+
 
 class TILEUV_PT_grid_settings(Panel):
     bl_label = "Grid Settings"
@@ -2298,27 +2432,24 @@ class TILEUV_PT_grid_settings(Panel):
         settings = context.scene.tileuv_settings
         grid, _ = get_grid_settings(context)
 
-        # Show which source is active
+        # Show which source is active. get_grid_settings falls back to the
+        # scene settings when there is no active object, so this has to as well
+        # — dereferencing it unguarded threw on every redraw with nothing
+        # selected.
         if settings.use_per_object:
-            layout.label(text=f"Object: {context.active_object.name}", icon='OBJECT_DATA')
+            obj = context.active_object
+            if obj is not None:
+                layout.label(text=f"Object: {obj.name}", icon='OBJECT_DATA')
+            else:
+                row = layout.row()
+                row.enabled = False
+                row.label(text="No active object — using global settings",
+                          icon='INFO')
 
         row = layout.row(align=True)
         row.prop(grid, "grid_cols", text="X")
         row.prop(grid, "grid_rows", text="Y")
         layout.prop(grid, "padding")
-
-        # Default post-projection scale — a fixed value like padding, but with
-        # its own anchor so the result can be centred or pinned to an edge.
-        box = layout.box()
-        box.prop(settings, "use_default_scale")
-        col = box.column(align=True)
-        col.enabled = settings.use_default_scale
-        row = col.row(align=True)
-        row.prop(settings, "default_scale", index=0, text="Scale X")
-        row.prop(settings, "default_scale", index=1, text="Y")
-        row = col.row(align=True)
-        row.prop(settings, "scale_pivot", index=0, text="Pivot X")
-        row.prop(settings, "scale_pivot", index=1, text="Y")
 
         layout.separator()
         layout.label(text="Proportion (W:H):")
@@ -2373,7 +2504,7 @@ class TILEUV_PT_projection(Panel):
 
 
 class TILEUV_PT_fine_adjust(Panel):
-    bl_label = "Fine Adjust"
+    bl_label = "Adjust after Project"
     bl_idname = "TILEUV_PT_fine_adjust"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -2393,40 +2524,63 @@ class TILEUV_PT_fine_adjust(Panel):
         col.prop(settings, "fine_adjust_hide_overlays")
         col.prop(settings, "fine_adjust_flat_shading")
 
-        box = layout.box()
-        box.label(text="Snap Increments (Ctrl):", icon='SNAP_ON')
-        col = box.column(align=True)
-        col.prop(settings, "snap_move_divisions")
-        col.label(text=f"= 1/{max(1, settings.snap_move_divisions)} of a tile")
-        col.prop(settings, "snap_scale_step")
-        col.prop(settings, "snap_rotate_degrees")
-
-        layout.prop(settings, "fine_adjust_debug")
-
         layout.separator()
 
         # Also usable on its own, without re-projecting.
         row = layout.row()
         row.scale_y = 1.2
         if TILEUV_OT_fine_adjust.is_running():
-            row.label(text="Adjusting — Enter to confirm", icon='CHECKMARK')
-            # A real button, not a dead label: if the modal ever stops getting
-            # events this is the only way to release the mode and put the
-            # viewport back.
-            layout.operator("uv.tileuv_fine_adjust_abort",
-                            text="Force Exit", icon='CANCEL')
+            row.operator("uv.tileuv_fine_adjust_abort",
+                         text="Exit Adjust Mode", icon='CHECKMARK')
         else:
             row.operator("uv.tileuv_fine_adjust",
                          text="Adjust Current UVs", icon='MOD_MESHDEFORM')
 
-        box = layout.box()
-        box.scale_y = 0.8
-        for line in ("G Move   S Scale   R Rotate",
-                     "X / Z constrain to axis (MMB picks)",
-                     "Type a number for an exact value",
-                     "Ctrl snap   Shift precision",
-                     "Enter confirm   Esc cancel"):
-            box.label(text=line)
+
+class TILEUV_PT_snap_increments(Panel):
+    bl_label = "Snap Increments"
+    bl_idname = "TILEUV_PT_snap_increments"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Tile UV"
+    bl_parent_id = "TILEUV_PT_fine_adjust"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.tileuv_settings
+
+        col = layout.column(align=True)
+        col.prop(settings, "snap_move_divisions")
+        col.label(text=f"= 1/{max(1, settings.snap_move_divisions)} of a tile")
+        col.prop(settings, "snap_scale_step")
+        col.prop(settings, "snap_rotate_degrees")
+
+
+class TILEUV_PT_tile_scale(Panel):
+    bl_label = "Tile Scale"
+    bl_idname = "TILEUV_PT_tile_scale"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Tile UV"
+    bl_parent_id = "TILEUV_PT_main"
+
+    def draw_header(self, context):
+        self.layout.prop(context.scene.tileuv_settings,
+                         "use_tile_scale", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        settings = context.scene.tileuv_settings
+
+        col = layout.column(align=True)
+        col.active = settings.use_tile_scale
+        row = col.row(align=True)
+        row.prop(settings, "tile_scale", index=0, text="Scale X")
+        row.prop(settings, "tile_scale", index=1, text="Y")
+        row = col.row(align=True)
+        row.prop(settings, "tile_scale_pivot", index=0, text="Pivot X")
+        row.prop(settings, "tile_scale_pivot", index=1, text="Y")
 
 
 class TILEUV_PT_grid_ui(Panel):
@@ -2458,11 +2612,9 @@ class TILEUV_PT_grid_ui(Panel):
                 try:
                     preview = img.preview_ensure()
                     if preview and preview.icon_id > 0:
-                        prop_x = grid.proportion_x
-                        prop_y = grid.proportion_y
-                        icon_scale = max(3.0, min(16.0, 12.0 * (prop_y / prop_x)))
-                        layout.template_icon(icon_value=preview.icon_id,
-                                             scale=icon_scale)
+                        layout.template_icon(
+                            icon_value=preview.icon_id,
+                            scale=compute_preview_scale(context, grid))
                 except Exception:
                     pass
             draw_atlas_texture_controls(layout, img)
@@ -2491,7 +2643,15 @@ class TILEUV_PT_grid_ui(Panel):
 
         layout.separator()
 
-        # Button grid (always visible)
+        # Button grid. Capped: a 64x64 grid would rebuild 4096 operator buttons
+        # on every single panel redraw, which locks the UI up.
+        if cols * rows > _MAX_GRID_BUTTONS:
+            box = layout.box()
+            box.label(text=f"{cols} x {rows} is too dense for buttons",
+                      icon='INFO')
+            box.label(text="Use Pick Tile instead")
+            return
+
         prop_x = grid.proportion_x
         prop_y = grid.proportion_y
         scale_y = (prop_y * cols) / (prop_x * rows)
@@ -2578,6 +2738,24 @@ class TILEUV_PT_advanced_grid(Panel):
 # AUTO-REFRESH HANDLER
 # ============================================================================
 
+def collect_atlas_image_names(scene):
+    """Names of every Image configured as an atlas, scene-wide or per-object."""
+    names = set()
+    settings = getattr(scene, "tileuv_settings", None)
+    img = getattr(settings, "atlas_image", None) if settings else None
+    if img is not None:
+        names.add(img.name)
+    try:
+        for obj in bpy.data.objects:
+            obj_settings = getattr(obj, "tileuv_obj_settings", None)
+            img = getattr(obj_settings, "atlas_image", None) if obj_settings else None
+            if img is not None:
+                names.add(img.name)
+    except Exception:
+        pass
+    return names
+
+
 @persistent
 def _tileuv_atlas_preview_handler(scene, depsgraph):
     """Invalidate atlas image previews when the source image data changes.
@@ -2589,12 +2767,20 @@ def _tileuv_atlas_preview_handler(scene, depsgraph):
     and invalidates the picker overlay's cached GPU texture along with it so both
     keep showing the same picture.
     """
+    atlas_names = None
     touched = False
     for update in depsgraph.updates:
         if not isinstance(update.id, bpy.types.Image):
             continue
-        touched = True
+        # Resolved lazily, and only when an image really did change: texture
+        # painting and image-sequence playback would otherwise clear the atlas
+        # caches on every frame.
+        if atlas_names is None:
+            atlas_names = collect_atlas_image_names(scene)
         img = update.id
+        if img.name not in atlas_names:
+            continue
+        touched = True
         try:
             if img.preview is not None:
                 img.preview.reload()
@@ -2608,7 +2794,10 @@ def _tileuv_atlas_preview_handler(scene, depsgraph):
 def _tileuv_load_post_handler(dummy):
     """Clear modal/texture state that cannot survive a file load."""
     TILEUV_OT_pick_tile.force_reset()
-    TILEUV_OT_fine_adjust.force_reset()
+    # The recorded spaces belong to the file being replaced — restoring onto
+    # them would write to freed memory, and would stamp the old file's overlay
+    # settings onto the new file's viewport even if it worked.
+    TILEUV_OT_fine_adjust.force_reset(restore_view=False)
     bump_atlas_refresh_token()
 
 
@@ -2715,7 +2904,9 @@ classes = (
     TILEUV_PT_grid_settings,
     TILEUV_PT_unwrap_settings,
     TILEUV_PT_projection,
+    TILEUV_PT_tile_scale,
     TILEUV_PT_fine_adjust,
+    TILEUV_PT_snap_increments,
     TILEUV_PT_grid_ui,
     TILEUV_PT_advanced_grid,
 )

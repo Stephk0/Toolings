@@ -1,4 +1,4 @@
-# Tile UV Projector v1.6.0
+# Tile UV Projector v1.8.0
 
 Tile-based UV projection and placement for texture atlas workflows in Blender.
 
@@ -19,7 +19,7 @@ Select mesh faces, click a tile in the grid, and the addon automatically project
 - **UV Relaxation** - Optional post-unwrap relaxation with configurable iterations
 - **View Projection** - Projects UVs from current viewport before unwrapping
 - **Padding Control** - Configurable padding inside each tile to prevent bleeding
-- **Default UV Scale** - Optional fixed scale applied inside the tile after
+- **Tile Scale** - Optional fixed scale applied inside the tile after
   projecting, about a tile-relative pivot
 - **Tile Splitting** - Split custom tiles horizontally or vertically
 - **Grid-to-Custom** - Generate custom tiles from uniform grid as starting point
@@ -29,15 +29,10 @@ Select mesh faces, click a tile in the grid, and the addon automatically project
 
 ## Installation
 
-### Method 1: Single File (Recommended)
-1. Open Blender > Edit > Preferences > Add-ons
-2. Click "Install..."
-3. Select `tile_uv_projector.py`
-4. Enable the addon
-
-### Method 2: Folder Installation
-1. Copy the `TileUVProjector` folder to your Blender addons directory
-2. Restart Blender and enable the addon
+Drag `TileUVProjector_v1.8.0.zip` from `distribution/` into a Blender window,
+or use **Edit > Preferences > Add-ons > Install from Disk** and pick the same
+zip. Blender 4.5 and newer install it as an extension; the addon then appears
+under **View3D > Sidebar > Tile UV** in Edit Mode.
 
 ## Usage
 
@@ -70,9 +65,9 @@ into the .blend, generated, or already used by a material shows up there.
 That one datablock is the single source of truth: the panel thumbnail and the
 tile picker overlay both read it, so they can never show different pictures.
 
-### Default UV Scale
+### Tile Scale
 
-Under **Grid Settings**, next to Padding. Enable **Default UV Scale** and every
+Its own section, directly under **Projection**. Enable **Tile Scale** and every
 tile you apply gets a fixed scale inside its tile, straight after the UVs are
 fitted - a standing offset like Padding, but with its own anchor.
 
@@ -114,12 +109,16 @@ the atlas file is missing it falls back to the preview thumbnail, or draws a dar
 panel with the reason written across it. Either way the grid stays clickable —
 a broken texture never blocks tile picking.
 
-### Fine Adjust
+### Adjust after Project
 
-Enable **Fine Adjust** (checkbox on the panel header) and every tile you apply
-hands straight over to an interactive transform mode, so you can nudge the UVs
-into place while watching the texture on the model. It can also be started on
+Enable **Adjust after Project** (checkbox on the panel header) and every tile you
+apply hands straight over to an interactive transform mode, so you can nudge the
+UVs into place while watching the texture on the model. It can also be started on
 its own with **Adjust Current UVs**, without re-projecting.
+
+While the mode runs, the key hints appear in the status bar and the current
+state in the area header. **Exit Adjust Mode** in the panel leaves the mode and
+keeps the changes; the sidebar stays clickable throughout.
 
 The keys are Blender's own transform keys:
 
@@ -145,8 +144,8 @@ centre of the selected UVs, and rotation is aspect corrected using the
 **Proportion W:H** values so a turn stays square on a non-square atlas.
 
 Snapping applies to where the tile **lands**, not to how far it moved. All three
-increments are editable under **Snap Increments (Ctrl)** in the Fine Adjust
-panel:
+increments are editable under **Snap Increments**, a collapsed sub-panel of
+**Adjust after Project**:
 
 | Setting | Default | Meaning |
 |---------|---------|---------|
@@ -196,13 +195,13 @@ by Blender rather than by you.
 | Relax | Post-unwrap relaxation | Off |
 | Relax Iterations | Number of relaxation passes | 10 |
 | Projection | View / Unwrap Only | View |
-| Default UV Scale | Apply a fixed scale inside the tile after projecting | Off |
+| Tile Scale | Apply a fixed scale inside the tile after projecting | Off |
 | Scale X / Y | The scale to apply | 1.0, 1.0 |
 | Pivot X / Y | Anchor for that scale, in tile space | 0.5, 0.5 |
 | Snap Move | Ctrl-snap step when moving, in tile divisions | 8 |
 | Snap Scale | Ctrl-snap step when scaling | 0.1 |
 | Snap Rotate | Ctrl-snap step when rotating, in degrees | 5.0 |
-| Fine Adjust After Project | Enter transform mode after applying a tile | Off |
+| Adjust after Project | Enter transform mode after applying a tile | Off |
 | Hide Overlays & Gizmos | Hide overlays during fine adjust | On |
 | Flat Textured Shading | Solid + flat lighting + texture colour during fine adjust | On |
 
@@ -220,6 +219,78 @@ by Blender rather than by you.
   so "Pick Tile" never gets stuck showing "Close Picker"
 
 ## Changelog
+
+### v1.8.0 - release readiness
+
+Packaging
+- Added `blender_manifest.toml`, so the addon installs as a Blender 4.2+
+  extension rather than legacy-only.
+- Added a `LICENSE` (GPL-3.0-or-later) and an SPDX header, and declared the
+  license in the manifest.
+- The zip now puts `__init__.py`, `blender_manifest.toml`, `LICENSE` and
+  `README.md` at the **archive root**, per `_TOOLING_STRUCTURE.md`. The previous
+  layout wrapped them in a folder, which cannot install as an extension.
+- Removed the duplicated `source/tile_uv_projector.py`; it was a byte-identical
+  copy of `__init__.py` and only a drift risk. Install instructions updated.
+
+Data loss and crashes
+- **Multi-object Edit Mode no longer wrecks the non-active meshes.** All objects
+  in Edit Mode are now collected and placed together.
+- Fixed a panel crash: with **Per Object** enabled and no active object, every
+  sidebar redraw raised.
+- The tile picker and adjust mode can no longer run at the same time. Two live
+  modals starved each other, and a re-project underneath a live adjust session
+  could write stale UVs back over the new placement.
+- Adjust mode no longer writes viewport settings back into a 3D view that has
+  been closed, or into the previous file's viewport after a file load.
+
+Correctness
+- A selection that is degenerate on one axis is now centred in the tile instead
+  of being silently collapsed onto its left or bottom padded edge.
+- The tile is validated before any mesh is touched, so a rejected apply no
+  longer leaves a new UV layer or modified seams behind.
+- Custom tiles honour per-object padding, and an inverted or zero-area tile
+  reports that instead of blaming padding.
+- **Generate from Grid** reads the same grid the panel shows.
+- Relax runs one `minimize_stretch` with N iterations instead of N separate
+  operator calls - up to 500 of them, each with its own undo push.
+- Project From View reports a clear error outside the 3D Viewport instead of
+  raising a raw context error.
+- The unapplied-scale warning now actually tests non-uniformity; a uniform 2.0
+  scale no longer triggers it.
+- UDIM atlases are no longer reported as missing files.
+- Repeated tile splits stop accumulating `(bottom) (bottom)` suffixes.
+
+Robustness and polish
+- Both "Close Picker" and "Exit Adjust Mode" escalate: a second press forces the
+  release, so neither mode can strand you with overlays switched off.
+- The picker overlay is drawn only in the viewport it was opened in, instead of
+  ghosting into every other 3D view.
+- The picker's draw callback is exception-guarded and redraws only when the
+  hovered tile actually changes.
+- Dense grids no longer lock the UI: tile labels are skipped below a readable
+  size, and grids over 1024 tiles show a hint instead of a button per tile.
+- The panel thumbnail is clamped to the sidebar the same way the overlay is, so
+  the clickable columns line up with the picture.
+- The atlas preview cache is only invalidated for images actually used as
+  atlases, instead of on every image update in the file.
+- Tooltips added to the eleven properties that had none, including the operator
+  properties shown in F3 search and the redo panel.
+
+### v1.7.0
+- Fixed: the exit button did nothing while adjusting. Two causes - the modal
+  swallowed the click before it reached the sidebar, and the operator reset the
+  class state behind the modal's back, leaving it running and eating every
+  event. Clicks outside the 3D view now pass through to the sidebar, and the
+  button asks the modal to wind itself up.
+- Renamed: **Default UV Scale** is now **Tile Scale**, and lives in its own
+  section under Projection instead of inside Grid Settings.
+- Renamed: the **Fine Adjust** panel is now **Adjust after Project**.
+- Changed: **Snap Increments** is a collapsed sub-panel rather than an
+  always-open box.
+- Removed: the Debug Log option and all console logging, and the key-hint block
+  in the panel. The key hints still appear in the status bar while the mode is
+  running, which is where Blender's own transforms put them.
 
 ### v1.6.0
 - Added: **Snap Increments (Ctrl)** in the Fine Adjust panel. Move (in tile
@@ -343,10 +414,24 @@ by Blender rather than by you.
 - Added: preview-thumbnail fallback so the overlay still shows the picture from
   the preview window when the full-resolution buffer is unavailable.
 
+## Multi-Object Edit Mode
+
+Blender's uv operators act on every mesh in Edit Mode, so Tile UV Projector does
+too: selected faces across all objects currently in Edit Mode are collected,
+measured together, and placed into the tile as one island. Previously only the
+active object was placed, while the others were projected and unwrapped and then
+left wherever the projection put them - their old UVs destroyed with no warning.
+
 ## Requirements
 
 - Blender 4.5+
 - No external dependencies
+- Packaged with a `blender_manifest.toml`, so it installs as a Blender 4.2+
+  extension as well as a legacy add-on
+
+## License
+
+GPL-3.0-or-later. See `LICENSE` in the addon folder.
 
 ## Author
 

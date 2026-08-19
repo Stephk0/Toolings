@@ -1,0 +1,18 @@
+schema_version = "1.0.0"
+
+id = "tile_uv_projector"
+version = "1.8.0"
+name = "Tile UV Projector"
+tagline = "Project and fit selected face UVs into texture atlas tiles"
+maintainer = "Stephko <stephko@viranyi.de>"
+type = "add-on"
+
+tags = ["UV"]
+
+blender_version_min = "4.5.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+# No permissions requested: the addon reads image paths to check they exist,
+# and touches nothing else outside Blender.
+[permissions]
