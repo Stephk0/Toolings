@@ -70,23 +70,67 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Publishing from CI is OPTIONAL - the local pre-push hook and
+      # /publish-library are the primary paths. If the credentials were never
+      # set up, say so once and stop cleanly. A red X on every push for a
+      # feature nobody enabled is noise, not a signal.
+      - name: Check whether CI publishing is configured
+        id: creds
+        env:
+          SA: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=CI publishing not configured::Set the GDRIVE_SERVICE_ACCOUNT, GDRIVE_TEAM_DRIVE_ID and GDRIVE_TARGET_PATH repository secrets to publish from CI. Skipping."
+            {
+              echo '## Library publish - skipped'
+              echo ''
+              echo 'CI publishing is not configured, so this run did nothing.'
+              echo ''
+              echo 'To enable it, add these repository secrets'
+              echo '(Settings > Secrets and variables > Actions):'
+              echo ''
+              echo '| secret | value |'
+              echo '|---|---|'
+              echo '| `GDRIVE_SERVICE_ACCOUNT` | the service-account JSON key, pasted whole |'
+              echo '| `GDRIVE_TEAM_DRIVE_ID` | the Shared Drive id from its URL |'
+              echo '| `GDRIVE_TARGET_PATH` | folder inside the Shared Drive, e.g. `3D/Tooling/Blender/ST3E_Ext` |'
+              echo ''
+              echo 'Share the Shared Drive with the service account email as Content manager.'
+              echo 'Until then, publish locally with `/publish-library`.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install rclone
+        if: steps.creds.outputs.configured == 'true'
         run: |
           curl -fsSL https://rclone.org/install.sh | sudo bash
           rclone version
 
       - name: Write service-account credentials
+        if: steps.creds.outputs.configured == 'true'
+        env:
+          SA: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
         run: |
-          printf '%s' '${{ secrets.GDRIVE_SERVICE_ACCOUNT }}' > "$ST3E_GDRIVE_SA_JSON"
-          python -c "import json,os;json.load(open(os.environ['ST3E_GDRIVE_SA_JSON']));print('service account JSON parses')"
+          printf '%s' "$SA" > "$ST3E_GDRIVE_SA_JSON"
+          # A secret that IS set but is not valid JSON is a genuine failure, and
+          # deserves a readable message rather than a decoder traceback.
+          if ! python -c "import json,os,sys; json.load(open(os.environ['ST3E_GDRIVE_SA_JSON']))" 2>/dev/null; then
+            echo "::error title=Bad service-account secret::GDRIVE_SERVICE_ACCOUNT is set but is not valid JSON. Paste the whole key file, including the outer braces."
+            exit 1
+          fi
+          echo "service account JSON parses"
 
       - name: Install Blender (only when criteria are requested)
-        if: ${{ inputs.run_criteria }}
+        if: steps.creds.outputs.configured == 'true' && inputs.run_criteria
         run: |
           sudo snap install blender --classic
           blender --version
 
       - name: Point the config at this runner
+        if: steps.creds.outputs.configured == 'true'
         run: |
           python "$TOOL/source/cli.py" config set \
             "source.repo_root=$GITHUB_WORKSPACE" \
@@ -97,7 +141,7 @@ jobs:
             "delivery.atomic=false"
 
       - name: Switch criteria off unless requested
-        if: ${{ !inputs.run_criteria }}
+        if: steps.creds.outputs.configured == 'true' && !inputs.run_criteria
         run: |
           # Without Blender on the runner a block-mode check cannot be verified,
           # and the publisher refuses to pretend otherwise - so turn them off
@@ -109,13 +153,19 @@ jobs:
             criteria.no_external_deps.mode=off
 
       - name: Environment check
+        if: steps.creds.outputs.configured == 'true'
         run: python "$TOOL/source/cli.py" config doctor
 
       - name: Unit tests
+        if: steps.creds.outputs.configured == 'true'
         run: python -m pytest "$TOOL/source/tests" -q
 
       - name: Publish
+        if: steps.creds.outputs.configured == 'true'
         run: |
+          # Without pipefail the exit status is tee's, so a failed publish - or a
+          # non-zero "files were withheld" - would report success.
+          set -o pipefail
           # --dry-run is a global flag (before the subcommand), --force is not.
           GLOBAL=""
           SUB="--reason github-action"
@@ -124,7 +174,7 @@ jobs:
           python "$TOOL/source/cli.py" $GLOBAL publish $SUB 2>&1 | tee publish.log
 
       - name: Summarise
-        if: always()
+        if: always() && steps.creds.outputs.configured == 'true'
         run: |
           {
             echo '## Library publish'
@@ -134,7 +184,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload the manifest
-        if: always()
+        if: always() && steps.creds.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: publish-manifest
@@ -144,5 +194,5 @@ jobs:
           if-no-files-found: warn
 
       - name: Shred credentials
-        if: always()
+        if: always() && steps.creds.outputs.configured == 'true'
         run: rm -f "$ST3E_GDRIVE_SA_JSON"
