@@ -57,7 +57,8 @@
       "mcp__serena__read_memory",
       "Bash(\"C:/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --factory-startup --python probe_twist.py)",
       "Bash(\"/c/Program Files/Blender Foundation/Blender 5.0/blender.exe\" --background --factory-startup --python build_gn_tileable_mesh_noise.py)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []
