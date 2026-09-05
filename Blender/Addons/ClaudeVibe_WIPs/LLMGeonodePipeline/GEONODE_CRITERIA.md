@@ -36,6 +36,23 @@ geometry-unchanged + blocking rules). Live interactive flow: skill
    (≲300px, small rise, clear straight path) the link stays a DIRECT wire — no
    reroutes.** Reroutes are for building around obstacles and long runs, not
    decoration.
+   **Every lane is its own visible line (R12/R13)** — the half of "subway map"
+   that used to be unwritten, and the half the engine kept violating
+   (2026-08-19 user image-diff on SH_ScreenCavity: the user had to *drag
+   reroutes aside* to discover that one apparent wire was three):
+   - **No two wires share a line.** Two parallel runs closer than ~12px that
+     co-extend for more than ~40px are ONE line to the eye. Parallel lanes are
+     spaced a full `LANE_STEP` (28px) apart; two signals never occupy one X.
+   - **No lane is painted on a node's border.** A run within ~22px of a node
+     edge merges with the node outline. Lanes sit in the CENTRE of the corridor
+     between node columns, ≥30px (`NODE_CLEAR`) clear of any body.
+   - **A router may never "give up and accept a clash".** When a bounded search
+     runs out of room the fallback is a *jog* that maximises separation — worst
+     case a visibly parallel wire, never a hidden one. (All three historical
+     give-up paths produced exactly this defect.)
+   - Deterministic enforcement: `layout_audit` R12/R13, both **BLOCKING**, plus
+     the `tidy_layout.separate_wire_lanes` repair pass that re-measures the
+     graph as *drawn* after every node-moving pass has run.
 4. **Feeders align to the socket they feed** (2026-07-10 user image-diff on
    GN_Wave's Displace Direction frame): when a consumer is TALL with inputs
    spread over its height (Index Switch, Menu Switch, big Group Output), place

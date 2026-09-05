@@ -135,12 +135,32 @@ def declutter_reroutes(ng):
     boxes = [(n.location.x, n.location.y, (n.width or 140), est_h(n))
              for n in ng.nodes if n.bl_idname not in ('NodeReroute', 'NodeFrame')]
     M = 14
+    # Escape rows are REMEMBERED. The old code sent every reroute escaping a given node to the
+    # same `ny + M + 10`, so two different trunks squeezing past one node landed on an identical
+    # Y -- a 0.0px collinear pair manufactured AFTER the lane allocator had already placed them
+    # clear (this was the last surviving R12 failure on GN_Erosion / GN_VertexDataComposer).
+    taken = []
+
+    def free(y, x):
+        return not any(abs(y - ty) < LANE_MIN * 2 and abs(x - tx) < 400 for ty, tx in taken)
+
     for _ in range(3):
         for r in rr:
             for nx, ny, w, h in boxes:
                 if nx - M <= r.location.x <= nx + w + M and ny - h - M <= r.location.y <= ny + M:
                     up, down = ny + M + 10, ny - h - M - 10
-                    r.location.y = up if abs(up - r.location.y) <= abs(down - r.location.y) else down
+                    cands = [up, down] if abs(up - r.location.y) <= abs(down - r.location.y)                         else [down, up]
+                    y = None
+                    for base in cands:                     # step off an already-used escape row
+                        for k in range(0, 12):
+                            for d in ((1, -1) if base == up else (-1, 1)):
+                                cy = base + k * LANE_MIN * 2 * d
+                                if free(cy, r.location.x):
+                                    y = cy; break
+                            if y is not None: break
+                        if y is not None: break
+                    r.location.y = y if y is not None else cands[0]
+                    taken.append((r.location.y, r.location.x))
     # reroutes off EACH OTHER (never two on the same spot)
     for _ in range(5):
         for i in range(len(rr)):
@@ -285,74 +305,253 @@ def _hits_node_h(hy, xmin, xmax, boxes, pad=16):
             return True
     return False
 
-def _vlane(rx0, ymin, ymax, placed, boxes=(), step=26, pad=14, minx=None):
-    """Pick a clear vertical-bus X for [ymin,ymax]: shift LEFT from rx0 until it overlaps no
-    existing run in `placed` (X within step AND Y) AND passes through no node body (`boxes`).
-    Subway-map: parallel, non-overlapping lines that never cut through a station."""
-    rx = rx0
-    def clash(x):
-        if any(abs(x - vx) < step and not (ymax < lo - pad or ymin > hi + pad) for vx, lo, hi in placed):
+# ---------------------------------------------------------------------------
+#  Lane allocator -- the ONE ledger every drawn wire segment goes through
+# ---------------------------------------------------------------------------
+NODE_CLEAR = 30.0   # px of gutter a wire lane keeps from any node body (not a hairline)
+LANE_STEP  = 28.0   # px between parallel lanes searched by the allocator
+LANE_MIN   = 11.0   # hard floor: two lanes are NEVER closer than this (jog fallback)
+GUTTER_MAX = 420.0  # corridors wider than this aren't centred (centring would drag the lane away)
+MIN_TILT_RUN = 120.0  # a row may only be nudged if its stubs are at least this long...
+MAX_ROW_TILT = 44.0   # ...and never by more than this, so the stub stays a gentle diagonal
+
+
+class Lanes:
+    """The single reservation ledger for wire corridors. Every pass that draws a segment
+    ALLOCATES it here, and every segment a pass has no freedom over (socket stubs, trunk
+    hops) is still RECORDED here -- so later allocations can see it. No pass may place a
+    lane any other way.
+
+    Replaces the old bare `placed`/`hplaced` lists, which only `_vlane`/`_hlane` fed while
+    `route_branches`' spread-fan path derived `tap_x` straight from the target's own X and
+    never consulted or recorded anything. Measured consequence on SH_ScreenCavity: three
+    different signals (normal_diff / Ridge Control / Valley Control) landed on x=6970 and
+    again on x=7142, drawing 10 EXACTLY-collinear wire pairs with up to 3453px of shared
+    extent -- three wires rendering as one line.
+
+    Three code paths also "gave up and accepted a known clash" when their bounded search ran
+    out: `_vlane`'s `minx` snap, the tap escape loop's `tap_x < target_right` guard, and
+    `_hlane`'s accept-start fallback. That is what painted 13 buses 2px off a node border.
+    Neither failure mode is reachable here: the search is bidirectional, and the last resort
+    is a JOG that maximises separation -- worst case a visibly parallel wire, never a hidden
+    one."""
+
+    def __init__(self, boxes):
+        self.boxes = list(boxes)     # (x, y, w, h) real node bodies -- reroutes/frames excluded
+        self.v = []                  # reserved vertical runs   (x, ymin, ymax)
+        self.h = []                  # reserved horizontal runs (y, xmin, xmax)
+        # The lane search probes hundreds of candidate positions per link; on a 2800-node
+        # graph a full box scan per probe dominates the runtime. Sort once and window in.
+        self._bx = sorted(self.boxes, key=lambda b: b[0])
+        self._xs = [b[0] for b in self._bx]
+        self._maxw = max([b[2] for b in self.boxes] or [140.0])
+        self._by = sorted(self.boxes, key=lambda b: b[1])
+        self._ys = [b[1] for b in self._by]
+        self._maxh = max([b[3] for b in self.boxes] or [200.0])
+
+    def _hit_v(self, x, ymin, ymax, pad):
+        """_hits_node over the x-window that can possibly reach x."""
+        import bisect
+        lo = bisect.bisect_left(self._xs, x - pad - self._maxw)
+        hi = bisect.bisect_right(self._xs, x + pad)
+        for nx, ny, w, h in self._bx[lo:hi]:
+            if nx - pad <= x <= nx + w + pad and not (ymax < ny - h - pad or ymin > ny + pad):
+                return True
+        return False
+
+    def _hit_h(self, y, xmin, xmax, pad):
+        import bisect
+        lo = bisect.bisect_left(self._ys, y - pad)
+        hi = bisect.bisect_right(self._ys, y + pad + self._maxh)
+        for nx, ny, w, h in self._by[lo:hi]:
+            if ny - h - pad <= y <= ny + pad and not (xmax < nx - pad or xmin > nx + w + pad):
+                return True
+        return False
+
+    # -- recording -----------------------------------------------------------
+    def add_v(self, x, ymin, ymax):
+        self.v.append((x, min(ymin, ymax), max(ymin, ymax))); return x
+
+    def add_h(self, y, xmin, xmax):
+        self.h.append((y, min(xmin, xmax), max(xmin, xmax))); return y
+
+    def seg(self, p0, p1):
+        """Record a segment the caller had no freedom over (exit/entry stubs, trunk hops).
+        Diagonals are deliberate DIRECT wires, not lanes -- they aren't recorded."""
+        (x0, y0), (x1, y1) = p0, p1
+        if abs(x1 - x0) < 6 and abs(y1 - y0) > 20:
+            self.add_v((x0 + x1) / 2.0, y0, y1)
+        elif abs(y1 - y0) < 6 and abs(x1 - x0) > 20:
+            self.add_h((y0 + y1) / 2.0, x0, x1)
+
+    # -- corridors -----------------------------------------------------------
+    def _occupied_x(self, ymin, ymax):
+        """Merged x-intervals blocked by node bodies over [ymin,ymax], padded by NODE_CLEAR."""
+        iv = sorted((nx - NODE_CLEAR, nx + w + NODE_CLEAR) for nx, ny, w, h in self.boxes
+                    if not (ymax < ny - h or ymin > ny))
+        out = []
+        for a, b in iv:
+            if out and a <= out[-1][1]:
+                out[-1][1] = max(out[-1][1], b)
+            else:
+                out.append([a, b])
+        return out
+
+    @staticmethod
+    def _centre(lo, hi, want_x):
+        if hi - lo <= 0:
+            return want_x
+        if hi - lo > GUTTER_MAX:                  # wide-open space: stay near where we wanted
+            return min(max(want_x, lo + NODE_CLEAR), hi - NODE_CLEAR)
+        return (lo + hi) / 2.0
+
+    def gutter(self, want_x, ymin, ymax):
+        """Snap want_x to the CENTRE of the free corridor it falls in. A lane that merely
+        clears a node by the pad still reads as part of that node's outline (the 2px-off-the-
+        border buses); centring it in the gap is what makes a bus legible as its own line."""
+        occ = self._occupied_x(ymin, ymax)
+        prev = None
+        for a, b in occ:
+            if want_x < a:
+                return self._centre(prev if prev is not None else want_x - GUTTER_MAX, a, want_x)
+            if a <= want_x <= b:                  # inside a node: take the nearer free corridor
+                nxt = next((c for c, _ in occ if c > b), b + GUTTER_MAX)
+                if prev is not None and (want_x - prev) < (nxt - want_x):
+                    return self._centre(prev, a, want_x)
+                return self._centre(b, nxt, want_x)
+            prev = b
+        return self._centre(prev if prev is not None else want_x - GUTTER_MAX,
+                            want_x + GUTTER_MAX, want_x)
+
+    # -- allocation ----------------------------------------------------------
+    def _v_clash(self, x, ymin, ymax):
+        if any(abs(x - vx) < LANE_STEP and not (ymax < lo - 14 or ymin > hi + 14)
+               for vx, lo, hi in self.v):
             return True
-        return _hits_node(x, ymin, ymax, boxes)
-    while clash(rx):
-        rx -= step
-        if minx is not None and rx < minx:   # ran out of room on the left -> snap to minx and accept
-            rx = minx; break
-    placed.append((rx, ymin, ymax))
-    return rx
+        return self._hit_v(x, ymin, ymax, NODE_CLEAR)
 
-def _hlane(hy0, xmin, xmax, hplaced, boxes=(), step=24, pad=14, ddir=-1):
-    """Pick a clear horizontal-trunk Y for [xmin,xmax] (no clash with an existing trunk in
-    `hplaced` or a node body). Search BOTH directions from hy0 and take the NEAREST clear
-    lane, preferring `ddir` (default DOWN, western reading flow) on ties.
+    def h_run_clash(self, y, xmin, xmax):
+        """Clash against other recorded RUNS only. The full `_h_clash` also rejects node
+        bodies, which a leg leaving a socket always touches -- useless for deciding whether
+        a fixed-Y exit leg needs to drop to an allocated lane."""
+        return any(abs(y - vy) < LANE_STEP and not (xmax < lo - 14 or xmin > hi + 14)
+                   for vy, lo, hi in self.h)
 
-    Bidirectional on purpose: a down-only search gets shoved past a whole lower row of nodes
-    when a short hop UP into the header gap was clear -- that produced the deep fan-out detour
-    (trunk dived ~400px below the row and looped back). Nearest-clear keeps fans compact."""
-    def clash(y):
-        if any(abs(y - vy) < step and not (xmax < lo - pad or xmin > hi + pad) for vy, lo, hi in hplaced):
+    def _h_clash(self, y, xmin, xmax):
+        if any(abs(y - vy) < LANE_STEP and not (xmax < lo - 14 or xmin > hi + 14)
+               for vy, lo, hi in self.h):
             return True
-        return _hits_node_h(y, xmin, xmax, boxes)
-    if not clash(hy0):
-        hplaced.append((hy0, xmin, xmax)); return hy0
-    for k in range(1, 400):
-        for d in (ddir, -ddir):            # try ddir side first at each distance, then the other
-            y = hy0 + step * k * d
-            if not clash(y):
-                hplaced.append((y, xmin, xmax)); return y
-    hplaced.append((hy0, xmin, xmax)); return hy0   # give up: accept start
+        return self._hit_h(y, xmin, xmax, NODE_CLEAR)
 
-def _route_back(ng, fs, ts, a, b, placed, hplaced, boxes):
-    """Target sits LEFT of (or under) its source -> can't flow rightward. Route exit-right, drop to a
-    clear horizontal lane BELOW, run left to just-left-of-target, rise into it. 4 reroutes, fully
-    orthogonal, approaches the target from the left (rightward) so the wire never overshoots/self-crosses."""
+    def vlane(self, want_x, ymin, ymax, minx=None, maxx=None):
+        """A clear vertical-bus X for [ymin,ymax], searched BOTH ways from the corridor centre
+        and always recorded. `minx`/`maxx` bound the window; an impossible window degrades to
+        a jog, never to a silent overlap."""
+        if minx is not None and maxx is not None and maxx < minx + 4:
+            maxx = None                            # impossible window -> unbounded on the right
+        base = self.gutter(want_x, ymin, ymax)
+        if minx is not None: base = max(base, minx)
+        if maxx is not None: base = min(base, maxx)
+
+        def ok(x):
+            if minx is not None and x < minx: return False
+            if maxx is not None and x > maxx: return False
+            return not self._v_clash(x, ymin, ymax)
+
+        if ok(base):
+            return self.add_v(base, ymin, ymax)
+        for k in range(1, 260):                    # nearest clear lane, left side first
+            for d in (-1, 1):
+                x = base + LANE_STEP * k * d
+                if ok(x):
+                    return self.add_v(x, ymin, ymax)
+        return self.add_v(self._jog(base, ymin, ymax, minx, maxx, vertical=True), ymin, ymax)
+
+    def hlane(self, want_y, xmin, xmax, ddir=-1):
+        """A clear horizontal-trunk Y for [xmin,xmax]. Bidirectional (a down-only search gets
+        shoved past a whole lower row when a short hop up into the header gap was clear)."""
+        if not self._h_clash(want_y, xmin, xmax):
+            return self.add_h(want_y, xmin, xmax)
+        for k in range(1, 260):
+            for d in (ddir, -ddir):
+                y = want_y + LANE_STEP * k * d
+                if not self._h_clash(y, xmin, xmax):
+                    return self.add_h(y, xmin, xmax)
+        return self.add_h(self._jog(want_y, xmin, xmax, None, None, vertical=False), xmin, xmax)
+
+    def _jog(self, base, lo_span, hi_span, lim_lo, lim_hi, vertical):
+        """Last resort. NEVER snap onto an occupied lane -- that snap IS the bug this replaces.
+        Scan a window at LANE_MIN granularity and take the position with the greatest clearance
+        from every conflicting run, so the worst case is a visibly parallel wire."""
+        runs = self.v if vertical else self.h
+        conf = [c for c, lo, hi in runs if not (hi_span < lo - 14 or lo_span > hi + 14)]
+        if vertical:
+            hit = lambda p: self._hit_v(p, lo_span, hi_span, 8)
+        else:
+            hit = lambda p: self._hit_h(p, lo_span, hi_span, 8)
+        best, best_d = base, -1e18
+        for i in range(-180, 181):
+            p = base + i * LANE_MIN
+            if lim_lo is not None and p < lim_lo: continue
+            if lim_hi is not None and p > lim_hi: continue
+            d = min([abs(p - c) for c in conf] or [1e9])
+            if hit(p): d -= 1e6                    # still prefer not to sit on a node
+            d -= abs(i) * 0.01                     # tie-break: stay near where we wanted
+            if d > best_d:
+                best, best_d = p, d
+        return best
+
+
+def _route_back(ng, fs, ts, a, b, L):
+    """Target sits LEFT of (or under) its source -> can't flow rightward. Route exit-right, drop to
+    a clear horizontal lane BELOW, run left to just-left-of-target, rise into it. 4 reroutes, fully
+    orthogonal, approaches the target from the left so the wire never overshoots/self-crosses."""
     a_right = a.location.x + (a.width or 140)
-    rx_out = a_right + 25
-    rx_in = b.location.x - 35
-    xlo, xhi = min(rx_in, rx_out), max(rx_in, rx_out)
-    lane_y = _hlane(min(_ymid(a), _ymid(b)) - 70, xlo, xhi, hplaced, boxes, ddir=-1)
-    placed.append((rx_out, min(lane_y, _ymid(a)), max(lane_y, _ymid(a))))
-    placed.append((rx_in, min(lane_y, _ymid(b)), max(lane_y, _ymid(b))))
-    P0 = ng.nodes.new("NodeReroute"); P0.location = (rx_out, _ymid(a))
+    ay, by = _ymid(a), _ymid(b)
+    xlo, xhi = min(b.location.x - 35, a_right + 25), max(b.location.x - 35, a_right + 25)
+    lane_y = L.hlane(min(ay, by) - 70, xlo, xhi, ddir=-1)
+    rx_out = L.vlane(a_right + 25, min(lane_y, ay), max(lane_y, ay), minx=a_right + 20)
+    rx_in = L.vlane(b.location.x - 35, min(lane_y, by), max(lane_y, by), maxx=b.location.x - 20)
+    P0 = ng.nodes.new("NodeReroute"); P0.location = (rx_out, ay)
     P1 = ng.nodes.new("NodeReroute"); P1.location = (rx_out, lane_y)
     P2 = ng.nodes.new("NodeReroute"); P2.location = (rx_in, lane_y)
-    P3 = ng.nodes.new("NodeReroute"); P3.location = (rx_in, _ymid(b))
+    P3 = ng.nodes.new("NodeReroute"); P3.location = (rx_in, by)
     ng.links.new(fs, P0.inputs[0]); ng.links.new(P0.outputs[0], P1.inputs[0])
     ng.links.new(P1.outputs[0], P2.inputs[0]); ng.links.new(P2.outputs[0], P3.inputs[0])
     ng.links.new(P3.outputs[0], ts)
+    L.seg((a_right, ay), (rx_out, ay))                 # exit stub
+    L.seg((rx_in, by), (b.location.x, by))             # entry stub
 
-def _route_v(ng, fs, ts, a, b, placed, boxes=(), hplaced=None):
+
+def _route_v(ng, fs, ts, a, b, L):
     a_right = a.location.x + (a.width or 140)
     if b.location.x < a_right + 50:                 # backward / overshoot risk -> over-under route
-        _route_back(ng, fs, ts, a, b, placed, hplaced if hplaced is not None else [], boxes); return
+        _route_back(ng, fs, ts, a, b, L); return
     soy = _socket_y(a, fs, False); diy = _socket_y(b, ts, True)  # enter/leave AT socket height
-    rx = _vlane(b.location.x - 140, min(soy, diy), max(soy, diy), placed, boxes, minx=a_right + 20)
+    rx = L.vlane(b.location.x - 140, min(soy, diy), max(soy, diy),
+                 minx=a_right + 25 + LANE_STEP, maxx=b.location.x - 20)
     # E = framed EXIT reroute right of the source; A = gap bend; B = framed ENTRY at target socket
-    E = ng.nodes.new("NodeReroute"); E.location = (a_right + 25, soy)
+    ex = a_right + 25
+    E = ng.nodes.new("NodeReroute"); E.location = (ex, soy)
+    ng.links.new(fs, E.inputs[0])
+    L.seg((a_right, soy), (ex, soy))                   # short exit stub, no freedom
+    if L.h_run_clash(soy, ex, rx):
+        # The leg from the source socket across to the turn lane is a LANE, not a stub, and
+        # its Y is pinned to the socket. When something already occupies that line, drop to
+        # an allocated one instead of sharing it (SH_ScreenCavity: this leg ran 115px along a
+        # direct wire whose nodes sit 7px off the same row).
+        ly = L.hlane(soy, ex, rx)
+        C = ng.nodes.new("NodeReroute"); C.location = (ex, ly)
+        ng.links.new(E.outputs[0], C.inputs[0]); E = C
+        L.add_v(ex, min(soy, ly), max(soy, ly))
+        soy = ly
+    else:
+        L.add_h(soy, ex, rx)                           # allocate the leg we are about to draw
     A = ng.nodes.new("NodeReroute"); A.location = (rx, soy)
     B = ng.nodes.new("NodeReroute"); B.location = (rx, diy)
-    ng.links.new(fs, E.inputs[0]); ng.links.new(E.outputs[0], A.inputs[0])
+    ng.links.new(E.outputs[0], A.inputs[0])
     ng.links.new(A.outputs[0], B.inputs[0]); ng.links.new(B.outputs[0], ts)
+    L.seg((rx, diy), (b.location.x, diy))              # entry stub
 
 def _ymid(node): return node.location.y - 22   # link y at a node's first socket (approx)
 
@@ -375,7 +574,7 @@ def _socket_y(node, sock, is_input):
     h = (node.dimensions.y / _uiscale()) if node.dimensions.y else est_h(node)
     return (node.location.y - h) + (n - i) * 22 - 6
 
-def route_into_nodes(ng, placed, hplaced, boxes):
+def route_into_nodes(ng, L):
     """Coordinate ALL cross-band wires entering the SAME node into a nested, non-crossing
     staircase (subway-map): each entry reroute sits at its target SOCKET's Y (staggered), and
     lanes nest so the TOPMOST socket turns in the lane closest to the node, lower sockets in
@@ -384,6 +583,7 @@ def route_into_nodes(ng, placed, hplaced, boxes):
     source->reroute->reroute->target, so route_branches (which skips reroute endpoints) leaves
     them alone. Run BEFORE route_branches."""
     from collections import defaultdict
+    boxes = L.boxes
     # A source socket feeding >1 target is a FAN -> leave the whole fan to route_branches
     # (stealing one branch here fragments the fan and makes the source loop back on itself).
     src_fanout = defaultdict(int)
@@ -426,30 +626,39 @@ def route_into_nodes(ng, placed, hplaced, boxes):
         base_x = b.location.x - 45
         for k, (a, fs, ts, sy) in enumerate(rows):
             soy = _socket_y(a, fs, False)
-            want_x = base_x - k * 30               # topmost=k0=nearest node; lower sockets further left
-            lane_x = _vlane(want_x, min(soy, sy), max(soy, sy), placed, boxes,
-                            minx=a.location.x + (a.width or 140) + 20)
+            a_right = a.location.x + (a.width or 140)
+            want_x = base_x - k * LANE_STEP        # topmost=k0=nearest node; lower sockets further left
+            lane_x = L.vlane(want_x, min(soy, sy), max(soy, sy),
+                             minx=a_right + 25 + LANE_STEP, maxx=b.location.x - 20)
             for ll in list(ng.links):              # drop the original direct link
                 if ll.from_socket == fs and ll.to_socket == ts:
                     ng.links.remove(ll); break
             # E = framed EXIT reroute just right of the source (inside source frame);
             # A = gap bend at the drop lane; B = framed ENTRY at the target socket.
-            E = ng.nodes.new("NodeReroute"); E.location = (a.location.x + (a.width or 140) + 25, soy)
+            E = ng.nodes.new("NodeReroute"); E.location = (a_right + 25, soy)
             A = ng.nodes.new("NodeReroute"); A.location = (lane_x, soy)
             B = ng.nodes.new("NodeReroute"); B.location = (lane_x, sy)
             ng.links.new(fs, E.inputs[0]); ng.links.new(E.outputs[0], A.inputs[0])
             ng.links.new(A.outputs[0], B.inputs[0]); ng.links.new(B.outputs[0], ts)
+            L.seg((a_right, soy), (lane_x, soy))   # exit stub
+            L.seg((lane_x, sy), (b.location.x, sy))  # entry stub
             n_routed += 1
     return n_routed
 
-def route_branches(ng, placed, hplaced, boxes):
+
+def route_branches(ng, L):
     """Group EVERY real link by its SOURCE socket, then route each source ONCE:
       - 1 target, cross-frame -> orthogonal H-V-H (2 reroutes in a clear lane).
       - 1 target, same-frame  -> leave direct (route_around handles any node crossing).
       - >=2 targets           -> ONE SHARED daisy-chained branch off the source (never duplicate
         reroutes on the same line): STACKED targets -> a vertical bus; SPREAD targets -> a horizontal
         trunk at source height that splits off a tap per column then continues right. Targets sharing
-        a row/column reuse the SAME reroute (deduped) so no two reroutes ever land on one spot."""
+        a row/column reuse the SAME reroute (deduped) so no two reroutes ever land on one spot.
+
+    Every lane here -- including the spread fan's per-target drop legs -- is allocated through
+    `L`. The drop legs used to be derived from the target's own X with no ledger at all, which
+    is why two fans feeding one column drew on top of each other (SH_ScreenCavity)."""
+    boxes = L.boxes
     bysrc = defaultdict(list)
     for l in ng.links:
         a, b = l.from_node, l.to_node
@@ -469,7 +678,7 @@ def route_branches(ng, placed, hplaced, boxes):
                 continue                                        # adjacent + clear: direct wire reads best
             for l in list(ng.links):
                 if l.from_socket == fs and l.to_socket == ts: ng.links.remove(l); break
-            _route_v(ng, fs, ts, a, b, placed, boxes, hplaced); n_hv += 2
+            _route_v(ng, fs, ts, a, b, L); n_hv += 2
             continue
         ys = [b.location.y for b, _ in tg]; xs = [b.location.x for b, _ in tg]
         if max(ys) - min(ys) < 50 and max(xs) - min(xs) < 80:
@@ -486,7 +695,7 @@ def route_branches(ng, placed, hplaced, boxes):
         # split BACKWARD targets (left of/under source) -> each over-under routed (no overshoot)
         bwd = [(b, tid) for b, tid in tg if b.location.x < a_right + 50]
         for b, tid in bwd:
-            _route_back(ng, fs, sock[(b, tid)], a, b, placed, hplaced, boxes); n_fan += 1
+            _route_back(ng, fs, sock[(b, tid)], a, b, L); n_fan += 1
         tg = [(b, tid) for b, tid in tg if b.location.x >= a_right + 50]
         if not tg: continue
         if len(tg) == 1:                                        # one forward target left -> simple H-V-H
@@ -494,47 +703,78 @@ def route_branches(ng, placed, hplaced, boxes):
             if _adjacent_direct(a, fs, b, sock[(b, tid)], boxes):
                 ng.links.new(fs, sock[(b, tid)])                # adjacent + clear: restore the direct wire
             else:
-                _route_v(ng, fs, sock[(b, tid)], a, b, placed, boxes, hplaced); n_hv += 2
+                _route_v(ng, fs, sock[(b, tid)], a, b, L); n_hv += 2
             continue
         ys = [b.location.y for b, _ in tg]; xs = [b.location.x for b, _ in tg]
         if max(xs) - min(xs) <= 200:
             # ---- STACKED: one vertical bus, reroutes deduped per ROW ----
             ymin = min(ys + [a.location.y]) - 35; ymax = max(ys + [a.location.y])
-            bus_x = _vlane(min(xs) - 45, ymin, ymax, placed, boxes, minx=a_right + 25)
+            soy0 = _socket_y(a, fs, False)
+            bus_x = L.vlane(min(xs) - 45, min(ymin, soy0), max(ymax, soy0),
+                            minx=a_right + 25 + LANE_STEP, maxx=min(xs) - 20)
             rows = defaultdict(list)
             for b, tid in tg: rows[round(_ymid(b) / 8) * 8].append((b, tid))
-            R0 = ng.nodes.new("NodeReroute"); R0.location = (bus_x, _ymid(a)); ng.links.new(fs, R0.inputs[0])
-            prev = R0
-            for ry in sorted(rows, reverse=True):               # top -> bottom (flow DOWN)
-                R = ng.nodes.new("NodeReroute"); R.location = (bus_x, ry)
-                ng.links.new(prev.outputs[0], R.inputs[0]); prev = R
-                for b, tid in rows[ry]: ng.links.new(R.outputs[0], sock[(b, tid)]); n_fan += 1
+            # The run from the source across to the bus can be thousands of px long -- that is a
+            # LANE, not a stub, so it goes through the ledger like any other. Parking R0 at the
+            # source's socket Y instead put two buses whose sources happened to share a socket
+            # row on one line for 3220px (SH_ScreenCavity: Camera Right vs Nx/Ny, both at y=-88).
+            ex = a_right + 25
+            trunk_y = L.hlane(soy0, ex, bus_x)
+            if abs(trunk_y - soy0) < 2.0:                       # already clear: no bend needed
+                R0 = ng.nodes.new("NodeReroute"); R0.location = (bus_x, soy0)
+                ng.links.new(fs, R0.inputs[0])
+            else:
+                E = ng.nodes.new("NodeReroute"); E.location = (ex, soy0)
+                C = ng.nodes.new("NodeReroute"); C.location = (ex, trunk_y)
+                R0 = ng.nodes.new("NodeReroute"); R0.location = (bus_x, trunk_y)
+                ng.links.new(fs, E.inputs[0]); ng.links.new(E.outputs[0], C.inputs[0])
+                ng.links.new(C.outputs[0], R0.inputs[0])
+                L.seg((a_right, soy0), (ex, soy0))              # short exit stub
+                L.add_v(ex, min(soy0, trunk_y), max(soy0, trunk_y))
+            # Chain monotonically AWAY from R0 in each direction, splitting at R0 when it
+            # sits between its rows. Always chaining to the TOPMOST row first made the bus
+            # climb past every row and descend back down through its own line whenever the
+            # source sat below its targets -- GN_Erosion_3D drew a 936px retrace on one X
+            # that no amount of lane separation could fix, because it was one wire crossing
+            # itself. A reroute output may fan, so the split costs nothing.
+            r0y = R0.location.y
+            up = sorted([ry for ry in rows if ry > r0y])                  # away, ascending
+            down = sorted([ry for ry in rows if ry <= r0y], reverse=True)  # away, descending
+            for seq in (down, up):
+                prev = R0
+                for ry in seq:
+                    R = ng.nodes.new("NodeReroute"); R.location = (bus_x, ry)
+                    ng.links.new(prev.outputs[0], R.inputs[0]); prev = R
+                    for b, tid in rows[ry]:
+                        ng.links.new(R.outputs[0], sock[(b, tid)]); n_fan += 1
         else:
             # ---- SPREAD: horizontal trunk flowing strictly RIGHT, one tap per target ----
-            # MONOTONIC: each tap_x is forced >= previous tap + spacing and only ever shifts
-            # RIGHT to clear a node. (The old per-column `_vlane` shifted LEFT on clash, so a
-            # later tap could land left of an earlier one -> the wire looped back on itself.)
+            # MONOTONIC: each drop lane is bounded below by the previous tap, so the trunk only
+            # ever marches right and never loops back. The lane itself comes from the ledger,
+            # which is what keeps two fans over the same column off one another's line.
             tg.sort(key=lambda bt: bt[0].location.x)
             soy0 = _socket_y(a, fs, False)
             tx0 = a_right + 25; txmax = max(xs) + 60
-            trunk_y = _hlane(soy0, tx0, txmax, hplaced, boxes)
+            trunk_y = L.hlane(soy0, tx0, txmax)
             E = ng.nodes.new("NodeReroute"); E.location = (tx0, trunk_y); ng.links.new(fs, E.inputs[0])
+            L.seg((a_right, soy0), (tx0, trunk_y))              # exit stub, AS DRAWN
             prev = E; last_x = tx0
             for b, tid in tg:
                 ty = _socket_y(b, sock[(b, tid)], True)
-                tap_x = max(b.location.x - 30, last_x + 28)          # never left of the previous tap
                 lo, hi = min(ty, trunk_y) - 6, max(ty, trunk_y) + 6
-                while _hits_node(tap_x, lo, hi, boxes) and tap_x < b.location.x + (b.width or 140):
-                    tap_x += 24                                       # clear a node by shifting RIGHT
+                tap_x = L.vlane(b.location.x - 45, lo, hi,
+                                minx=last_x + LANE_STEP, maxx=b.location.x - 20)
                 last_x = tap_x
                 T = ng.nodes.new("NodeReroute"); T.location = (tap_x, trunk_y)
                 ng.links.new(prev.outputs[0], T.inputs[0]); prev = T   # trunk marches right
                 D = ng.nodes.new("NodeReroute"); D.location = (tap_x, ty)
                 ng.links.new(T.outputs[0], D.inputs[0]); ng.links.new(D.outputs[0], sock[(b, tid)])
+                L.seg((tap_x, ty), (b.location.x, ty))          # entry stub
                 n_fan += 2
     return n_hv, n_fan
 
-def route_around_nodes(ng):
+
+def route_around_nodes(ng, L):
     """Route a SAME-frame link up and over the row ONLY if its straight path actually
     passes through another node's body (never cross a node)."""
     members = lambda fn: [n for n in ng.nodes if fname_of(n) == fn and n.bl_idname not in ('NodeFrame', 'NodeReroute')]
@@ -562,14 +802,20 @@ def route_around_nodes(ng):
             top = max([N.location.y for N in blk] + [a.location.y, b.location.y]) + 45
             cand.append((a, l.from_socket.identifier, b, l.to_socket.identifier, top))
     cand.sort(key=lambda c: c[0].location.x)
-    for i, (a, fid, b, tid, top) in enumerate(cand):
+    for a, fid, b, tid, top in cand:
         fs, ts = osock(a, fid), isock(b, tid)
         for l in list(ng.links):
             if l.from_socket == fs and l.to_socket == ts: ng.links.remove(l); break
-        ry = top + (i % 6) * 24
-        R1 = ng.nodes.new("NodeReroute"); R1.location = (a.location.x + (a.width or 140) + 22, ry)
-        R2 = ng.nodes.new("NodeReroute"); R2.location = (b.location.x - 30, ry)
+        x1 = a.location.x + (a.width or 140) + 22
+        x2 = b.location.x - 30
+        # `top + (i % 6) * 24` guaranteed a collision on the 7th over-the-row detour and
+        # reserved nothing; the ledger picks the nearest genuinely free trunk instead.
+        ry = L.hlane(top, min(x1, x2), max(x1, x2), ddir=1)
+        R1 = ng.nodes.new("NodeReroute"); R1.location = (x1, ry)
+        R2 = ng.nodes.new("NodeReroute"); R2.location = (x2, ry)
         ng.links.new(fs, R1.inputs[0]); ng.links.new(R1.outputs[0], R2.inputs[0]); ng.links.new(R2.outputs[0], ts)
+        L.seg((a.location.x + (a.width or 140), _ymid(a)), (x1, _ymid(a)))
+        L.seg((x2, _ymid(b)), (b.location.x, _ymid(b)))
     return len(cand)
 
 def frame_reroutes(ng):
@@ -666,9 +912,238 @@ def separate_frames(ng, margin=40):
     return n_shift
 
 
+
+def _lane_groups(ng, axis):
+    """Connected groups of reroutes sharing a column (axis 'V') or a row (axis 'H') -- the unit
+    that can be slid sideways/up without bending anything, since every run inside the group
+    moves with it."""
+    same = (lambda A, B: abs(A.location.x - B.location.x) < 3) if axis == 'V' else \
+           (lambda A, B: abs(A.location.y - B.location.y) < 3)
+    rr = [n for n in ng.nodes if n.bl_idname == 'NodeReroute']
+    idx = {n.name: i for i, n in enumerate(rr)}
+    par = list(range(len(rr)))
+
+    def find(i):
+        while par[i] != i:
+            par[i] = par[par[i]]; i = par[i]
+        return i
+
+    for l in ng.links:
+        A, B = l.from_node, l.to_node
+        if A.name in idx and B.name in idx and same(A, B):
+            ra, rb = find(idx[A.name]), find(idx[B.name])
+            if ra != rb: par[ra] = rb
+    grp = defaultdict(list)
+    for n in rr:
+        grp[find(idx[n.name])].append(n)
+    return list(grp.values())
+
+
+def separate_wire_lanes(ng, iters=8):
+    """R12/R13 SAFETY NET -- runs LAST, on the graph as actually drawn.
+
+    Allocation happens before `declutter_reroutes` nudges reroutes and before `separate_frames`
+    shifts whole bands, so a lane that was clear when it was reserved can still end up on
+    another lane, or on a node's border, by the time the file is saved. This re-measures the
+    real reroute-to-reroute runs and slides whole same-column / same-row groups apart until no
+    two wires are collinear (R12) and no vertical run is painted on a node outline (R13).
+
+    Immovable obstacles matter as much as movable lanes: a trunk laid 7px off a DIRECT
+    node-to-node wire is exactly as unreadable as two trunks on one line, and that wire can
+    never move, so it enters the ledger with a zero travel budget.
+
+    A group's travel budget follows from what a shift would bend. The stubs joining it to real
+    node sockets run horizontally, so sliding a COLUMN sideways only lengthens them -- free,
+    unless a stub is itself vertical. Sliding a ROW up/down tilts every stub, so it is allowed
+    only over stubs long enough (MIN_TILT_RUN) to absorb the rise as a gentle diagonal, and
+    never by more than MAX_ROW_TILT."""
+    boxes = node_boxes(ng)
+    links = list(ng.links)
+    # link index by node name -- rebuilt per pass, not per group (this pass runs on graphs with
+    # thousands of links; the naive per-group scan was O(groups x links) x iters x axes)
+    touch = defaultdict(list)
+    for l in links:
+        touch[l.from_node.name].append(l)
+        touch[l.to_node.name].append(l)
+    moved = 0
+    for axis in ('V', 'H'):
+        vertical = axis == 'V'
+        # Groups move as a unit and never merge or split, so membership is computed ONCE.
+        groups = _lane_groups(ng, axis)
+        def obstacle(x0, y0, x1, y1, owners):
+            """An axis-aligned wire the repair cannot move but must not ignore."""
+            if vertical and abs(x1 - x0) < 6 and abs(y1 - y0) > 20:
+                return [None, (x0 + x1) / 2.0, min(y0, y1), max(y0, y1), (0.0, 0.0), owners]
+            if not vertical and abs(y1 - y0) < 6 and abs(x1 - x0) > 20:
+                return [None, (y0 + y1) / 2.0, min(x0, x1), max(x0, x1), (0.0, 0.0), owners]
+            return None
+
+        node_wires = []                         # direct node-to-node: fixed forever
+        for l in links:
+            A, B = l.from_node, l.to_node
+            if A.bl_idname == 'NodeReroute' or B.bl_idname == 'NodeReroute':
+                continue
+            o = obstacle(A.location.x + (A.width or 140), _socket_y(A, l.from_socket, False),
+                         B.location.x, _socket_y(B, l.to_socket, True), frozenset())
+            if o: node_wires.append(o)
+        for _ in range(iters):
+            spans = list(node_wires)
+            # Reroute-to-node stubs move WITH their group, so they are rebuilt every pass and
+            # tagged with their owner -- a group must not flee its own stub. Without them the
+            # repair was blind to a trunk laid 3.5px off an entry stub (GN_Erosion_3D).
+            for l in links:
+                A, B = l.from_node, l.to_node
+                ar, br = A.bl_idname == 'NodeReroute', B.bl_idname == 'NodeReroute'
+                if ar == br:
+                    continue
+                if ar:
+                    o = obstacle(A.location.x, A.location.y,
+                                 B.location.x, _socket_y(B, l.to_socket, True), frozenset([A.name]))
+                else:
+                    o = obstacle(A.location.x + (A.width or 140), _socket_y(A, l.from_socket, False),
+                                 B.location.x, B.location.y, frozenset([B.name]))
+                if o: spans.append(o)
+            for g in groups:
+                names = set(n.name for n in g)
+                seen = set(); runs = []
+                for nm in names:
+                    for l in touch[nm]:
+                        if l.from_node.name in names and l.to_node.name in names \
+                                and id(l) not in seen:
+                            seen.add(id(l)); runs.append((l.from_node, l.to_node))
+                key = (lambda n: n.location.y) if vertical else (lambda n: n.location.x)
+                perp = (lambda n: n.location.x) if vertical else (lambda n: n.location.y)
+                runs = [r for r in runs if abs(key(r[0]) - key(r[1])) > 20]
+                if not runs:
+                    continue
+                vals = [key(n) for pr in runs for n in pr]
+                # Travel window [dlo, dhi]. Two separate constraints bound it.
+                stubs = []                      # (a) stubs into fixed real-node sockets
+                dlo, dhi = -1e9, 1e9            # (b) ORDER of the runs attached to this group
+                for nm in names:
+                    for l in touch[nm]:
+                        for R, O in ((l.from_node, l.to_node), (l.to_node, l.from_node)):
+                            if R.name not in names:
+                                continue
+                            if O.bl_idname != 'NodeReroute':
+                                ox = O.location.x + ((O.width or 140) if O is l.from_node else 0.0)
+                                stubs.append(abs(R.location.x - ox))
+                                continue
+                            if O.name in names:
+                                continue
+                            # A perpendicular neighbour run: sliding this group changes that
+                            # run's LENGTH, and pushing past the neighbour REVERSES it. This
+                            # repair pass itself reversed a trunk hop that way -- GN_Erosion's
+                            # trunk ran 1715 -> 1996 -> 1804 -> 2040, a 192px backtrack that
+                            # then read as two wires on one line.
+                            if vertical:
+                                if abs(R.location.y - O.location.y) > 6:
+                                    continue
+                                d = R.location.x - O.location.x
+                            else:
+                                if abs(R.location.x - O.location.x) > 6:
+                                    continue
+                                d = R.location.y - O.location.y
+                            # Only the SIGN must survive -- keep the neighbour run at least
+                            # LANE_MIN long. Requiring a full LANE_STEP pinned trunks that had
+                            # genuine room and re-broke SH_ScreenCavity.
+                            if d > 0:
+                                dlo = max(dlo, LANE_MIN - d)
+                            elif d < 0:
+                                dhi = min(dhi, -LANE_MIN - d)
+                            else:
+                                dlo, dhi = 0.0, 0.0
+                if vertical:
+                    if not all(s >= 12.0 for s in stubs):
+                        dlo = dhi = 0.0         # a vertical stub would bend
+                else:
+                    if stubs and min(stubs) < MIN_TILT_RUN:
+                        dlo = dhi = 0.0         # stubs too short to absorb a tilt
+                    else:
+                        dlo = max(dlo, -MAX_ROW_TILT); dhi = min(dhi, MAX_ROW_TILT)
+                spans.append([g, perp(g[0]), min(vals), max(vals), (dlo, dhi), frozenset(names)])
+            if not spans:
+                break
+
+            def bad(c, lo, hi, self_i):
+                mine = spans[self_i][5]
+                for k in range(len(spans)):
+                    if k == self_i or (spans[k][5] & mine):
+                        continue                # itself, or a stub that travels with it
+                    _g2, c2, lo2, hi2, _b, _o = spans[k]
+                    if abs(c - c2) < LANE_MIN * 2 and not (hi < lo2 - 15 or lo > hi2 + 15):
+                        return True             # R12: another wire on this line
+                if not vertical:
+                    return False                # R13 is about vertical runs vs node borders
+                for nx, ny, w, h in boxes:
+                    if hi < ny - h - 4 or lo > ny + 4:
+                        continue
+                    if nx - 22 <= c <= nx + w + 22:
+                        return True             # R13: on (or hugging) a node border
+                return False
+
+            changed = False
+            for i in range(len(spans)):
+                g, c, lo, hi, win, _own = spans[i]
+                dlo, dhi = win
+                if dhi - dlo < LANE_MIN or not bad(c, lo, hi, i):
+                    continue
+                for k in range(1, 60):          # nearest clear line, both directions
+                    if k * LANE_MIN > max(dhi, -dlo):
+                        break
+                    for dd in (-1, 1):
+                        nc = c + k * LANE_MIN * dd
+                        if not (dlo <= nc - c <= dhi):
+                            continue
+                        if not bad(nc, lo, hi, i):
+                            for n in g:
+                                if vertical: n.location.x += nc - c
+                                else:         n.location.y += nc - c
+                            spans[i][1] = nc
+                            moved += 1; changed = True
+                            break
+                    else:
+                        continue
+                    break
+            if not changed:
+                break
+    return moved
+
+
 # ---------------------------------------------------------------------------
 #  Importable pipeline API  (used by run_pipeline.py and the __main__ CLI below)
 # ---------------------------------------------------------------------------
+
+def seed_direct_wires(ng, L):
+    """Record the links the routers will deliberately LEAVE direct.
+
+    They were the last category of drawn segment invisible to the ledger. A direct wire
+    occupies its line exactly like a routed lane does, so a trunk could be allocated 7px
+    from one and read as sharing it (SH_ScreenCavity: `Ridge Branch +2x -> ridge - valley`
+    against a reroute trunk, 115px of co-extent). `_adjacent_direct` is the same predicate
+    the routers use to skip a link, so seeding on it cannot drift from their decisions.
+    Node positions are fixed by the time this runs, so the answer is already final."""
+    fanout = defaultdict(int)
+    for l in ng.links:
+        if l.from_node.bl_idname not in ('NodeReroute', 'NodeGroupInput'):
+            fanout[(l.from_node.name, l.from_socket.identifier)] += 1
+    n = 0
+    for l in ng.links:
+        a, b = l.from_node, l.to_node
+        if a.bl_idname in ('NodeReroute', 'NodeGroupInput') or b.bl_idname == 'NodeReroute':
+            continue
+        # Mirror BOTH of route_branches' skip conditions -- an adjacent clear link, and a
+        # same-frame single-target link, which is left direct at ANY length (that second one
+        # is the 420px wire the first seeding attempt missed).
+        same_frame_single = (fanout[(a.name, l.from_socket.identifier)] == 1
+                             and fname_of(a) is not None and fname_of(a) == fname_of(b))
+        if not (same_frame_single or _adjacent_direct(a, l.from_socket, b, l.to_socket, L.boxes)):
+            continue
+        L.seg((a.location.x + (a.width or 140), _socket_y(a, l.from_socket, False)),
+              (b.location.x, _socket_y(b, l.to_socket, True)))
+        n += 1
+    return n
+
 
 def tidy_and_route(ng):
     """Full deterministic layout pass, mutating `ng` in place:
@@ -679,18 +1154,20 @@ def tidy_and_route(ng):
     tidy_layout(ng)
     n_gi = localize_group_inputs(ng)
     place_output_rightmost(ng)
-    placed = []; hplaced = []
-    boxes = node_boxes(ng)
-    n_ne = route_into_nodes(ng, placed, hplaced, boxes)   # nested staircase entries FIRST
-    n_hv, n_fb = route_branches(ng, placed, hplaced, boxes)
-    n_ia = route_around_nodes(ng)
+    L = Lanes(node_boxes(ng))                             # THE ledger -- every lane goes through it
+    seed_direct_wires(ng, L)                              # ...including the wires nobody routes
+    n_ne = route_into_nodes(ng, L)                        # nested staircase entries FIRST
+    n_hv, n_fb = route_branches(ng, L)
+    n_ia = route_around_nodes(ng, L)
     declutter_reroutes(ng)
     n_fr = frame_reroutes(ng)                             # parent reroutes to their function frame
     n_sep = separate_frames(ng)                           # R7: resolve band corner-crossings
     if n_sep:
         declutter_reroutes(ng)                            # shifted nodes may cover a gap bend
+    n_lane = separate_wire_lanes(ng)                      # R12/R13: re-measure AS DRAWN and fix
     return {"local_gis": n_gi, "node_entries": n_ne, "hv": n_hv, "fan": n_fb,
-            "around": n_ia, "framed_reroutes": n_fr, "frame_shifts": n_sep}
+            "around": n_ia, "framed_reroutes": n_fr, "frame_shifts": n_sep,
+            "lane_shifts": n_lane}
 
 
 def eval_positions(obj, m, pid, preview):

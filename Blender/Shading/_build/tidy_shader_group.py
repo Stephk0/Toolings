@@ -50,7 +50,10 @@ log("tidy stats:", stats)
 rep = layout_audit.audit(ng)
 layout_audit.print_report(rep)
 
-failed_blocking = [r for r in layout_audit.BLOCKING if rep.get(r, {}).get("fail")]
+# `.get("fail")` was always None -- the audit reports {"status": "FAIL"}, so this
+# gate never fired and a graph with 11 collinear wire pairs saved anyway.
+failed_blocking = [r for r in layout_audit.BLOCKING
+                   if rep.get(r, {}).get("status") == "FAIL"]
 if failed_blocking:
     log("BLOCKING FAILURES -> not saving:", failed_blocking)
     sys.stdout.flush()

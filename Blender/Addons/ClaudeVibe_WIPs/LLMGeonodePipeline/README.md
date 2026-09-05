@@ -62,10 +62,14 @@ LLMGeonodePipeline/
   - **R3 left-to-right** — every logical link (traced through reroutes) flows +x *(advisory)*
   - **R4 frames labeled** — every frame carries a label *(advisory)*
   - **R5 row clearance** — ≥70px between nodes that share a vertical span *(advisory)*
+  - **R12 no collinear wires** — no two wires drawn on top of each other *(BLOCKING)*
+  - **R13 wires clear of nodes** — no lane painted along a node's border *(BLOCKING)*
 
 **Blocking vs advisory** (policy in `layout_audit.py`: `BLOCKING` / `ADVISORY`):
 R1+R2 are structural integrity — a failure means the graph renders *broken*
-(overlapping bodies / hidden reroutes), so the file is **not saved**. R3–R5 are
+(overlapping bodies / hidden reroutes), so the file is **not saved**. R12+R13
+join them because a wire drawn on top of another wire, or on a node's outline,
+is just as broken — the graph *looks* connected differently than it is. R3–R5 are
 readability quality and never block. R3 is advisory on purpose: feedback/preview
 topologies (a deformer's `Set Position` feeding a preview `Switch` / gizmo `Join`
 placed upstream) have legitimate backward links and can never hit zero.

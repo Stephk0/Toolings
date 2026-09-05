@@ -18,7 +18,16 @@ Rules checked
   R9 unique_socket_names: no two interface sockets share a display name    (WARN -- miswire hazard)
   R10 sockets_in_panels : params organized in interface panels             (WARN; Geometry/Selection may stay top-level)
   R11 no_needless_reroutes: short unobstructed links stay DIRECT wires     (WARN)
+  R12 no_collinear_wires: no two wires drawn on top of each other           (FAIL if >0)
+  R13 wires_clear_of_nodes: no lane painted along a node's border           (FAIL if >0)
   (report only)       : bounds W x H and aspect
+
+R12/R13 exist because R1-R11 all passed on a graph (SH_ScreenCavity, 2026-08-19) whose
+wires were unreadable: three signals shared one lane X twice over -- 10 EXACTLY-collinear
+wire pairs with up to 3453px of shared extent, rendering as one line -- and 13 vertical runs
+sat 2.0px off a node's right border, merging with the node outline. Nothing in R1-R11 looks
+at a WIRE (they check node bodies, reroute containment and frames), so the graph passed the
+blocking gate and was saved. Both rules are BLOCKING for that reason.
 
 R8-R10 mirror the ST3E CREATION criteria (frame+label every function like code;
 organize modifier inputs in named panels) -- tidying is held to the same bar as
@@ -47,7 +56,8 @@ OVERLAP_PAD = 2.0  # ignore hairline touches
 #              purpose: feedback/preview topologies (a deformer's Set Position
 #              feeding a preview Switch / gizmo Join placed upstream) have
 #              legitimate backward links and can never reach zero.
-BLOCKING = ("R1_no_overlaps", "R2_reroutes_clear", "R7_no_frame_overlap")
+BLOCKING = ("R1_no_overlaps", "R2_reroutes_clear", "R7_no_frame_overlap",
+            "R12_no_collinear_wires", "R13_wires_clear_of_nodes")
 ADVISORY = ("R3_left_to_right", "R4_frames_labeled", "R5_row_clearance", "R6_entries_staggered",
             "R8_nodes_framed", "R9_unique_socket_names", "R10_sockets_in_panels",
             "R11_no_needless_reroutes")
@@ -56,6 +66,12 @@ ENTRY_Y_TOL = 10.0   # two reroutes feeding one node within this Y are "piled on
 NEEDLESS_DX = 300.0  # a rerouted link shorter than this with a clear straight path is "needless" (R11)
 NEEDLESS_DY = 240.0  # ...and a rise smaller than this (keep in sync with tidy_layout ADJ_DX/ADJ_DY)
 TOP_LEVEL_OK = ("Geometry", "Selection")  # interface inputs allowed OUTSIDE panels (R10)
+
+# R12/R13 thresholds -- keep in sync with tidy_layout.LANE_MIN / NODE_CLEAR.
+COLLINEAR_DX = 12.0   # two parallel runs closer than this are one line to the eye
+COLLINEAR_OV = 40.0   # ...if they also share at least this much extent
+BORDER_CLEAR = 22.0   # a run closer than this to a node's edge merges with the node outline
+LANE_MIN_LEN = 20.0   # shorter than this is a socket stub, not a lane
 
 
 def _est_h(n):
@@ -85,6 +101,50 @@ def _box(n, sc):
 
 def _intersect(a, b, pad=0.0):
     return a[0] < b[2] - pad and b[0] < a[2] - pad and a[1] < b[3] - pad and b[1] < a[3] - pad
+
+
+def _sock_y(n, sock, is_in, sc):
+    """A socket's absolute Y. Mirrors tidy_layout._socket_y so engine and audit agree."""
+    if n.bl_idname == 'NodeReroute':
+        return _absloc(n)[1]
+    coll = [s for s in (n.inputs if is_in else n.outputs)
+            if s.enabled and not s.hide and s.type != 'CUSTOM']
+    try:
+        i = coll.index(sock)
+    except ValueError:
+        i = 0
+    y = _absloc(n)[1]
+    if not is_in:
+        return y - 34 - i * 22 - 6
+    h = (n.dimensions.y / sc) if n.dimensions.y else _est_h(n)
+    return (y - h) + ((len(coll) or 1) - i) * 22 - 6
+
+
+def wire_segments(ng, sc):
+    """Every link as the straight segment it is DRAWN as, in absolute coordinates:
+    (x0, y0, x1, y1, from_node_name, to_node_name). The measurement R12/R13 are built on --
+    and the same one `tidy_layout.separate_wire_lanes` repairs against."""
+    out = []
+    for l in ng.links:
+        a, b = l.from_node, l.to_node
+        ax = _absloc(a)[0] + (0.0 if a.bl_idname == 'NodeReroute'
+                              else ((a.dimensions.x / sc) if a.dimensions.x else (a.width or 140.0)))
+        p0 = (ax, _sock_y(a, l.from_socket, False, sc))
+        p1 = (_absloc(b)[0], _sock_y(b, l.to_socket, True, sc))
+        out.append((p0[0], p0[1], p1[0], p1[1], a.name, b.name))
+    return out
+
+
+def _lanes(segs, vertical):
+    """Near-axis-aligned runs long enough to read as a lane (socket stubs excluded)."""
+    out = []
+    for x0, y0, x1, y1, an, bn in segs:
+        dx, dy = abs(x1 - x0), abs(y1 - y0)
+        if vertical and dx < 6 and dy > LANE_MIN_LEN:
+            out.append(((x0 + x1) / 2.0, min(y0, y1), max(y0, y1), an, bn))
+        elif not vertical and dy < 6 and dx > LANE_MIN_LEN:
+            out.append(((y0 + y1) / 2.0, min(x0, x1), max(x0, x1), an, bn))
+    return out
 
 
 def audit(ng):
@@ -259,6 +319,39 @@ def audit(ng):
                 seen_pairs.add(key)
                 needless.append((fn.name, l.to_node.name, chain))
 
+    # R12 no two wires drawn on top of each other (the defect R1-R11 could not see)
+    segs = wire_segments(ng, sc)
+    collinear = []
+    for vertical in (True, False):
+        L = _lanes(segs, vertical)
+        for i in range(len(L)):
+            for j in range(i + 1, len(L)):
+                c1, lo1, hi1, a1, b1 = L[i]
+                c2, lo2, hi2, a2, b2 = L[j]
+                if {a1, b1} & {a2, b2}:            # same chain: collinear end-to-end is one line
+                    continue
+                ov = min(hi1, hi2) - max(lo1, lo2)
+                if ov >= COLLINEAR_OV and abs(c1 - c2) < COLLINEAR_DX:
+                    collinear.append({"axis": "V" if vertical else "H",
+                                      "gap": round(abs(c1 - c2), 1), "overlap": round(ov),
+                                      "a": f"{a1}->{b1}", "b": f"{a2}->{b2}"})
+    collinear.sort(key=lambda d: (d["gap"], -d["overlap"]))
+
+    # R13 no lane painted along a node's border (a wire that merges with the node outline)
+    hugging = []
+    for cx, lo, hi, an, bn in _lanes(segs, True):
+        for n in real:
+            if n.name in (an, bn):
+                continue
+            x0, y0, x1, y1 = boxes[n.name]
+            if hi < y0 - 4 or lo > y1 + 4:
+                continue
+            d = min(abs(cx - x0), abs(cx - x1))
+            if d < BORDER_CLEAR or x0 < cx < x1:
+                hugging.append({"node": n.name, "dist": round(d, 1),
+                                "wire": f"{an}->{bn}", "inside": x0 < cx < x1})
+    hugging.sort(key=lambda d: d["dist"])
+
     allx = [_absloc(n)[0] for n in real]; ally = [_absloc(n)[1] for n in real]
     W = (max(allx) - min(allx)) if allx else 0
     H = (max(ally) - min(ally)) if ally else 0
@@ -286,6 +379,10 @@ def audit(ng):
                                    "loose_inputs": loose_inputs[:16]},
         "R11_no_needless_reroutes": {"status": rule(not needless, warn=True),
                                       "count": len(needless), "links": needless[:10]},
+        "R12_no_collinear_wires": {"status": rule(not collinear),
+                                    "count": len(collinear), "worst": collinear[:6]},
+        "R13_wires_clear_of_nodes": {"status": rule(not hugging),
+                                      "count": len(hugging), "worst": hugging[:6]},
         "bounds": {"w": round(W), "h": round(H), "aspect_h_over_w": round(H / max(W, 1), 2)},
     }
 

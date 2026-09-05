@@ -1,5 +1,89 @@
 # Changelog — LLM Geonode Pipeline
 
+## v1.3.0 — 2026-08-19
+
+Wire-legibility release. Found by a user image-diff on **SH_ScreenCavity**: the
+graph passed every rule (R1–R11 all PASS) yet its wires were unreadable — the
+user had to drag reroutes aside to reveal that one apparent line was three
+separate signals. Measured on the saved file: **10 exactly-collinear wire pairs**
+(0.0px apart, up to **3453px** of shared extent) and **13 vertical runs sitting
+2.0px off a node's right border**, merged with the node outline.
+
+**Root cause — the reservation system had holes, and three routers were allowed
+to give up.** `placed`/`hplaced` were bare lists that only `_vlane`/`_hlane` fed;
+`route_branches`' spread-fan path derived each drop lane straight from the
+target's own X and never consulted *or* recorded anything, so two fans over one
+node column landed on the same line by construction. Separately, three code paths
+accepted a *known* clash when their bounded search ran out — `_vlane`'s `minx`
+snap, the tap escape loop's `tap_x < target_right` guard (it stopped walking while
+still inside the clearance pad, 2px from the border), and `_hlane`'s accept-start
+fallback.
+
+- **NEW `Lanes` allocator** — the one ledger every drawn segment goes through.
+  Allocates *and* records; socket stubs and trunk hops the caller has no freedom
+  over are recorded too, so later allocations can see them. Bidirectional search
+  from the corridor centre; the last resort is a **jog** that maximises
+  separation, never a snap onto an occupied lane.
+- **Gutter-centred lanes** — a lane now targets the CENTRE of the free corridor
+  between node columns and keeps `NODE_CLEAR` (30px, was a 16px hairline) from
+  any body, so a bus reads as its own line instead of as part of a node's edge.
+- **All routers converted**: `route_into_nodes`, `route_branches` (both the
+  stacked-bus and spread-trunk paths), `route_around_nodes`, `_route_v`,
+  `_route_back`. `route_around_nodes` no longer cycles lanes `(i % 6) * 24` —
+  which guaranteed a collision on the 7th detour and reserved nothing.
+- **Stacked bus exit is a lane, not a stub**: parking `R0` at the source's socket
+  Y put two buses whose sources shared a socket row on one line for 3220px
+  (Camera Right vs Nx/Ny, both at y=-88). It now goes through `hlane`.
+- **NEW `separate_wire_lanes` repair pass** — runs LAST, on the graph as actually
+  *drawn*. `declutter_reroutes` and `separate_frames` move things after routing,
+  so lanes clear at allocation time can still collide at save time. Slides whole
+  same-column / same-row reroute groups apart, with a travel budget derived from
+  what a shift would bend, and treats immovable direct node-to-node wires as
+  first-class obstacles.
+- **NEW BLOCKING rules R12 + R13** (`layout_audit`) — no two wires drawn on top of
+  each other; no lane painted along a node's border. Nothing in R1–R11 ever looked
+  at a *wire*, which is why the defective graph passed the gate and was saved.
+  `wire_segments()` is exported so engine and audit measure the same thing.
+- **FIXED: the shader save gate never fired.** `_build/tidy_shader_group.py` tested
+  `rep.get(rule, {}).get("fail")` — a key the audit never emits (it reports
+  `{"status": "FAIL"}`), so "BLOCKING FAILURES -> not saving" was unreachable and
+  SH_ScreenCavity saved despite failing.
+- Verified on SH_ScreenCavity: R12 11→0, R13 13→0, all blocking rules PASS, and
+  the 82 logical (reroute-traced) connections are **identical** before and after.
+  Cost on the worst-case graph (GN_Mosaic, 2828 nodes / 3487 links): 90s → 98s.
+
+**Rolling the new gate over the whole ST3E library (41 geonodes) surfaced five more
+routing defects that R1–R11 had never been able to see.** 33/41 passed at first; each
+fix below was found by measuring a specific failure, not by reasoning about the code.
+
+- **FIXED: the stacked bus retraced its own line.** It always chained `R0` → topmost
+  row, so whenever the source sat BELOW its targets the bus climbed past every row and
+  descended back down the same X — one wire crossing itself (GN_Erosion_3D: 936px). It
+  now chains monotonically AWAY from `R0` in each direction, splitting at `R0` when it
+  sits between its rows (a reroute output may fan, so the split is free).
+- **FIXED: `separate_wire_lanes` was blind to reroute→node stubs.** Only lanes and
+  direct node-to-node wires were obstacles, so a trunk could sit 3.5px off an entry
+  stub. Stubs are rebuilt every pass and tagged with an owner, so a group is blocked by
+  other groups' stubs but never flees its own.
+- **FIXED: `separate_wire_lanes` was itself reversing trunks.** Sliding a vertical group
+  sideways moves a trunk TAP, and it could be pushed past its predecessor — GN_Erosion's
+  trunk ran 1715 → 1996 → **1804** → 2040, so two hops of one trunk overlapped by 192px.
+  A move now carries a window `(dlo, dhi)` that preserves the ordering and minimum length
+  of every run attached to the group.
+- **FIXED: direct wires were never in the ledger** — the last category of drawn segment
+  nobody recorded, so a trunk could be allocated 7px from one. `seed_direct_wires` now
+  records them up front, mirroring BOTH conditions under which a router leaves a link
+  direct (adjacent-and-clear, and same-frame single-target at any length).
+- **FIXED: `_route_v`'s horizontal exit leg is a lane, not a stub.** Its Y is pinned to
+  the source socket and it can run for thousands of px; when that line is already taken
+  it now drops to an allocated `hlane` first.
+- `declutter_reroutes` also remembers escape rows, so two reroutes squeezing past one
+  node no longer land on an identical Y.
+- **Result: 39/41 saved**, geometry unchanged on every one. The two holdouts are the
+  machine-generated giants — GN_Mosaic (2807 nodes / 1723 reroutes) and
+  GN_TileableMeshNoise (1813 / 1125) — where lane density leaves no corridor to satisfy
+  R12/R13; the gate left both files untouched rather than degrade them.
+
 ## v1.2.0 — 2026-07-10
 
 Autonomy release: the pipeline no longer needs blender-mcp. The four tools it
