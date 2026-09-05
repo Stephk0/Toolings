@@ -1,6 +1,6 @@
 # Library Publisher
 
-**Version:** 1.1.0 · **Blender:** 4.2+ (developed and verified on 5.0) · **Category:** Import-Export
+**Version:** 1.3.0 · **Blender:** 4.2+ (developed and verified on 5.0) · **Category:** Import-Export
 
 Publishes the ST3E Blender asset library to a **Google Shared Drive**, renaming the
 asset catalogs to `ST3E_Ext` on the way out so the shared copy loads *beside* your
@@ -51,12 +51,33 @@ The assets still resolve; they simply appear under a differently named tree. Tha
 is why **the published `.blend` files are byte-identical copies** and a publish
 needs no Blender at all when criteria are off.
 
-The trade-off to know about: both libraries then define the same UUIDs under
-different paths. In practice each library renders its own catalog tree from its own
-`cats.txt`. If the Asset Browser's *All Libraries* view ever merges them anyway,
-the fix is a deterministic UUID remap — which requires a headless Blender pass
-rewriting `asset_data.catalog_id` in all 60+ files. That is a different mode, not a
-config flag; `catalog.mode` is where it would live.
+That is `catalog.mode = "rename_paths"`. Its cost is that both libraries then
+declare the **same UUIDs** under different paths, which the Asset Browser does not
+always keep apart.
+
+### `remap_uuids` — when sharing ids causes trouble
+
+`catalog.mode = "remap_uuids"` also derives a **new deterministic UUID** for every
+renamed catalog:
+
+```
+uuid5(catalog.uuid_namespace, <original uuid>)   # a hash, not a random draw
+```
+
+Same input, same output, on any machine, forever — which matters because the
+published `.blend` files embed these ids, and a value that drifted between runs
+would orphan every asset already on the drive.
+
+Because assets key on the UUID, changing the catalog file alone is **not enough**:
+the published copies must carry the new id too, or every one of them shows up as
+*Unassigned*. So this mode adds a headless Blender pass that rewrites
+`asset_data.catalog_id` in the **staged copies**. The repository is never touched
+— staged `.blend` files are physically copied rather than hardlinked precisely so
+that a write can never reach back into the repo.
+
+Staging therefore persists between runs and is incremental: a file is re-copied and
+re-remapped only when its source content changed, or when the *catalog fingerprint*
+(a digest of the whole id mapping) changed. An ordinary publish re-opens nothing.
 
 ---
 
@@ -167,6 +188,26 @@ python source/cli.py config doctor      # checks tools, credentials, paths
 
 Sections: `source`, `scope`, `catalog`, `delivery`, `criteria`, `criteria_policy`,
 `triggers`, `manifest`, `blender`. See the slash command for the full key map.
+
+### What each scope ships
+
+`geonodes` and `shading` publish their `.blend` files. `addons` publishes each
+tool as a **self-contained folder** — the current zip alongside the `README.md`,
+`TUTORIAL.md` and `assets/` (screenshots, tutorial images) that document it, so
+somebody on the drive can read about a tool and install it from one place:
+
+```
+Addons/MassExporter/
+  MassExporter_v13.7.0.zip
+  README.md
+  TUTORIAL.md
+  assets/mass_exporter_panel.png
+  assets/tutorial/01_overview.png
+```
+
+`strip_segments: ["distribution"]` is what removes the otherwise pointless
+`distribution/` level. Addon **source** trees, `distribution/archive/` and the
+repo-level `docs/` folder are never published.
 
 ### Criteria — the quality gates
 

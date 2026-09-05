@@ -77,7 +77,11 @@ Content manager.
 - `scope.entries.<i>.include` / `.exclude` — JSON arrays of globs; `**` crosses
   directories, a pattern with no `/` matches the basename at any depth
 - `scope.entries.<i>.dest` — folder name on the drive
-- `scope.entries.<i>.flatten` — collapse subfolders (used for the addon zips)
+- `scope.entries.<i>.flatten` — collapse every match to its basename
+- `scope.entries.<i>.strip_segments` — JSON array of directory names dropped from
+  the published path (e.g. `["distribution"]` puts a tool's zip beside its README
+  instead of one level deeper). Ignored when `flatten` is on, and it never drops a
+  *file* of that name.
 
 To add a whole new scope entry, append to the `scope.entries` array — that needs
 a small edit rather than a `set`, so read the file, add the object with the same
@@ -88,16 +92,26 @@ shape as its siblings, and validate afterwards.
 | what | key |
 |---|---|
 | rewrite on/off | `catalog.enabled` |
-| mode | `catalog.mode` = `rename_paths` (keeps UUIDs) \| `off` |
+| mode | `catalog.mode` = `rename_paths` (keeps UUIDs) \| `remap_uuids` (new ids) \| `off` |
+| namespace for derived ids | `catalog.uuid_namespace` |
 | the rename rules | `catalog.rename` = `[{"from":"ST3E","to":"ST3E_Ext"}]` |
 | simple-name separator | `catalog.simple_name_separator` |
 
-Explain the trade-off if they ask: `rename_paths` keeps every catalog UUID, so
-the published `.blend` files are byte-identical copies and no Blender pass is
-needed. The cost is that both libraries define the same UUIDs under different
-paths. If that ever misbehaves in the Asset Browser's "All Libraries" view, the
-fix is a UUID remap, which needs a headless Blender pass over every file —
-a bigger change, not a config flag.
+The two modes, and their real cost:
+
+- `rename_paths` — keeps every UUID, so published `.blend` files are byte-identical
+  copies and no Blender pass runs. Both libraries then declare the same ids.
+- `remap_uuids` — derives new ids with `uuid5(uuid_namespace, original)`, and
+  rewrites `asset_data.catalog_id` inside the **staged** copies so they match.
+  Deterministic, so the ids are stable across machines and runs.
+
+Two things to say out loud before switching to `remap_uuids`:
+
+1. It **re-publishes every .blend**, because their embedded ids all change. Anyone
+   with the shared library loaded sees the catalogs replaced.
+2. **Never change `uuid_namespace` afterwards.** It re-derives every id, orphaning
+   the assets already on the drive and forcing a full re-upload. Treat it as
+   permanent once anything has shipped.
 
 **Criteria — quality gates, per check**
 

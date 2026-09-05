@@ -11,7 +11,7 @@ The addon is only trigger 4 of 4 (a button). The CLI is the real tool: it also
 backs the slash commands, the git hook and the GitHub Action.
 """
 
-VERSION = (1, 1, 0)
+VERSION = (1, 3, 0)
 
 bl_info = {
     "name": "Library Publisher",

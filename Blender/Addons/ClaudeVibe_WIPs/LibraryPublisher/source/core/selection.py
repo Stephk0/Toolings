@@ -117,6 +117,10 @@ def select(cfg: dict) -> Selection:
         exclude = entry.get("exclude") or []
         dest_root = (entry.get("dest") or "").strip("/")
         flatten = bool(entry.get("flatten"))
+        # Directory names to drop from the published path. Lets a tool's zip sit
+        # next to its README instead of under a pointless 'distribution/' level,
+        # while keeping the per-tool folder that flatten would destroy.
+        strip = set(entry.get("strip_segments") or [])
 
         count = 0
         for rel in _walk_files(base, bool(entry.get("recursive"))):
@@ -125,7 +129,15 @@ def select(cfg: dict) -> Selection:
             if matches_any(rel, exclude):
                 continue
             src_abs = os.path.join(base, rel.replace("/", os.sep))
-            leaf = rel.rsplit("/", 1)[-1] if flatten else rel
+            if flatten:
+                leaf = rel.rsplit("/", 1)[-1]
+            else:
+                segments = rel.split("/")
+                if strip:
+                    # Only directory segments are droppable - a FILE named like a
+                    # stripped segment must survive.
+                    segments = [s for s in segments[:-1] if s not in strip] + [segments[-1]]
+                leaf = "/".join(segments)
             dest_rel = "%s/%s" % (dest_root, leaf) if dest_root else leaf
             try:
                 stat = os.stat(src_abs)

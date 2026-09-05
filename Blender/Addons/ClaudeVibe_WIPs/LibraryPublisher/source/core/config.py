@@ -24,7 +24,12 @@ BACKENDS = ("rclone", "robocopy", "copy")
 # Criteria policy modes, in ascending strictness.
 MODES = ("off", "warn", "block")
 
-CATALOG_MODES = ("rename_paths", "off")
+# rename_paths  - rewrite paths, KEEP the UUIDs. Published .blend files stay
+#                 byte-identical copies, but both libraries declare the same ids.
+# remap_uuids   - rewrite paths AND derive new deterministic UUIDs, then rewrite
+#                 catalog_id inside the published .blend copies so the two
+#                 libraries are genuinely distinct. Costs a headless Blender pass.
+CATALOG_MODES = ("rename_paths", "remap_uuids", "off")
 
 # What a `block`-mode criteria failure does to the run.
 ON_BLOCK = ("skip_file", "abort_publish", "ignore")
@@ -71,15 +76,32 @@ def default_config(repo_root: str = "") -> dict:
                     "flatten": False,
                 },
                 {
-                    "name": "addon_zips",
+                    "name": "addons",
                     "enabled": True,
                     "src": "Blender/Addons/ClaudeVibe_WIPs",
                     "dest": "Addons",
-                    # Only the CURRENT zip of each tool; archive/ stays home.
-                    "include": ["*/distribution/*.zip"],
-                    "exclude": ["*/distribution/archive/**"],
+                    # Each tool ships as a self-contained folder: the CURRENT zip
+                    # plus the docs and screenshots needed to actually use it.
+                    # archive/ and the addon source trees stay home.
+                    "include": [
+                        "*/README.md",
+                        "*/TUTORIAL.md",
+                        "*/assets/**",
+                        "*/distribution/*.zip",
+                    ],
+                    "exclude": [
+                        # Tooling artefact dirs (.pytest_cache, .claude, .serena)
+                        # sit beside the tools and have READMEs of their own.
+                        ".*/**",
+                        "*/distribution/archive/**",
+                        "docs/**",
+                        "*/assets/**/*.psd",
+                    ],
                     "recursive": True,
-                    "flatten": True,
+                    "flatten": False,
+                    # Drop the 'distribution' level so the zip sits beside the
+                    # README instead of one folder deeper.
+                    "strip_segments": ["distribution"],
                 },
             ]
         },
@@ -90,7 +112,10 @@ def default_config(repo_root: str = "") -> dict:
             "mode": "rename_paths",
             "rename": [{"from": "ST3E", "to": "ST3E_Ext"}],
             "simple_name_separator": "-",
-            "keep_uuids": True,
+            # Fixed namespace for deriving published UUIDs (remap_uuids mode).
+            # Changing it re-derives every id and forces a full re-publish, so
+            # treat it as permanent once anything has shipped.
+            "uuid_namespace": "1b1b9119-7d76-5b04-9d02-a5df6e5f2ab9",
             # Stamped as a comment header in the published cats.txt.
             "stamp_header": True,
         },
@@ -280,7 +305,7 @@ def validate(cfg: dict) -> list:
         problems.append(
             "catalog.mode must be one of %s, got %r" % (CATALOG_MODES, cat.get("mode"))
         )
-    if cat.get("enabled") and cat.get("mode") == "rename_paths":
+    if cat.get("enabled") and cat.get("mode") in ("rename_paths", "remap_uuids"):
         renames = cat.get("rename", [])
         if not renames:
             problems.append("catalog.rename is empty but catalog.mode is rename_paths")
@@ -307,6 +332,17 @@ def validate(cfg: dict) -> list:
                     "criteria.%s.applies_to references unknown scope entry '%s'"
                     % (key, scope_name)
                 )
+
+    if cat.get("enabled") and cat.get("mode") == "remap_uuids":
+        namespace = cat.get("uuid_namespace") or ""
+        try:
+            import uuid as _u
+            _u.UUID(namespace)
+        except (ValueError, AttributeError, TypeError):
+            problems.append(
+                "catalog.uuid_namespace must be a valid UUID for remap_uuids, got %r"
+                % namespace
+            )
 
     on_block = cfg.get("criteria_policy", {}).get("on_block")
     if on_block not in ON_BLOCK:

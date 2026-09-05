@@ -70,6 +70,8 @@ def build(
     criteria_summary: dict = None,
     skipped: list = None,
     extra_files: dict = None,
+    staging_root: str = "",
+    source_hashes: dict = None,
 ) -> dict:
     """Build a manifest from selected files (hashing each one).
 
@@ -77,10 +79,25 @@ def build(
     (the rewritten catalog file, README, version stamp).
     """
     entries = {}
+    source_hashes = source_hashes or {}
     for item in files:
+        # Hash what actually SHIPS. With catalog UUID remapping the staged copy
+        # differs from the repo file, and a manifest describing the source would
+        # make the drive look up to date when it is not.
+        staged = (
+            os.path.join(staging_root, item.dest.replace("/", os.sep))
+            if staging_root else ""
+        )
+        if staged and os.path.isfile(staged):
+            delivered_hash = hash_file(staged)
+            size = os.path.getsize(staged)
+        else:
+            delivered_hash = source_hashes.get(item.dest) or hash_file(item.src)
+            size = item.size
         entries[item.dest] = {
-            "sha256": hash_file(item.src),
-            "size": item.size,
+            "sha256": delivered_hash,
+            "source_sha256": source_hashes.get(item.dest, ""),
+            "size": size,
             "scope": item.scope,
             "source": os.path.relpath(item.src, cfg["source"]["repo_root"]).replace(
                 os.sep, "/"

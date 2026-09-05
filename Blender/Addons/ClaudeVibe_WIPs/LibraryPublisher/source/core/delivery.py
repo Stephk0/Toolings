@@ -18,11 +18,15 @@ Two steps, deliberately separate:
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 from typing import NamedTuple
 
 from . import shell
+
+
+STAGE_STATE_FILE = ".staging_state.json"
 
 
 class StagingResult(NamedTuple):
@@ -31,6 +35,9 @@ class StagingResult(NamedTuple):
     linked: int
     generated: int
     errors: list
+    needs_remap: list = []   # staged absolute paths that must be rewritten
+    reused: int = 0          # staged files carried over from the last run
+    pruned: int = 0          # staged files dropped because they left the selection
 
 
 class DeliveryResult(NamedTuple):
@@ -51,24 +58,91 @@ def _link_or_copy(src: str, dst: str) -> str:
         return "copied"
 
 
-def build_staging(files: list, generated: dict, staging_root: str) -> StagingResult:
-    """Assemble the full published tree at `staging_root`.
+def _load_state(staging_root: str) -> dict:
+    path = os.path.join(staging_root, STAGE_STATE_FILE)
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
-    `files` are SelectedFile records; `generated` maps a destination-relative path
-    to text content (the rewritten catalog, README, manifest).
+
+def _save_state(staging_root: str, state: dict) -> None:
+    path = os.path.join(staging_root, STAGE_STATE_FILE)
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(state, fh, indent=2, sort_keys=True)
+    except OSError:
+        pass  # a lost cache only costs speed on the next run
+
+
+def build_staging(
+    files: list,
+    generated: dict,
+    staging_root: str,
+    *,
+    source_hashes: dict = None,
+    fingerprint: str = "none",
+    rewrite_exts: tuple = (),
+    protect: tuple = (),
+) -> StagingResult:
+    """Assemble the published tree at `staging_root`, incrementally.
+
+    The tree persists between runs. A staged file is reused when its source
+    content hash AND the catalog fingerprint both match what was recorded last
+    time; otherwise it is re-staged and, if it is a rewritable type, flagged for
+    the remap pass. That is what stops every publish from paying a multi-minute
+    Blender pass over files nobody touched.
+
+    Files whose extension is in `rewrite_exts` are always *copied*, never
+    hardlinked: the remap pass writes to them, and a hardlink would put the
+    repository's own asset one careless write away from being modified.
     """
-    if os.path.isdir(staging_root):
-        shutil.rmtree(staging_root, ignore_errors=True)
     os.makedirs(staging_root, exist_ok=True)
+    state = _load_state(staging_root)
+    source_hashes = source_hashes or {}
 
-    copied = linked = 0
+    copied = linked = reused = 0
     errors = []
+    needs_remap = []
+    new_state = {}
+    wanted = set()
 
     for item in files:
-        dst = os.path.join(staging_root, item.dest.replace("/", os.sep))
+        rel = item.dest.replace("/", os.sep)
+        dst = os.path.join(staging_root, rel)
+        wanted.add(rel)
+        src_hash = source_hashes.get(item.dest, "")
+        prior = state.get(item.dest) or {}
+        rewritable = item.dest.lower().endswith(tuple(rewrite_exts)) if rewrite_exts else False
+
+        fresh = (
+            os.path.isfile(dst)
+            and src_hash
+            and prior.get("source_sha256") == src_hash
+            and prior.get("fingerprint") == fingerprint
+        )
+        if fresh:
+            reused += 1
+            new_state[item.dest] = dict(prior)
+            continue
+
         os.makedirs(os.path.dirname(dst), exist_ok=True)
+        if os.path.exists(dst):
+            try:
+                os.remove(dst)
+            except OSError as exc:
+                errors.append("replacing staged %s: %s" % (item.dest, exc))
+                continue
         try:
-            how = _link_or_copy(item.src, dst)
+            if rewritable:
+                shutil.copy2(item.src, dst)
+                how = "copied"
+            else:
+                how = _link_or_copy(item.src, dst)
         except OSError as exc:
             errors.append("staging %s: %s" % (item.dest, exc))
             continue
@@ -76,9 +150,14 @@ def build_staging(files: list, generated: dict, staging_root: str) -> StagingRes
             linked += 1
         else:
             copied += 1
+        if rewritable:
+            needs_remap.append(dst)
+        new_state[item.dest] = {"source_sha256": src_hash, "fingerprint": fingerprint}
 
     for dest, content in sorted((generated or {}).items()):
-        dst = os.path.join(staging_root, dest.replace("/", os.sep))
+        rel = dest.replace("/", os.sep)
+        wanted.add(rel)
+        dst = os.path.join(staging_root, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         try:
             with open(dst, "w", encoding="utf-8", newline="\n") as fh:
@@ -86,7 +165,53 @@ def build_staging(files: list, generated: dict, staging_root: str) -> StagingRes
         except OSError as exc:
             errors.append("writing %s: %s" % (dest, exc))
 
-    return StagingResult(staging_root, copied, linked, len(generated or {}), errors)
+    # These are regenerated after the manifest exists; pruning them here would
+    # only delete something we are about to rewrite.
+    wanted.update(name.replace("/", os.sep) for name in protect)
+    pruned = _prune_staging(staging_root, wanted)
+    _save_state(staging_root, new_state)
+
+    return StagingResult(
+        staging_root, copied, linked, len(generated or {}), errors,
+        needs_remap, reused, pruned,
+    )
+
+
+def write_generated(staging_root: str, mapping: dict) -> list:
+    """Write generated text files into an existing staging tree."""
+    errors = []
+    for dest, content in sorted((mapping or {}).items()):
+        dst = os.path.join(staging_root, dest.replace("/", os.sep))
+        os.makedirs(os.path.dirname(dst) or staging_root, exist_ok=True)
+        try:
+            with open(dst, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(content)
+        except OSError as exc:
+            errors.append("writing %s: %s" % (dest, exc))
+    return errors
+
+
+def _prune_staging(staging_root: str, wanted: set) -> int:
+    """Drop staged files that are no longer selected, so the tree mirrors intent."""
+    pruned = 0
+    for root, _dirs, names in os.walk(staging_root, topdown=False):
+        for name in names:
+            if name == STAGE_STATE_FILE and root == staging_root:
+                continue
+            abs_path = os.path.join(root, name)
+            rel = os.path.relpath(abs_path, staging_root)
+            if rel not in wanted:
+                try:
+                    os.remove(abs_path)
+                    pruned += 1
+                except OSError:
+                    pass
+        if root != staging_root and not os.listdir(root):
+            try:
+                os.rmdir(root)
+            except OSError:
+                pass
+    return pruned
 
 
 # --- backends ----------------------------------------------------------------
@@ -122,6 +247,8 @@ def _rclone_command(cfg: dict, staging_root: str) -> list:
         "--stats", "10s",
         "--transfers", "6",
         "--checkers", "12",
+        # Staging bookkeeping, not part of the library.
+        "--exclude", "/" + STAGE_STATE_FILE,
     ]
     if dely.get("dry_run"):
         cmd.append("--dry-run")
@@ -146,6 +273,7 @@ def _robocopy_command(cfg: dict, staging_root: str, target: str) -> list:
         "/R:2", "/W:2",
         # Drive-for-Desktop virtual filesystems reject attribute/ACL copies.
         "/COPY:DAT",
+        "/XF", STAGE_STATE_FILE,
     ]
     if dely.get("dry_run"):
         cmd.append("/L")
@@ -162,6 +290,8 @@ def _python_copy(cfg: dict, staging_root: str, target: str) -> DeliveryResult:
     wanted = set()
     for root, _dirs, names in os.walk(staging_root):
         for name in names:
+            if name == STAGE_STATE_FILE and root == staging_root:
+                continue
             src = os.path.join(root, name)
             rel = os.path.relpath(src, staging_root)
             wanted.add(rel)
@@ -210,7 +340,8 @@ def _swap_in(staging_root: str, target: str, dry_run: bool) -> DeliveryResult:
     for scratch in (incoming, retiring):
         if os.path.isdir(scratch):
             shutil.rmtree(scratch, ignore_errors=True)
-    shutil.copytree(staging_root, incoming)
+    shutil.copytree(staging_root, incoming,
+                    ignore=shutil.ignore_patterns(STAGE_STATE_FILE))
     if os.path.isdir(target):
         os.replace(target, retiring)
     os.replace(incoming, target)

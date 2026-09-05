@@ -29,10 +29,26 @@ def test_defaults_ship_the_st3e_ext_rename(tmp_path):
     assert rule == {"from": "ST3E", "to": "ST3E_Ext"}
 
 
-def test_defaults_keep_uuids(tmp_path):
+def test_default_catalog_mode_preserves_uuids(tmp_path):
+    # The mode alone says what happens to the UUIDs; there is no second flag to
+    # contradict it.
     cat = config.default_config(str(tmp_path))["catalog"]
     assert cat["mode"] == "rename_paths"
-    assert cat["keep_uuids"] is True
+    assert "keep_uuids" not in cat
+    assert cat["uuid_namespace"]
+
+
+def test_remap_mode_requires_a_valid_namespace(cfg):
+    cfg["catalog"]["mode"] = "remap_uuids"
+    assert config.validate(cfg) == []
+    cfg["catalog"]["uuid_namespace"] = "not-a-uuid"
+    assert any("uuid_namespace" in p for p in config.validate(cfg))
+
+
+def test_namespace_is_not_checked_when_not_remapping(cfg):
+    cfg["catalog"]["mode"] = "rename_paths"
+    cfg["catalog"]["uuid_namespace"] = "garbage"
+    assert config.validate(cfg) == []
 
 
 def test_missing_repo_root_is_flagged(cfg):

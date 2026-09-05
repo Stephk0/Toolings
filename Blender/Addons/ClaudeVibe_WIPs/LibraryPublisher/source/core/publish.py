@@ -92,6 +92,62 @@ def run_criteria(cfg: dict, tool_root: str, files: list, known_uuids: set):
     return verdict, targets
 
 
+REMAP_BEGIN = "<<<ST3E_REMAP_JSON>>>"
+REMAP_END = "<<<ST3E_REMAP_END>>>"
+
+# Written after the manifest exists, so staging must not prune them.
+LATE_GENERATED = ("publish_manifest.json", "LIBRARY_VERSION.txt", "README_DO_NOT_EDIT.txt")
+
+
+def run_catalog_remap(cfg: dict, tool_root: str, staged_paths: list, id_map: dict):
+    """Rewrite catalog_id inside the given STAGED .blend copies.
+
+    Returns (count_rewritten, error_message). Nothing to do is not an error: an
+    incremental run where every file was reused legitimately has no work.
+    """
+    if not staged_paths:
+        return 0, ""
+
+    blender_exe = shell.find_blender(cfg.get("blender", {}).get("executable", ""))
+    if not blender_exe:
+        return 0, "no Blender executable found, but catalog.mode is remap_uuids"
+
+    driver = os.path.join(tool_root, "source", "checks", "blender_remap_catalogs.py")
+    if not os.path.isfile(driver):
+        return 0, "remap driver missing: %s" % driver
+
+    scratch = os.path.join(tool_root, STAGING_DIRNAME + "_batch")
+    os.makedirs(scratch, exist_ok=True)
+    batch_path = os.path.join(scratch, "remap_batch.json")
+    with open(batch_path, "w", encoding="utf-8") as fh:
+        json.dump({"files": staged_paths, "id_map": id_map}, fh, indent=2)
+
+    cmd = [blender_exe, "--background", "--factory-startup", "--python", driver,
+           "--", batch_path]
+    res = shell.run(cmd, timeout=3600)
+
+    start = res.out.find(REMAP_BEGIN)
+    end = res.out.find(REMAP_END, start + 1) if start >= 0 else -1
+    if start < 0 or end < 0:
+        return 0, "remap pass produced no output. Tail: %s" % (
+            (res.err or res.out).strip()[-400:]
+        )
+    try:
+        payload = json.loads(res.out[start + len(REMAP_BEGIN):end].strip())
+    except json.JSONDecodeError as exc:
+        return 0, "remap output unreadable: %s" % exc
+
+    if payload.get("error"):
+        return 0, payload["error"]
+
+    failures = [r for r in payload.get("results", []) if r.get("error")]
+    if failures:
+        return 0, "; ".join(
+            "%s: %s" % (os.path.basename(f["path"]), f["error"]) for f in failures[:3]
+        )
+    return sum(1 for r in payload.get("results", []) if r.get("saved")), ""
+
+
 def publish(
     cfg: dict,
     tool_root: str,
@@ -144,13 +200,16 @@ def publish(
         ", ".join("%s=%d" % (k, v) for k, v in sorted(sel.per_scope.items())),
     ))
 
-    # --- catalog transform (Variant A) ---------------------------------------
+    # --- catalog transform ----------------------------------------------------
     cat_path = catalog_source_path(cfg)
     generated = {}
     catalog_info = {}
     known_uuids = set()
+    id_map = {}
+    fingerprint = "none"
 
-    if cfg["catalog"].get("enabled") and cfg["catalog"].get("mode") == "rename_paths":
+    mode = cfg["catalog"].get("mode")
+    if cfg["catalog"].get("enabled") and mode in ("rename_paths", "remap_uuids"):
         if not os.path.isfile(cat_path):
             return _fail("catalog file not found: %s" % cat_path, lines, sel)
         with open(cat_path, "r", encoding="utf-8") as fh:
@@ -162,15 +221,24 @@ def publish(
             cfg["catalog"].get("rename") or [],
             separator=cfg["catalog"].get("simple_name_separator", "-"),
             stamp=stamp if cfg["catalog"].get("stamp_header") else "",
+            remap_namespace=(
+                cfg["catalog"].get("uuid_namespace", "")
+                if mode == "remap_uuids" else ""
+            ),
         )
         generated[cfg["source"]["catalog_file"]] = rewritten.text
+        id_map = dict(rewritten.id_map)
+        fingerprint = rewritten.fingerprint()
         catalog_info = {
             "renamed": [list(pair) for pair in rewritten.renamed],
             "unchanged": rewritten.unchanged,
-            "uuids_preserved": True,
+            "uuids_preserved": not rewritten.remapped,
+            "id_map": id_map,
+            "fingerprint": fingerprint,
         }
-        add("  catalog: %d renamed, %d untouched" % (
-            len(rewritten.renamed), len(rewritten.unchanged)
+        add("  catalog: %d renamed, %d untouched%s" % (
+            len(rewritten.renamed), len(rewritten.unchanged),
+            ("  [UUIDs remapped, fp %s]" % fingerprint) if rewritten.remapped else "",
         ))
         for old, new in rewritten.renamed:
             add("      %s  ->  %s" % (old, new))
@@ -232,6 +300,41 @@ def publish(
             if not files:
                 return _fail("every selected file failed a blocking check", lines, sel, verdict)
 
+    # --- stage (before the manifest: what ships may not equal the source) -----
+    #
+    # In remap_uuids mode the published .blend files are REWRITTEN copies, so the
+    # manifest has to describe the staged bytes, not the repo's. Staging is
+    # incremental and persists between runs, so unchanged files are neither
+    # re-copied nor re-opened in Blender.
+    staging_root = os.path.join(tool_root, STAGING_DIRNAME)
+    source_hashes = {item.dest: manifest.hash_file(item.src) for item in files}
+
+    staged = delivery.build_staging(
+        files, generated, staging_root,
+        source_hashes=source_hashes,
+        fingerprint=fingerprint,
+        rewrite_exts=(".blend",) if id_map else (),
+        protect=LATE_GENERATED,
+    )
+    for err in staged.errors:
+        add("  ! %s" % err)
+    if staged.errors:
+        return _fail("staging failed - nothing was delivered", lines, sel, verdict)
+    add("  staged %d file(s): %d reused, %d copied, %d hardlinked, %d generated%s" % (
+        staged.copied + staged.linked + staged.generated + staged.reused,
+        staged.reused, staged.copied, staged.linked, staged.generated,
+        (", %d pruned" % staged.pruned) if staged.pruned else "",
+    ))
+
+    if id_map:
+        remapped, remap_error = run_catalog_remap(cfg, tool_root, staged.needs_remap, id_map)
+        if remap_error:
+            return _fail("catalog remap failed: %s" % remap_error, lines, sel, verdict)
+        add("  catalog remap: rewrote ids in %d staged file(s)%s" % (
+            remapped,
+            "" if staged.needs_remap else " (all reused from the previous run)",
+        ))
+
     # --- manifest + diff -----------------------------------------------------
     man = manifest.build(
         cfg, files,
@@ -239,6 +342,8 @@ def publish(
         catalog_info=catalog_info,
         criteria_summary=verdict.summary(),
         skipped=[{"dest": d, "reason": "blocking criteria failure"} for d in skipped],
+        staging_root=staging_root,
+        source_hashes=source_hashes,
         extra_files={
             dest: {"sha256": manifest.hash_text(text), "size": len(text.encode("utf-8")),
                    "scope": "generated"}
@@ -273,17 +378,16 @@ def publish(
             True, "up to date", lines, man, change, verdict, sel, False, None, skipped
         )
 
-    # --- stage + deliver -----------------------------------------------------
-    staging_root = os.path.join(tool_root, STAGING_DIRNAME)
-    staged = delivery.build_staging(files, generated, staging_root)
-    for err in staged.errors:
-        add("  ! %s" % err)
-    if staged.errors:
-        return _fail("staging failed - nothing was delivered", lines, sel, verdict)
-    add("  staged %d file(s) (%d hardlinked, %d copied, %d generated) at %s" % (
-        staged.copied + staged.linked + staged.generated,
-        staged.linked, staged.copied, staged.generated, staging_root,
-    ))
+    # --- rewrite the late generated files, then deliver ----------------------
+    # The manifest / version stamp / readme are only knowable once the manifest
+    # exists, so they are written into staging after the fact.
+    delivery.write_generated(staging_root, {
+        key: generated[key] for key in (
+            cfg["manifest"]["filename"],
+            "LIBRARY_VERSION.txt",
+            "README_DO_NOT_EDIT.txt",
+        ) if key in generated
+    })
 
     result = delivery.deliver(cfg, staging_root)
     add("  delivery: %s" % result.detail)
@@ -294,7 +398,8 @@ def publish(
         os.makedirs(cache_dir, exist_ok=True)
         with open(cache_path, "w", encoding="utf-8") as fh:
             fh.write(manifest.dumps(man))
-        shutil.rmtree(staging_root, ignore_errors=True)
+        # Staging is deliberately kept: it is the cache that lets the next run
+        # skip re-copying and re-remapping files nobody touched.
 
     add("  done: %d file(s) published as '%s'" % (man["counts"]["files"], lib_name))
     return PublishResult(

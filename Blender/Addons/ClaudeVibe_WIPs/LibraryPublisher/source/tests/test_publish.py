@@ -76,7 +76,8 @@ def test_publish_delivers_the_curated_tree(cfg, tool_root):
     result = publish.publish(cfg, tool_root)
     assert result.ok, "\n".join(result.lines)
     assert _published(cfg) == [
-        "Addons/MassExporter_v13.7.0.zip",
+        # Each tool is a self-contained folder, not a flat pile of zips.
+        "Addons/MassExporter/MassExporter_v13.7.0.zip",
         "Geonodes/GN_Bend.blend",
         "Geonodes/GN_Twist.blend",
         "LIBRARY_VERSION.txt",
@@ -310,3 +311,115 @@ def test_withheld_files_are_recorded_in_the_manifest(cfg, tool_root):
     result = publish.publish(cfg, tool_root)
     assert "skipped" in result.manifest
     assert result.manifest["skipped"] == []  # nothing blocked with criteria off
+
+
+# --- incremental staging + the hardlink safety rule --------------------------
+
+def _sel_file(tmp_path, name, dest, text="data"):
+    path = tmp_path / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    stat = path.stat()
+    return selection.SelectedFile(str(path), dest, "geonodes", stat.st_size, stat.st_mtime)
+
+
+def test_rewritable_files_are_copied_never_hardlinked(tmp_path):
+    """A hardlink would let the remap pass write straight into the repository."""
+    from core import manifest as m
+    item = _sel_file(tmp_path, "src/GN_A.blend", "Geonodes/GN_A.blend")
+    staging = str(tmp_path / "staging")
+    delivery.build_staging(
+        [item], {}, staging,
+        source_hashes={item.dest: m.hash_file(item.src)},
+        fingerprint="fp1",
+        rewrite_exts=(".blend",),
+    )
+    staged = os.path.join(staging, "Geonodes", "GN_A.blend")
+    # Writing to the staged copy must leave the source untouched.
+    with open(staged, "w", encoding="utf-8") as fh:
+        fh.write("REWRITTEN")
+    assert open(item.src, encoding="utf-8").read() == "data"
+
+
+def test_unchanged_files_are_reused_and_not_re_remapped(tmp_path):
+    from core import manifest as m
+    item = _sel_file(tmp_path, "src/GN_A.blend", "Geonodes/GN_A.blend")
+    staging = str(tmp_path / "staging")
+    hashes = {item.dest: m.hash_file(item.src)}
+    first = delivery.build_staging([item], {}, staging, source_hashes=hashes,
+                                   fingerprint="fp1", rewrite_exts=(".blend",))
+    assert len(first.needs_remap) == 1 and first.reused == 0
+
+    second = delivery.build_staging([item], {}, staging, source_hashes=hashes,
+                                    fingerprint="fp1", rewrite_exts=(".blend",))
+    assert second.needs_remap == [] and second.reused == 1
+
+
+def test_a_changed_source_is_re_staged_and_re_remapped(tmp_path):
+    from core import manifest as m
+    item = _sel_file(tmp_path, "src/GN_A.blend", "Geonodes/GN_A.blend")
+    staging = str(tmp_path / "staging")
+    delivery.build_staging([item], {}, staging,
+                           source_hashes={item.dest: m.hash_file(item.src)},
+                           fingerprint="fp1", rewrite_exts=(".blend",))
+    (tmp_path / "src/GN_A.blend").write_text("edited", encoding="utf-8")
+    again = delivery.build_staging(
+        [item], {}, staging,
+        source_hashes={item.dest: m.hash_file(item.src)},
+        fingerprint="fp1", rewrite_exts=(".blend",))
+    assert len(again.needs_remap) == 1 and again.reused == 0
+
+
+def test_a_changed_fingerprint_invalidates_every_staged_file(tmp_path):
+    """New catalog ids mean every embedded catalog_id is stale."""
+    from core import manifest as m
+    items = [_sel_file(tmp_path, "src/GN_%d.blend" % i, "Geonodes/GN_%d.blend" % i)
+             for i in range(3)]
+    staging = str(tmp_path / "staging")
+    hashes = {i.dest: m.hash_file(i.src) for i in items}
+    delivery.build_staging(items, {}, staging, source_hashes=hashes,
+                           fingerprint="fp1", rewrite_exts=(".blend",))
+    changed = delivery.build_staging(items, {}, staging, source_hashes=hashes,
+                                     fingerprint="fp2", rewrite_exts=(".blend",))
+    assert len(changed.needs_remap) == 3 and changed.reused == 0
+
+
+def test_staging_prunes_files_that_left_the_selection(tmp_path):
+    from core import manifest as m
+    a = _sel_file(tmp_path, "src/GN_A.blend", "Geonodes/GN_A.blend")
+    b = _sel_file(tmp_path, "src/GN_B.blend", "Geonodes/GN_B.blend")
+    staging = str(tmp_path / "staging")
+    delivery.build_staging([a, b], {}, staging,
+                           source_hashes={a.dest: m.hash_file(a.src), b.dest: m.hash_file(b.src)},
+                           fingerprint="fp1")
+    result = delivery.build_staging([a], {}, staging,
+                                    source_hashes={a.dest: m.hash_file(a.src)},
+                                    fingerprint="fp1")
+    assert result.pruned == 1
+    assert not os.path.exists(os.path.join(staging, "Geonodes", "GN_B.blend"))
+
+
+def test_protected_names_survive_pruning(tmp_path):
+    from core import manifest as m
+    a = _sel_file(tmp_path, "src/GN_A.blend", "Geonodes/GN_A.blend")
+    staging = str(tmp_path / "staging")
+    os.makedirs(staging, exist_ok=True)
+    with open(os.path.join(staging, "LIBRARY_VERSION.txt"), "w", encoding="utf-8") as fh:
+        fh.write("stamp")
+    delivery.build_staging([a], {}, staging,
+                           source_hashes={a.dest: m.hash_file(a.src)},
+                           fingerprint="fp1", protect=publish.LATE_GENERATED)
+    assert os.path.exists(os.path.join(staging, "LIBRARY_VERSION.txt"))
+
+
+def test_the_staging_state_file_is_never_delivered(cfg, tool_root):
+    publish.publish(cfg, tool_root)
+    assert delivery.STAGE_STATE_FILE not in _published(cfg)
+
+
+def test_manifest_records_both_delivered_and_source_hashes(cfg, tool_root):
+    result = publish.publish(cfg, tool_root)
+    entry = result.manifest["files"]["Geonodes/GN_Bend.blend"]
+    assert entry["sha256"] and entry["source_sha256"]
+    # With no remapping the staged bytes equal the source bytes.
+    assert entry["sha256"] == entry["source_sha256"]

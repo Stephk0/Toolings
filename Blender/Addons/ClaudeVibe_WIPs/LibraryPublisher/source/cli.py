@@ -88,10 +88,14 @@ def _print_summary(cfg: dict) -> None:
     print("catalog rewrite : %s (%s)" % (
         "on" if cat.get("enabled") else "off", cat.get("mode")
     ))
+    remapping = cat.get("mode") == "remap_uuids"
     for rule in cat.get("rename") or []:
-        print("  %s -> %s   (UUIDs preserved: %s)" % (
-            rule.get("from"), rule.get("to"), cat.get("keep_uuids")
-        ))
+        print("  %s -> %s" % (rule.get("from"), rule.get("to")))
+    if remapping:
+        print("  UUIDs        : REMAPPED (namespace %s)" % cat.get("uuid_namespace"))
+        print("                 published .blend copies are rewritten to match")
+    else:
+        print("  UUIDs        : preserved (published .blend files are exact copies)")
     print("")
     print("delivery        : %s%s" % (dely.get("backend"), "  [DRY RUN]" if dely.get("dry_run") else ""))
     if dely.get("backend") == "rclone":

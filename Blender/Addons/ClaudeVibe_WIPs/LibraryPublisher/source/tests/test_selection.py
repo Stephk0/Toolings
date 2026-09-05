@@ -172,3 +172,122 @@ def test_selected_files_carry_real_size_and_source(repo):
 )
 def test_glob_matching(rel, pattern, expected):
     assert selection.matches(rel, pattern) is expected
+
+
+# --- strip_segments: ship a tool's zip beside its README ----------------------
+
+ADDONS_FULL = {
+    "name": "addons",
+    "enabled": True,
+    "src": "Blender/Addons/ClaudeVibe_WIPs",
+    "dest": "Addons",
+    "include": ["*/README.md", "*/TUTORIAL.md", "*/assets/**", "*/distribution/*.zip"],
+    "exclude": ["*/distribution/archive/**", "docs/**"],
+    "recursive": True,
+    "flatten": False,
+    "strip_segments": ["distribution"],
+}
+
+
+@pytest.fixture()
+def addon_repo(tmp_path):
+    files = [
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/TUTORIAL.md",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/assets/panel.png",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/assets/tutorial/01_overview.png",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/MassExporter_v13.7.0.zip",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/archive/old.zip",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/source/__init__.py",
+        "Blender/Addons/ClaudeVibe_WIPs/Smart Crease/README.md",
+        "Blender/Addons/ClaudeVibe_WIPs/docs/internal-notes.md",
+    ]
+    for rel in files:
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x", encoding="utf-8")
+    return tmp_path
+
+
+def test_addon_docs_and_zip_land_in_one_per_tool_folder(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert _dests(result) == [
+        "Addons/MassExporter/MassExporter_v13.7.0.zip",
+        "Addons/MassExporter/README.md",
+        "Addons/MassExporter/TUTORIAL.md",
+        "Addons/MassExporter/assets/panel.png",
+        "Addons/MassExporter/assets/tutorial/01_overview.png",
+        "Addons/Smart Crease/README.md",
+    ]
+
+
+def test_strip_segments_removes_the_distribution_level(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert not any("/distribution/" in f.dest for f in result.files)
+
+
+def test_nested_asset_folders_are_preserved(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert "Addons/MassExporter/assets/tutorial/01_overview.png" in _dests(result)
+
+
+def test_addon_source_trees_are_not_shipped(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert not any("/source/" in f.dest for f in result.files)
+
+
+def test_archived_zips_stay_home(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert not any("old.zip" in f.dest for f in result.files)
+
+
+def test_repo_docs_folder_is_not_a_tool(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert not any(f.dest.startswith("Addons/docs") for f in result.files)
+
+
+def test_a_tool_without_a_zip_still_ships_its_readme(addon_repo):
+    result = selection.select(_cfg(addon_repo, [ADDONS_FULL]))
+    assert "Addons/Smart Crease/README.md" in _dests(result)
+
+
+def test_strip_segments_never_removes_a_file_of_that_name(tmp_path):
+    # A file literally called 'distribution' must survive the strip.
+    path = tmp_path / "Tool" / "distribution"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("x", encoding="utf-8")
+    entry = {
+        "name": "t", "enabled": True, "src": ".", "dest": "Out",
+        "include": ["**"], "exclude": [], "recursive": True,
+        "flatten": False, "strip_segments": ["distribution"],
+    }
+    result = selection.select(_cfg(tmp_path, [entry]))
+    assert _dests(result) == ["Out/Tool/distribution"]
+
+
+def test_strip_segments_absent_is_a_no_op(addon_repo):
+    entry = dict(ADDONS_FULL)
+    entry.pop("strip_segments")
+    result = selection.select(_cfg(addon_repo, [entry]))
+    assert "Addons/MassExporter/distribution/MassExporter_v13.7.0.zip" in _dests(result)
+
+
+def test_flatten_still_wins_over_strip_segments(addon_repo):
+    entry = dict(ADDONS_FULL, flatten=True, include=["*/distribution/*.zip"])
+    result = selection.select(_cfg(addon_repo, [entry]))
+    assert _dests(result) == ["Addons/MassExporter_v13.7.0.zip"]
+
+
+def test_tooling_artefact_folders_are_not_mistaken_for_tools(tmp_path):
+    """.pytest_cache ships its own README and sits beside the real tools."""
+    for rel in (
+        "Blender/Addons/ClaudeVibe_WIPs/.pytest_cache/README.md",
+        "Blender/Addons/ClaudeVibe_WIPs/.serena/README.md",
+        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md",
+    ):
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("x", encoding="utf-8")
+    entry = dict(ADDONS_FULL, exclude=[".*/**"] + ADDONS_FULL["exclude"])
+    result = selection.select(_cfg(tmp_path, [entry]))
+    assert _dests(result) == ["Addons/MassExporter/README.md"]

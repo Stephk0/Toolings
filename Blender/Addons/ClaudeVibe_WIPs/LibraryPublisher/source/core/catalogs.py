@@ -14,11 +14,28 @@ bpy-free and pure - given the same input text you always get the same output.
 
 from __future__ import annotations
 
+import uuid as _uuid
 from typing import NamedTuple
 
 VERSION_LINE = "VERSION 1"
 
 DEFAULT_SIMPLE_NAME_SEPARATOR = "-"
+
+# Namespace for deriving published catalog UUIDs. Any fixed UUID works; this one
+# is uuid5(DNS, "st3e.library-publisher") so it is reproducible from a name
+# rather than being a magic constant nobody can regenerate.
+DEFAULT_UUID_NAMESPACE = "1b1b9119-7d76-5b04-9d02-a5df6e5f2ab9"
+
+
+def derive_uuid(original: str, namespace: str = DEFAULT_UUID_NAMESPACE) -> str:
+    """A new catalog UUID derived from the original, stably.
+
+    uuid5 is a hash, not a random draw: the same original plus the same namespace
+    always yields the same result, on any machine, forever. That matters because
+    the published .blend files store this value - a UUID that drifted between
+    runs would orphan every asset already on the drive.
+    """
+    return str(_uuid.uuid5(_uuid.UUID(namespace), original))
 
 
 class CatalogEntry(NamedTuple):
@@ -40,6 +57,25 @@ class CatalogRewrite(NamedTuple):
     renamed: list          # list[(old_path, new_path)]
     unchanged: list        # catalog paths that matched no rename rule
     uuid_map: dict         # uuid -> (old_path, new_path) for every renamed entry
+    id_map: dict           # OLD uuid -> NEW uuid; empty unless UUIDs were remapped
+
+    @property
+    def remapped(self) -> bool:
+        """True when the published .blend copies must have catalog_id rewritten."""
+        return bool(self.id_map)
+
+    def fingerprint(self) -> str:
+        """A short stable digest of the id mapping.
+
+        Any change to it invalidates every staged .blend, because their embedded
+        catalog_id values were written against the previous mapping.
+        """
+        import hashlib
+
+        if not self.id_map:
+            return "none"
+        blob = ";".join("%s>%s" % (k, self.id_map[k]) for k in sorted(self.id_map))
+        return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
 
 def parse(text: str) -> CatalogFile:
@@ -101,17 +137,26 @@ def rewrite(
     *,
     separator: str = DEFAULT_SIMPLE_NAME_SEPARATOR,
     stamp: str = "",
+    remap_namespace: str = "",
 ) -> CatalogRewrite:
     """Produce the published catalog text with paths + simple names renamed.
 
-    UUIDs are carried across untouched - that is what keeps the published
-    .blend files from needing a rewrite.
+    With `remap_namespace` empty the UUIDs are carried across untouched, so the
+    published .blend files need no rewrite at all (cheap, but both libraries then
+    declare the same UUIDs).
+
+    With a namespace given, every renamed entry also gets a NEW deterministic
+    UUID. That makes the published catalogs genuinely distinct from the local
+    ones - and obliges the caller to rewrite `asset_data.catalog_id` in the
+    published .blend copies, because assets key on the UUID. `id_map` carries
+    old -> new for exactly that purpose.
     """
     parsed = parse(text)
 
     renamed = []
     unchanged = []
     uuid_map = {}
+    id_map = {}
     out_entries = []
 
     for entry in parsed.entries:
@@ -120,7 +165,11 @@ def rewrite(
             unchanged.append(entry.path)
             out_entries.append(entry)
             continue
-        new_entry = CatalogEntry(entry.uuid, new_path, simple_name_for(new_path, separator))
+        new_uuid = entry.uuid
+        if remap_namespace:
+            new_uuid = derive_uuid(entry.uuid, remap_namespace)
+            id_map[entry.uuid] = new_uuid
+        new_entry = CatalogEntry(new_uuid, new_path, simple_name_for(new_path, separator))
         out_entries.append(new_entry)
         renamed.append((entry.path, new_path))
         uuid_map[entry.uuid] = (entry.path, new_path)
@@ -134,15 +183,21 @@ def rewrite(
             lines.append("# " + stamp_line)
     lines.append("#")
     lines.append("# Catalog paths are renamed on publish so this library sits")
-    lines.append("# beside the local one in Blender's Asset Browser. UUIDs are")
-    lines.append("# preserved, so the .blend files are untouched copies.")
+    lines.append("# beside the local one in Blender's Asset Browser.")
+    if id_map:
+        lines.append("# Catalog UUIDs are REMAPPED - derived deterministically from")
+        lines.append("# the originals - so these catalogs are genuinely distinct from")
+        lines.append("# the local ones, and the published .blend files carry the new")
+        lines.append("# ids. Do not hand-edit a UUID here: it would orphan the assets.")
+    else:
+        lines.append("# UUIDs are preserved, so the .blend files are untouched copies.")
     lines.append("")
     lines.append(parsed.version)
     lines.append("")
     for entry in out_entries:
         lines.append("%s:%s:%s" % (entry.uuid, entry.path, entry.simple_name))
 
-    return CatalogRewrite("\n".join(lines) + "\n", renamed, unchanged, uuid_map)
+    return CatalogRewrite("\n".join(lines) + "\n", renamed, unchanged, uuid_map, id_map)
 
 
 def known_uuids(text: str) -> set:
