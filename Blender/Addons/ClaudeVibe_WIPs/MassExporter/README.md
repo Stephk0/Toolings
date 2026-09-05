@@ -5,6 +5,8 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 > 📘 **New:** Step-by-step tutorial with screenshots: [TUTORIAL.md](TUTORIAL.md)
 >
+> **Export flow diagrams:** [EXPORT_FLOW.md](EXPORT_FLOW.md) — mermaid charts of the mode priority order and the shared export tail
+>
 > **v13.7.0:** new **Only Visible Modifiers** option (Modifier & Rig Options → Modifiers, **on by default**). Exports now bake only the modifiers that are enabled in the viewport, matching what you actually see. ⚠️ This changes export output for objects that carry viewport-disabled modifiers — see [Only Visible Modifiers](#only-visible-modifiers-v1370).
 >
 > **v13.6.3:** restored the per-collection **Group by Suffix** checkbox in Collection Options (the setting existed and drove the export flow, but the checkbox was lost in the v13 UI rewrite).
