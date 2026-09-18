@@ -29,8 +29,8 @@ def repo(tmp_path):
         "Blender/Geonodes/GN_EdgeDestruct_fixed.blend": "junk",
         "Blender/Geonodes/_backup_publish_fix/GN_Old.blend": "junk",
         "Blender/Shading/SH_Cavity.blend": "cavity-data",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/MassExporter_v13.7.0.zip": "zip",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/archive/old.zip": "junk",
+        "Blender/Addons/MassExporter/distribution/MassExporter_v13.7.0.zip": "zip",
+        "Blender/Addons/MassExporter/distribution/archive/old.zip": "junk",
     }
     for rel, text in layout.items():
         path = root / rel

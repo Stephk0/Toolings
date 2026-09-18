@@ -47,7 +47,7 @@ All Blender addons are developed using Claude Desktop + Blender MCP integration,
 ### Blender Addons
 
 #### 1. Smart Collapse
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/Smart Collapse/`  
+**Path:** `Blender/Addons/Smart Collapse/`  
 **Version:** 1.0.0  
 **Hotkey:** `Ctrl + Alt + X`
 
@@ -77,7 +77,7 @@ Select: smart_collapse.py
 ---
 
 #### 2. Smart Crease
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/Smart Crease/`  
+**Path:** `Blender/Addons/Smart Crease/`  
 **Version:** 1.0.0  
 **Hotkey:** `Shift + E`
 
@@ -110,7 +110,7 @@ Context-sensitive crease tool with modal mouse control, numeric input, and HUD d
 ---
 
 #### 3. Mass Collection Exporter
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/`  
+**Path:** `Blender/Addons/MassExporter/`  
 **Version:** 12.0.0  
 **Location:** `3D View > N-Panel > Mass Exporter`
 
@@ -163,7 +163,7 @@ Powerful batch export system with on-demand joining, empty-based organization, a
 ---
 
 #### 4. Smart Set Orientation
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/Smart Orientation/`  
+**Path:** `Blender/Addons/Smart Orientation/`  
 **Version:** 1.5.0  
 **Hotkey:** `Ctrl + D`
 
@@ -196,7 +196,7 @@ Context-aware transform orientation management that eliminates manual orientatio
 ---
 
 #### 5. Center Loops
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/Center Edges/`  
+**Path:** `Blender/Addons/Center Edges/`  
 **Version:** 1.5.1  
 **Hotkey:** `Ctrl + Shift + C`
 
@@ -226,7 +226,7 @@ Centers edge loops and vertices for even topology maintenance.
 ---
 
 #### 6. Toggle Modifier Display
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/Toggle Modifier Display/`  
+**Path:** `Blender/Addons/Toggle Modifier Display/`  
 **Version:** 1.3.0  
 **Hotkeys:** `D` (Display), `Shift + D` (On Cage)
 
@@ -250,7 +250,7 @@ Quick keyboard shortcuts for modifier visibility in Edit Mode.
 ---
 
 #### 7. Edit Mode Overlay
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/Edit Mode Overlay/`  
+**Path:** `Blender/Addons/Edit Mode Overlay/`  
 **Version:** 1.1.0  
 **Location:** `3D View > Sidebar (N) > View Tab`
 
@@ -278,7 +278,7 @@ Customizable overlay banner for edit mode awareness.
 ---
 
 #### 8. Edge Constraint Mode
-**Path:** `Blender/Addons/ClaudeVibe_WIPs/edge_constraint_mode/`  
+**Path:** `Blender/Addons/edge_constraint_mode/`  
 **Version:** 1.1.0  
 **Status:** Experimental
 

@@ -108,7 +108,7 @@ Edit materials, shading, or attribute data without changing the silhouette.
 
 ## 🛠 Other assets & helpers in this folder
 
-- **Layout tooling moved** → `../Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/`. The deterministic
+- **Layout tooling moved** → `../Addons/LLMGeonodePipeline/`. The deterministic
   wire-routing / tidy engine (formerly `geonode_route_tidy.py`, now `tidy_layout.py`), the
   `layout_audit.py` rules checker, and the `run_pipeline.py` orchestrator (tidy → verify →
   save) that reframes and re-routes these modifier files all live there now.

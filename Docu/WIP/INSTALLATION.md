@@ -63,7 +63,7 @@ git clone https://github.com/Stephk0/Toolings.git
 4. Click `Install...` button (top right)
 5. Navigate to addon location:
    ```
-   Toolings/Blender/Addons/ClaudeVibe_WIPs/[addon_name]/
+   Toolings/Blender/Addons/[addon_name]/
    ```
 6. Select the `.py` file
 7. Click `Install Add-on`

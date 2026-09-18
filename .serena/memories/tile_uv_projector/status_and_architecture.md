@@ -1,7 +1,7 @@
 # Tile UV Projector - Status & Architecture
 
 ## Current Version: v1.2.0
-**Location:** `Blender/Addons/ClaudeVibe_WIPs/TileUVProjector/`
+**Location:** `Blender/Addons/TileUVProjector/`
 **Files:** `__init__.py`, `tile_uv_projector.py` (installable copy), `README.md`
 
 ## What It Does

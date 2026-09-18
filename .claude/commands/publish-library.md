@@ -10,7 +10,7 @@ Publishes the curated Blender library (geonodes, shading, current addon zips) to
 the Google Shared Drive, with catalog paths renamed to `ST3E_Ext` so it sits
 beside the local library in Blender's Asset Browser instead of merging into it.
 
-Tool root: `Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher`
+Tool root: `Blender/Addons/LibraryPublisher`
 Everything below is a thin wrapper over `source/cli.py` — the same entry point
 the git hook, the GitHub Action and the Blender button all use.
 
@@ -21,7 +21,7 @@ Requested mode: **$ARGUMENTS** (empty means: report, then publish for real)
 1. **Always start with a report.** Run:
 
    ```
-   python "Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/source/cli.py" status
+   python "Blender/Addons/LibraryPublisher/source/cli.py" status
    ```
 
    That never writes anything. Show the user, in your own words:

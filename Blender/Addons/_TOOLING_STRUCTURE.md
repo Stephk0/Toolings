@@ -1,11 +1,11 @@
 # Tooling Folder Structure — Convention
 
-> How every tool in `ClaudeVibe_WIPs/` (and new tools we create) must be organized.
+> How every tool in `Blender/Addons/` (and new tools we create) must be organized.
 > Established 2026-05-31. Follow this layout for **every** tool, every time.
 
 ## Standard layout
 
-Each tool lives in its **own folder** at the root of `ClaudeVibe_WIPs/`, named after the
+Each tool lives in its **own folder** at the root of `Blender/Addons/`, named after the
 tool (mixed case with spaces is fine, e.g. `Smart Crease`). Inside:
 
 ```

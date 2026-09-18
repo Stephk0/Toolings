@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-ROOT = r"D:/Stephko_Tooling/Toolings/Blender/Addons/ClaudeVibe_WIPs"
+ROOT = r"D:/Stephko_Tooling/Toolings/Blender/Addons"
 ASSETS = os.path.join(ROOT, "MassExporter", "assets")
 SRC = os.path.join(ASSETS, "mass_exporter_panel.png")
 OUT = os.path.join(ASSETS, "MassExporter_v13.6.2_docs.png")

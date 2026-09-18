@@ -21,10 +21,10 @@ def repo(tmp_path):
         "Blender/Geonodes/TreeGenDocu/GN_treeGenerator_02.blend",
         "Blender/Shading/SH_Cavity.blend",
         "Blender/Shading/_build/build_sh.py",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/MassExporter_v13.7.0.zip",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/archive/old_v1.zip",
-        "Blender/Addons/ClaudeVibe_WIPs/TileUVProjector/distribution/TileUVProjector_v1.4.4.zip",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/source/__init__.py",
+        "Blender/Addons/MassExporter/distribution/MassExporter_v13.7.0.zip",
+        "Blender/Addons/MassExporter/distribution/archive/old_v1.zip",
+        "Blender/Addons/TileUVProjector/distribution/TileUVProjector_v1.4.4.zip",
+        "Blender/Addons/MassExporter/source/__init__.py",
     ]
     for rel in files:
         path = tmp_path / rel
@@ -51,7 +51,7 @@ GEONODES = {
 ADDON_ZIPS = {
     "name": "addon_zips",
     "enabled": True,
-    "src": "Blender/Addons/ClaudeVibe_WIPs",
+    "src": "Blender/Addons",
     "dest": "Addons",
     "include": ["*/distribution/*.zip"],
     "exclude": ["*/distribution/archive/**"],
@@ -120,7 +120,7 @@ def test_zero_matches_warns(repo):
 
 def test_flatten_collision_is_reported(repo):
     # Two tools shipping an identically named zip would silently overwrite.
-    dup = repo / "Blender/Addons/ClaudeVibe_WIPs/OtherTool/distribution/MassExporter_v13.7.0.zip"
+    dup = repo / "Blender/Addons/OtherTool/distribution/MassExporter_v13.7.0.zip"
     dup.parent.mkdir(parents=True, exist_ok=True)
     dup.write_text("y", encoding="utf-8")
     result = selection.select(_cfg(repo, [ADDON_ZIPS]))
@@ -179,7 +179,7 @@ def test_glob_matching(rel, pattern, expected):
 ADDONS_FULL = {
     "name": "addons",
     "enabled": True,
-    "src": "Blender/Addons/ClaudeVibe_WIPs",
+    "src": "Blender/Addons",
     "dest": "Addons",
     "include": ["*/README.md", "*/TUTORIAL.md", "*/assets/**", "*/distribution/*.zip"],
     "exclude": ["*/distribution/archive/**", "docs/**"],
@@ -192,15 +192,15 @@ ADDONS_FULL = {
 @pytest.fixture()
 def addon_repo(tmp_path):
     files = [
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/TUTORIAL.md",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/assets/panel.png",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/assets/tutorial/01_overview.png",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/MassExporter_v13.7.0.zip",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/archive/old.zip",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/source/__init__.py",
-        "Blender/Addons/ClaudeVibe_WIPs/Smart Crease/README.md",
-        "Blender/Addons/ClaudeVibe_WIPs/docs/internal-notes.md",
+        "Blender/Addons/MassExporter/README.md",
+        "Blender/Addons/MassExporter/TUTORIAL.md",
+        "Blender/Addons/MassExporter/assets/panel.png",
+        "Blender/Addons/MassExporter/assets/tutorial/01_overview.png",
+        "Blender/Addons/MassExporter/distribution/MassExporter_v13.7.0.zip",
+        "Blender/Addons/MassExporter/distribution/archive/old.zip",
+        "Blender/Addons/MassExporter/source/__init__.py",
+        "Blender/Addons/Smart Crease/README.md",
+        "Blender/Addons/docs/internal-notes.md",
     ]
     for rel in files:
         path = tmp_path / rel
@@ -281,9 +281,9 @@ def test_flatten_still_wins_over_strip_segments(addon_repo):
 def test_tooling_artefact_folders_are_not_mistaken_for_tools(tmp_path):
     """.pytest_cache ships its own README and sits beside the real tools."""
     for rel in (
-        "Blender/Addons/ClaudeVibe_WIPs/.pytest_cache/README.md",
-        "Blender/Addons/ClaudeVibe_WIPs/.serena/README.md",
-        "Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md",
+        "Blender/Addons/.pytest_cache/README.md",
+        "Blender/Addons/.serena/README.md",
+        "Blender/Addons/MassExporter/README.md",
     ):
         path = tmp_path / rel
         path.parent.mkdir(parents=True, exist_ok=True)

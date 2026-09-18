@@ -11,22 +11,22 @@
 
 **IMPORTANT - Project Structure:**
 - This is a **compilation of independent projects**, NOT a single monolithic codebase
-- Each addon in `Blender/Addons/ClaudeVibe_WIPs/` is a **separate, standalone project**
+- Each addon in `Blender/Addons/` is a **separate, standalone project**
 - Each geometry node asset in `Blender/Geonodes/` is an **independent tool**
 - Addons may occasionally reference other addons within the same folder structure
 - When working on one addon, treat it as its own project with its own scope
 - Do not assume shared dependencies or unified architecture between addons
-- **Standard tool layout (2026-05-31):** every tool under `Blender/Addons/ClaudeVibe_WIPs/`
+- **Standard tool layout (2026-05-31):** every tool under `Blender/Addons/`
   is its own folder containing `README.md` + `source/` (code) + `distribution/` (current zip,
   older builds in `distribution/archive/`) + optional `assets/` (screenshots). See
-  `Blender/Addons/ClaudeVibe_WIPs/_TOOLING_STRUCTURE.md` for the full convention and release steps.
+  `Blender/Addons/_TOOLING_STRUCTURE.md` for the full convention and release steps.
 
 ## Repository Structure
 
 ```
 Stephko_Tooling/
 ├── Blender/
-│   ├── Addons/ClaudeVibe_WIPs/     # Python addons
+│   ├── Addons/                      # Python addons (one folder per tool)
 │   │   ├── MassExporter/            # Collection batch export tool
 │   │   ├── SyncedModifiers/         # Multi-object modifier synchronization
 │   │   ├── Smart Crease/            # Edge crease management
@@ -155,8 +155,8 @@ Stephko_Tooling/
 ## Key Features to Understand
 
 ### Mass Collection Exporter v12.5.1
-**File:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/source/__init__.py` (internally v13.6.0)
-**Package:** `Blender/Addons/ClaudeVibe_WIPs/MassExporter/distribution/` (latest zip; older builds in `distribution/archive/`)
+**File:** `Blender/Addons/MassExporter/source/__init__.py` (internally v13.6.0)
+**Package:** `Blender/Addons/MassExporter/distribution/` (latest zip; older builds in `distribution/archive/`)
 
 **Core Functionality:**
 - Batch export multiple collections
@@ -218,7 +218,7 @@ Stephko_Tooling/
 - Status bar displays exported collection names (first 3, with count if more)
 
 ### Synced Modifiers v2.5.0
-**File:** `Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers/source/__init__.py`
+**File:** `Blender/Addons/SyncedModifiers/source/__init__.py`
 
 **Core Functionality:**
 - Add modifiers to multiple objects simultaneously
@@ -258,7 +258,7 @@ Stephko_Tooling/
 - Helper functions for viewport updates: `force_modifier_update()`, `force_object_update()`
 
 ### Compositor Render Sets v2.0.0
-**File:** `Blender/Addons/ClaudeVibe_WIPs/Compositor Render Sets/source/` (WMH architecture: bpy-free `core/` + `blender/` UI, pytest suite in `source/tests/`)
+**File:** `Blender/Addons/Compositor Render Sets/source/` (WMH architecture: bpy-free `core/` + `blender/` UI, pytest suite in `source/tests/`)
 
 **Core Functionality:**
 - Multi-render setup management for compositor workflows
@@ -280,7 +280,7 @@ Stephko_Tooling/
 - Automatic version detection for backward compatibility
 
 ### Add Bounds To Name v1.0
-**File:** `Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName/__init__.py`
+**File:** `Blender/Addons/AddBoundsToName/__init__.py`
 
 **Core Functionality:**
 - Automatic object renaming based on bounding box dimensions
@@ -719,4 +719,4 @@ if __name__ == "__main__":
 
 *This file helps Claude AI understand the codebase context, structure, and development guidelines. Update as the project evolves.*
 - This project has the Serena MCP server configured. Use at all times applicable, especially core programming tasks and guided or free form idiation.
-- like in code, comment your geonodes as well by framing and naming nodes. it will be easier to understand for a human- ANY geonode work (create / tidy / alter a Geometry Nodes group) goes through the `geonode-layout-mcp` skill — always invoke it first. The canonical criteria live with the tooling (outside the AI config) at `Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/GEONODE_CRITERIA.md`.
+- like in code, comment your geonodes as well by framing and naming nodes. it will be easier to understand for a human- ANY geonode work (create / tidy / alter a Geometry Nodes group) goes through the `geonode-layout-mcp` skill — always invoke it first. The canonical criteria live with the tooling (outside the AI config) at `Blender/Addons/LLMGeonodePipeline/GEONODE_CRITERIA.md`.

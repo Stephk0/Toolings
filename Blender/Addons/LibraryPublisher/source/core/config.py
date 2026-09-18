@@ -78,7 +78,7 @@ def default_config(repo_root: str = "") -> dict:
                 {
                     "name": "addons",
                     "enabled": True,
-                    "src": "Blender/Addons/ClaudeVibe_WIPs",
+                    "src": "Blender/Addons",
                     "dest": "Addons",
                     # Each tool ships as a self-contained folder: the CURRENT zip
                     # plus the docs and screenshots needed to actually use it.
@@ -150,7 +150,7 @@ def default_config(repo_root: str = "") -> dict:
                     "R2_reroutes_clear",
                     "R7_no_frame_overlap",
                 ],
-                "audit_module_dir": "Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline",
+                "audit_module_dir": "Blender/Addons/LLMGeonodePipeline",
             },
             "asset_marked": {
                 "mode": "warn",
@@ -198,7 +198,7 @@ def default_config(repo_root: str = "") -> dict:
                     "Blender/Geonodes/**",
                     "Blender/Shading/**",
                     "Blender/blender_assets.cats.txt",
-                    "Blender/Addons/ClaudeVibe_WIPs/*/distribution/*.zip",
+                    "Blender/Addons/*/distribution/*.zip",
                 ],
             },
             "blender_button": {"enabled": True, "refresh_after": True},

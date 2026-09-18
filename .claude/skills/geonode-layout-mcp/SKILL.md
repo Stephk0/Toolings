@@ -6,7 +6,7 @@ description: The entry point for ANY Geometry Nodes work — creating, tidying, 
 # GeoNode work — criteria + Layout MCP
 
 **FIRST: Read the canonical criteria** —
-`Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/GEONODE_CRITERIA.md`.
+`Blender/Addons/LLMGeonodePipeline/GEONODE_CRITERIA.md`.
 They apply to creating, tidying, and altering alike (function frames, interface
 panels + unique naming, per-function group inputs, subway wiring, deformer
 conventions, publishing checklist). The criteria deliberately live with the
@@ -17,7 +17,7 @@ An MCP bridge that reads a Geometry Nodes graph as an **annotated screenshot +
 structured table** and rearranges it **deterministically**. Layout/readability is
 a *visual* judgment the serialized tree can't carry; topology and writes are data.
 
-- **Suite:** `Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/` — MCP bridge
+- **Suite:** `Blender/Addons/LLMGeonodePipeline/` — MCP bridge
   (`addon/`, `server.py`) + deterministic engine (`tidy_layout.py`) + shared
   verifier (`layout_audit.py`) + orchestrator (`run_pipeline.py`). Full docs in
   that folder's `README.md`.
@@ -57,7 +57,7 @@ editor is open showing the target tree. Set that up first with the helper (paste
 into the live Blender via the geonode-layout `execute_blender_code` tool):
 
 ```python
-import sys; sys.path.append(r"D:\Stephko_Tooling\Toolings\Blender\Addons\ClaudeVibe_WIPs\LLMGeonodePipeline")
+import sys; sys.path.append(r"D:\Stephko_Tooling\Toolings\Blender\Addons\LLMGeonodePipeline")
 import prepare_capture; prepare_capture.prepare(tree="GN_NormalTransfer",
     filepath=r"D:\Stephko_Tooling\Toolings\Blender\Geonodes\GN_NormalTransfer.blend")
 ```

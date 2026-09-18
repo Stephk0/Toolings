@@ -15,7 +15,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PIPE = os.path.normpath(os.path.join(
-    HERE, "..", "..", "Addons", "ClaudeVibe_WIPs", "LLMGeonodePipeline"))
+    HERE, "..", "..", "Addons", "LLMGeonodePipeline"))
 sys.path.insert(0, PIPE)
 
 import tidy_layout          # noqa: E402

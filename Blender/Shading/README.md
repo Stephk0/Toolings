@@ -106,7 +106,7 @@ blender.exe --background --factory-startup SH_Cavity.blend --python _build/verif
 ```
 
 `tidy_shader_group.py` runs the deterministic layout engine from
-`Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/` (it keys only on generic node
+`Addons/LLMGeonodePipeline/` (it keys only on generic node
 idnames, so it works on a shader tree) and gates the save on audit rules
 R1–R11. `verify_sh_cavity.py` runs 17 checks — interface contract, the identity
 case, per-slider direction, both soft-clamp ceilings, the 0–4 clamp, distance

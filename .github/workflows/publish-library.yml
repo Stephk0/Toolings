@@ -22,8 +22,8 @@ on:
       - 'Blender/Geonodes/**'
       - 'Blender/Shading/**'
       - 'Blender/blender_assets.cats.txt'
-      - 'Blender/Addons/ClaudeVibe_WIPs/*/distribution/*.zip'
-      - 'Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/**'
+      - 'Blender/Addons/*/distribution/*.zip'
+      - 'Blender/Addons/LibraryPublisher/**'
       - '.github/workflows/publish-library.yml'
   workflow_dispatch:
     inputs:
@@ -51,7 +51,7 @@ jobs:
     timeout-minutes: 45
 
     env:
-      TOOL: Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher
+      TOOL: Blender/Addons/LibraryPublisher
       # rclone remote 'gdrive', configured entirely from the environment.
       RCLONE_CONFIG_GDRIVE_TYPE: drive
       RCLONE_CONFIG_GDRIVE_SCOPE: drive

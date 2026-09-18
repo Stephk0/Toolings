@@ -8,7 +8,7 @@ description: Build a NEW Blender/DCC tool or refactor an EXISTING one to the WMH
 The standard for every tool in this suite. Adapted from our own `wmh-dcc-tooling` repo
 (github.com/Windmillhill-Games/wmh-dcc-tooling) — both repos are ours, free to share code.
 Full rationale + cross-pollination roster: Serena memory `wmh_architecture_adoption`.
-Folder convention this extends: `ClaudeVibe_WIPs/_TOOLING_STRUCTURE.md`.
+Folder convention this extends: `Blender/Addons/_TOOLING_STRUCTURE.md`.
 
 ## The core idea (P1)
 

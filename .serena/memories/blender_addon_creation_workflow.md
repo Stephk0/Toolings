@@ -3,7 +3,7 @@
 ## When a Blender addon is requested, ALWAYS create addon in its own folder with ALL files inside:
 
 ### Folder Structure (All Files in One Folder)
-**Location:** `Blender/Addons/ClaudeVibe_WIPs/AddonName/`
+**Location:** `Blender/Addons/AddonName/`
 
 **Files:**
 - `__init__.py` - Main addon code (for development)
@@ -42,7 +42,7 @@
 ## File Structure Example
 
 ```
-Blender/Addons/ClaudeVibe_WIPs/
+Blender/Addons/
 └── AddBoundsToName/              # All addon files in ONE folder
     ├── __init__.py               # Main code (folder installation)
     ├── add_bounds_to_name.py     # Installable version (file installation)

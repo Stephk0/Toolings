@@ -526,7 +526,7 @@ Apply Modifiers Before Join: OFF
 ## 🔗 Quick Links
 
 - [Complete Documentation](DOCUMENTATION_INDEX.md)
-- [Mass Exporter Full Guide](Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md)
+- [Mass Exporter Full Guide](Blender/Addons/MassExporter/README.md)
 - [Main README](README.md)
 - [ST3E Documentation](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
 

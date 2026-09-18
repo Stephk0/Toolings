@@ -60,7 +60,7 @@ git clone https://github.com/Stephk0/Toolings.git
 Edit > Preferences > Add-ons > Install from Disk
 
 # 3. Navigate to:
-Toolings/Blender/Addons/ClaudeVibe_WIPs/[addon_name]/
+Toolings/Blender/Addons/[addon_name]/
 
 # 4. Select the .py file and enable the addon
 ```
@@ -102,7 +102,7 @@ Intelligently collapses edges or merges vertices based on topology analysis.
 - Poly count reduction
 - Boolean operation cleanup
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/Smart%20Collapse/)
+[📖 Full Documentation →](Blender/Addons/Smart%20Collapse/)
 
 </td>
 <td width="50%">
@@ -118,7 +118,7 @@ Context-sensitive crease tool with modal controls and HUD display.
 - Live preview
 - Vertex/Edge/Face modes
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/Smart%20Crease/)
+[📖 Full Documentation →](Blender/Addons/Smart%20Crease/)
 
 </td>
 </tr>
@@ -136,7 +136,7 @@ Batch export system with Unity-optimized FBX settings.
 - On-demand joining
 - Material overrides
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/MassExporter/)
+[📖 Full Documentation →](Blender/Addons/MassExporter/)
 
 </td>
 <td width="50%">
@@ -152,7 +152,7 @@ Context-aware transform orientation management.
 - Smart toggling
 - Selection tracking
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/Smart%20Orientation/)
+[📖 Full Documentation →](Blender/Addons/Smart%20Orientation/)
 
 </td>
 </tr>
@@ -170,7 +170,7 @@ Center edge loops and vertices for even topology.
 - Edge length weighting
 - Quick access via menu
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/Center%20Edges/)
+[📖 Full Documentation →](Blender/Addons/Center%20Edges/)
 
 </td>
 <td width="50%">
@@ -186,7 +186,7 @@ Quick modifier visibility control in Edit Mode.
 - On-cage toggle
 - Multi-object support
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/Toggle%20Modifier%20Display/)
+[📖 Full Documentation →](Blender/Addons/Toggle%20Modifier%20Display/)
 
 </td>
 </tr>
@@ -204,7 +204,7 @@ Customizable overlay banner for edit mode awareness.
 - All edit modes
 - Real-time updates
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/Edit%20Mode%20Overlay/)
+[📖 Full Documentation →](Blender/Addons/Edit%20Mode%20Overlay/)
 
 </td>
 <td width="50%">
@@ -220,7 +220,7 @@ Customizable overlay banner for edit mode awareness.
 - Visual feedback
 - Advanced options
 
-[📖 Full Documentation →](Blender/Addons/ClaudeVibe_WIPs/edge_constraint_mode/)
+[📖 Full Documentation →](Blender/Addons/edge_constraint_mode/)
 
 </td>
 </tr>

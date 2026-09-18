@@ -28,54 +28,54 @@ This repository is a **compilation of independent tools** for 3D workflows acros
 - ⚠️ **Maintenance Mode**: 3DS Max tools (ST3E)
 
 Each tool follows the standard layout: `README.md` + `source/` + `distribution/`
-(see `Blender/Addons/ClaudeVibe_WIPs/_TOOLING_STRUCTURE.md`).
+(see `Blender/Addons/_TOOLING_STRUCTURE.md`).
 
 ---
 
 ## 🔷 Blender Addons
 
-All Blender addons live in `Blender/Addons/ClaudeVibe_WIPs/`. Each folder contains its own
+All Blender addons live in `Blender/Addons/`. Each folder contains its own
 `README.md` (detailed usage), a `source/` folder, and an installable zip under `distribution/`.
 
 ### Export & Pipeline
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Mass Collection Exporter** | 13.6.2 | Batch export collections/objects (FBX, OBJ, DAE, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/ClaudeVibe_WIPs/MassExporter/README.md) |
-| **Quick Animation Export** | 1.0.9 | Streamlined export of animation/action clips to game-engine-ready files | [README](Blender/Addons/ClaudeVibe_WIPs/QuickAnimationExport/README.md) |
+| **Mass Collection Exporter** | 13.6.2 | Batch export collections/objects (FBX, OBJ, DAE, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/MassExporter/README.md) |
+| **Quick Animation Export** | 1.0.9 | Streamlined export of animation/action clips to game-engine-ready files | [README](Blender/Addons/QuickAnimationExport/README.md) |
 
 ### Modeling
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Smart Crease** | 1.5.1 | Context-sensitive edge/vertex crease with preset keys + modal mouse control | [README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Crease/README.md) |
-| **Smart Collapse** | 1.0.0 | 3ds Max-style collapse (collapse + merge at center) | [README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Collapse/README.md) |
-| **Smart Set Orientation** | 1.5.0 | Set transform orientation from selection (Maya "D" working-pivot style) | [README](Blender/Addons/ClaudeVibe_WIPs/Smart%20Set%20Orientation/README.md) |
-| **Center Edges/Loops** | 1.5.1 | Center edge loops / selections along their average position | [README](Blender/Addons/ClaudeVibe_WIPs/Center%20Edges/README.md) |
-| **Edge Constraint Mode** | 1.1.2 | 3ds Max-style edge constraint — verts slide along topology during transforms | [README](Blender/Addons/ClaudeVibe_WIPs/EdgeConstraintMode/README.md) |
+| **Smart Crease** | 1.5.1 | Context-sensitive edge/vertex crease with preset keys + modal mouse control | [README](Blender/Addons/Smart%20Crease/README.md) |
+| **Smart Collapse** | 1.0.0 | 3ds Max-style collapse (collapse + merge at center) | [README](Blender/Addons/Smart%20Collapse/README.md) |
+| **Smart Set Orientation** | 1.5.0 | Set transform orientation from selection (Maya "D" working-pivot style) | [README](Blender/Addons/Smart%20Set%20Orientation/README.md) |
+| **Center Edges/Loops** | 1.5.1 | Center edge loops / selections along their average position | [README](Blender/Addons/Center%20Edges/README.md) |
+| **Edge Constraint Mode** | 1.1.2 | 3ds Max-style edge constraint — verts slide along topology during transforms | [README](Blender/Addons/EdgeConstraintMode/README.md) |
 
 ### Modifiers
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Synced Modifiers** | 2.5.0 | Add & keep modifiers synchronized across objects via drivers; Geometry Nodes input sync | [README](Blender/Addons/ClaudeVibe_WIPs/SyncedModifiers/README.md) |
-| **Modifier List (Stephko fork)** | 1.9.89 | Enhanced modifier-stack UI (list view, popup, sidebar) with GN input-attribute toggle fix | [README](Blender/Addons/ClaudeVibe_WIPs/ModifierList_Stephko/source/docs/README.md) |
-| **Toggle Modifier Display** | 1.3.0 | Quick modifier visibility toggle in edit mode (D / Shift+D), 3ds Max "show end result" style | [README](Blender/Addons/ClaudeVibe_WIPs/Toggle%20Modifier%20Display/README.md) |
+| **Synced Modifiers** | 2.5.0 | Add & keep modifiers synchronized across objects via drivers; Geometry Nodes input sync | [README](Blender/Addons/SyncedModifiers/README.md) |
+| **Modifier List (Stephko fork)** | 1.9.89 | Enhanced modifier-stack UI (list view, popup, sidebar) with GN input-attribute toggle fix | [README](Blender/Addons/ModifierList_Stephko/source/docs/README.md) |
+| **Toggle Modifier Display** | 1.3.0 | Quick modifier visibility toggle in edit mode (D / Shift+D), 3ds Max "show end result" style | [README](Blender/Addons/Toggle%20Modifier%20Display/README.md) |
 
 ### UV, Naming & Rigging
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Tile UV Projector** | 1.2.1 | Tile-based UV projection/placement for texture-atlas workflows | [README](Blender/Addons/ClaudeVibe_WIPs/TileUVProjector/README.md) |
-| **Add Bounds To Name** | 1.1.3 | Rename objects from bounding-box dimensions (units, rounding, swizzle, presets) | [README](Blender/Addons/ClaudeVibe_WIPs/AddBoundsToName/README.md) |
-| **Skin Transfer Setup** | 1.3.0 | Per-part skin setup (as-is / data transfer / bind-to-bone) with centralized rig + base | [README](Blender/Addons/ClaudeVibe_WIPs/SkinTransferSetup/README.md) |
+| **Tile UV Projector** | 1.2.1 | Tile-based UV projection/placement for texture-atlas workflows | [README](Blender/Addons/TileUVProjector/README.md) |
+| **Add Bounds To Name** | 1.1.3 | Rename objects from bounding-box dimensions (units, rounding, swizzle, presets) | [README](Blender/Addons/AddBoundsToName/README.md) |
+| **Skin Transfer Setup** | 1.3.0 | Per-part skin setup (as-is / data transfer / bind-to-bone) with centralized rig + base | [README](Blender/Addons/SkinTransferSetup/README.md) |
 
 ### Viewport & Render
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/ClaudeVibe_WIPs/Edit%20Mode%20Overlay/README.md) |
-| **Compositor Render Sets** | 2.0.0 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/ClaudeVibe_WIPs/Compositor%20Render%20Sets/README.md) |
+| **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/Edit%20Mode%20Overlay/README.md) |
+| **Compositor Render Sets** | 2.0.0 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/Compositor%20Render%20Sets/README.md) |
 
 ---
 

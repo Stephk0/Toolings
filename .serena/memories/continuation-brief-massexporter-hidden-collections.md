@@ -1,7 +1,7 @@
 # Continuation Brief: Mass Exporter — Export Hidden Collections fix
 
 ## Context
-Mass Collection Exporter (`Blender/Addons/ClaudeVibe_WIPs/MassExporter/source/__init__.py`, Blender 5.0).
+Mass Collection Exporter (`Blender/Addons/MassExporter/source/__init__.py`, Blender 5.0).
 User reported "Export Hidden Collections" failing: a collection nested under an eye-hidden parent
 (`sk_char_player_skin_flame_001` under `Cosmetic_Flame_001`) was not exported correctly because parent
 collections were not being unhidden. Requirement: unhide ALL ancestors up the chain before export.

@@ -68,7 +68,7 @@ class ST3E_LibraryPublisherPreferences(AddonPreferences):
         col.prop(self, "tool_root")
         resolved = bpy.path.abspath(self.tool_root) if self.tool_root else ""
         if not resolved:
-            col.label(text="Set this to …/ClaudeVibe_WIPs/LibraryPublisher", icon="ERROR")
+            col.label(text="Set this to …/Blender/Addons/LibraryPublisher", icon="ERROR")
         elif not os.path.isfile(os.path.join(resolved, "publish_config.json")):
             col.label(text="No publish_config.json in that folder", icon="ERROR")
             col.label(text="Run: cli.py config init", icon="INFO")

@@ -3,7 +3,7 @@
 # LibraryPublisher - publish the Blender asset library on push.
 #
 # Tracked in the repo (not in .git/hooks) so it is versioned; activate with
-#   python "Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/source/cli.py" install-hooks
+#   python "Blender/Addons/LibraryPublisher/source/cli.py" install-hooks
 # which points git's core.hooksPath at this folder.
 #
 # Every decision - enabled or not, which branches, foreground or background -

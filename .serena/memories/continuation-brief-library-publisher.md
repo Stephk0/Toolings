@@ -6,7 +6,7 @@ into it. Built from scratch this session; live and publishing.
 
 ## Context
 
-`Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/` — **v1.3.0**, 181 pytest tests (none import
+`Blender/Addons/LibraryPublisher/` — **v1.3.0**, 181 pytest tests (none import
 bpy). WMH split: bpy-free `core/` + `blender/` UI + `checks/` (run INSIDE headless Blender) +
 `cli.py`. Every trigger funnels through `source/cli.py`, so there is one code path.
 

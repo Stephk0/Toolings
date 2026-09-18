@@ -4,7 +4,7 @@ Suite that reads + lays out Blender Geometry-Nodes graphs. Two engines that veri
 via one shared audit. Work continues after this compact.
 
 ## Location & structure
-`Blender/Addons/ClaudeVibe_WIPs/LLMGeonodePipeline/`
+`Blender/Addons/LLMGeonodePipeline/`
 - `addon/` — Blender MCP-bridge extension (socket server :9877 + 7 handlers); installed zip
   `distribution/LLMGeonodePipeline_v1.2.0.zip`.
 - `server.py` — FastMCP server, MCP name `geonode-layout`, configured in `~/.claude.json`

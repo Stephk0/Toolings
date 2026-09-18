@@ -6,7 +6,7 @@ allowed-tools: Bash(python:*), Bash(git:*), Read, Glob, AskUserQuestion
 
 # Configure the library publisher
 
-Interactive setup for `Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/publish_config.json`
+Interactive setup for `Blender/Addons/LibraryPublisher/publish_config.json`
 — destination, scope, catalog renaming, criteria and triggers.
 
 Request: **$ARGUMENTS**
@@ -15,7 +15,7 @@ CLI (the only way to write the file — never hand-edit the JSON, `set` validate
 keys and rejects typos):
 
 ```
-python "Blender/Addons/ClaudeVibe_WIPs/LibraryPublisher/source/cli.py" config show
+python "Blender/Addons/LibraryPublisher/source/cli.py" config show
 python "…/source/cli.py" config doctor
 python "…/source/cli.py" config set <dotted.key>=<json-or-bare-value> [...]
 python "…/source/cli.py" config init [--force]
