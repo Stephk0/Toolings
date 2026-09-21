@@ -1,13 +1,13 @@
 import bpy, sys, os
 from collections import defaultdict
 GEO = r"D:\Stephko_Tooling\Toolings\Blender\Geonodes"
-TARGETS = ["GN_Spherify", "GN_Twist", "GN_Taper", "GN_Wave", "GN_Bend", "GN_Stretch",
+TARGETS = ["GN_Twist", "GN_Taper", "GN_Wave", "GN_Bend", "GN_Stretch",
            "GN_Inflate", "GN_Smooth", "GN_RandomizePosition",
            "GN_Triangulate", "GN_Subdivide", "GN_Wireframe", "GN_RadialArray",
            "GN_Displace", "GN_MeshBoolean", "GN_Cast", "GN_Scatter",
            "GN_ConvexHull", "GN_BoundingBox", "GN_FlipFaces", "GN_SetMaterial",
            "GN_DualMesh", "GN_VoxelRemesh", "GN_AutoSmooth", "GN_PointsToSpheres",
-           "GN_NormalTransfer", "GN_DeleteStrayGeometry",
+           "GN_NormalTransfer", "GN_Delete",
            "GN_Erosion", "GN_NoiseDisplace", "GN_VoronoiDisplace", "GN_ShearGeometry",
            "GN_Mosaic", "GN_RandomizeMeshElements", "GN_VertexDataComposer"]
 
@@ -1179,24 +1179,55 @@ def eval_positions(obj, m, pid, preview):
     P = [v.co.copy() for v in me.vertices]; ev.to_mesh_clear(); return P
 
 
+def own_trees(ng):
+    """`ng` plus every LOCAL geometry group it instances, transitively, outermost first.
+
+    A tool is not tidy while its helper groups are a pile at the origin -- a group the
+    user can open is a graph the user reads, so it is held to the same R1-R13 bar as the
+    tree that instances it. LINKED groups are skipped on purpose: they are owned (and
+    tidied, and audited) by the .blend they live in, and a linked datablock cannot be
+    edited from here anyway. Groups sitting in the file but not reachable from `ng` are
+    somebody else's datablocks -- left alone."""
+    seen, order, stack = {ng.name}, [ng], [ng]
+    while stack:
+        cur = stack.pop()
+        for n in cur.nodes:
+            sub = getattr(n, "node_tree", None)
+            if sub is None or sub.library is not None:
+                continue
+            if sub.bl_idname != "GeometryNodeTree" or sub.name in seen:
+                continue
+            seen.add(sub.name)
+            order.append(sub)
+            stack.append(sub)
+    return order
+
+
 def process_file(fname, save=True, gate=None):
     """Open <fname>.blend, snapshot geometry, run tidy_and_route, verify the mesh
     is unchanged, optionally run an extra `gate(ng) -> (ok, info)`, and save ONLY
     if BOTH the geometry check and the gate pass.
 
+    EVERY local group the tool owns is tidied, not just the tree named after the file --
+    see `own_trees`. The geometry snapshot covers them all at once, since the helpers are
+    only reachable through the modifier being evaluated.
+
     The `gate` hook is how the two halves of the suite verify each other:
-    run_pipeline passes a gate that runs `layout_audit`, so routing-correctness
-    (geometry unchanged) AND readability rules (R1-R5) must both hold before the
-    file is committed. Returns a stats dict."""
+    run_pipeline passes a gate that runs `layout_audit` on EACH tidied tree, so
+    routing-correctness (geometry unchanged) AND readability rules (R1-R13) must both
+    hold before the file is committed. `gate(trees) -> (ok, info)`. Returns a stats
+    dict."""
     bpy.ops.wm.open_mainfile(filepath=os.path.join(GEO, fname + ".blend"))
     ng = bpy.data.node_groups[fname]
     obj = next(o for o in bpy.data.objects if any(md.type == 'NODES' and md.node_group == ng for md in o.modifiers))
-    m = next(md for md in obj.modifiers if md.node_group == ng)
+    m = next(md for md in obj.modifiers if md.type == 'NODES' and md.node_group == ng)
     ids = {it.name: it.identifier for it in ng.interface.items_tree if getattr(it, 'item_type', '') == 'SOCKET' and it.in_out == 'INPUT'}
     pid = ids.get("Show Deformation Preview"); pval = m.get(pid) if pid else None
 
+    trees = own_trees(ng)
     base_on, base_off = eval_positions(obj, m, pid, True), eval_positions(obj, m, pid, False)
     stats = tidy_and_route(ng)
+    sub_stats = {sub.name: tidy_and_route(sub) for sub in trees[1:]}
     aft_on, aft_off = eval_positions(obj, m, pid, True), eval_positions(obj, m, pid, False)
     if pid is not None: m[pid] = pval
 
@@ -1208,19 +1239,20 @@ def process_file(fname, save=True, gate=None):
 
     gate_ok, gate_info = True, None
     if gate is not None:
-        gate_ok, gate_info = gate(ng)
+        gate_ok, gate_info = gate(trees)
 
     ok = geom_ok and gate_ok
     saved = False
     if ok and save:
         bpy.ops.wm.save_mainfile(); saved = True
     return {"fname": fname, "geom_ok": geom_ok, "gate_ok": gate_ok, "saved": saved,
-            "stats": stats, "gate_info": gate_info}
+            "stats": stats, "sub_stats": sub_stats, "trees": [t.name for t in trees],
+            "gate_info": gate_info}
 
 
 def _cli():
     targets = TARGETS
-    if "--" in sys.argv:                       # run on a subset: blender ... -- GN_Spherify GN_Twist
+    if "--" in sys.argv:                       # run on a subset: blender ... -- GN_Twist GN_Taper
         sel = sys.argv[sys.argv.index("--") + 1:]
         if sel: targets = sel
     for fname in targets:

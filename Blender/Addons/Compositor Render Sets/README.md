@@ -708,4 +708,4 @@ For issues, suggestions, or contributions:
 
 **Happy Rendering! 🎨✨**
 
-*Part of the ClaudeVibe Toolings collection - Professional tools for Blender artists*
+*Part of the Stephko Toolings collection - Professional tools for Blender artists*

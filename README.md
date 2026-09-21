@@ -20,7 +20,7 @@
 
 ### 🔷 Blender Tools (Active Development)
 
-**Addons** - 16 production-ready helpers across export, modeling, modifiers, UV, naming, rigging and render:
+**Addons** (`Blender/Addons/<Tool>/`) - 16 production-ready helpers across export, modeling, modifiers, UV, naming, rigging and render:
 - **Mass Collection Exporter** - Batch export collections/objects with suffix grouping & parent-empty handling
 - **Synced Modifiers** - Keep modifiers synchronized across objects via drivers
 - **Compositor Render Sets** - Multi-render-setup management with batch rendering
@@ -52,17 +52,20 @@ Comprehensive MaxScript collection - [Documentation](https://docs.google.com/doc
 
 ### Blender Addons
 
+Every addon lives in its own folder under `Blender/Addons/<Tool>/`; the current installable
+zip is in `Blender/Addons/<Tool>/distribution/` (older builds in `distribution/archive/`).
+
 **Option A: Direct Install**
 ```
-1. Download addon .py file
+1. Take the zip from Blender/Addons/<Tool>/distribution/
 2. Blender → Edit → Preferences → Add-ons
-3. Click "Install..." and select file
+3. Click "Install from Disk..." (or drag & drop the zip) and select it
 4. Enable checkbox
 ```
 
 **Option B: Manual Install**
 ```
-1. Copy .py file to:
+1. Extract the zip into:
    Windows: %APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\
    macOS: ~/Library/Application Support/Blender/[version]/scripts/addons/
    Linux: ~/.config/blender/[version]/scripts/addons/
@@ -99,7 +102,8 @@ Modifiers: Copy Custom Modifiers contents → [MaxRoot]\Plugins\
 - 📝 [Quick Reference](QUICK_REFERENCE.md)
 
 **Per-Tool Documentation:**
-Each addon folder contains its own README with detailed usage instructions.
+Each addon folder under `Blender/Addons/` contains its own README with detailed usage instructions.
+The per-tool folder convention is documented in [`Blender/Addons/_TOOLING_STRUCTURE.md`](Blender/Addons/_TOOLING_STRUCTURE.md).
 
 ---
 

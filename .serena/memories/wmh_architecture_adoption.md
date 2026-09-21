@@ -1,6 +1,6 @@
 # WMH Architecture Adoption — core/blender split, headless tests, snippets, installer
 
-> Forward-direction architecture standard for the Toolings suite. Both `ClaudeVibe_WIPs`
+> Forward-direction architecture standard for the Toolings suite. Both `Blender/Addons`
 > and `wmh-dcc-tooling` (github.com/Windmillhill-Games/wmh-dcc-tooling) are **ours** — same
 > owner, free to share code and patterns. WMH is the more mature reference we adapt FROM.
 > Goal: adapt EXISTING tools to this scheme AND build NEW tools with it from day one.

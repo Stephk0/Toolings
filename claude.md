@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-**Name:** Stephko Toolings (ClaudeVibe_WIPs)
+**Name:** Stephko Toolings
 **Author:** Stephan Viranyi (Stephko)
 **Primary Focus:** Production-ready tools for Blender, Unity, and 3DS Max workflows
 **Active Development:** Blender addons and geometry nodes
@@ -20,23 +20,35 @@
   is its own folder containing `README.md` + `source/` (code) + `distribution/` (current zip,
   older builds in `distribution/archive/`) + optional `assets/` (screenshots). See
   `Blender/Addons/_TOOLING_STRUCTURE.md` for the full convention and release steps.
+- **Addons were flattened on 2026-09-18:** tools used to live in `Blender/Addons/ClaudeVibe_WIPs/<Tool>`
+  and now live directly in `Blender/Addons/<Tool>`. Any path still containing `ClaudeVibe_WIPs` is stale.
 
 ## Repository Structure
 
 ```
 Stephko_Tooling/
 ├── Blender/
-│   ├── Addons/                      # Python addons (one folder per tool)
-│   │   ├── MassExporter/            # Collection batch export tool
-│   │   ├── SyncedModifiers/         # Multi-object modifier synchronization
-│   │   ├── Smart Crease/            # Edge crease management
-│   │   ├── Smart Collapse/          # Context-aware mesh collapse
-│   │   ├── Smart Set Orientation/   # Transform orientation helper
+│   ├── Addons/                      # Python addons (one folder per tool: README + source/ + distribution/)
+│   │   ├── _TOOLING_STRUCTURE.md    # Per-tool folder convention + release steps
+│   │   ├── docs/                    # Shared addon-dev notes (not a tool)
+│   │   ├── AddBoundsToName/         # Object dimension-based renaming
 │   │   ├── Center Edges/            # Edge loop centering
-│   │   ├── Edit Mode Overlay/       # Viewport feedback
-│   │   ├── Toggle Modifier Display/ # Modifier visibility toggle
 │   │   ├── Compositor Render Sets/  # Compositor render management
-│   │   └── AddBoundsToName/         # Object dimension-based renaming
+│   │   ├── EdgeConstraintMode/      # Verts slide along topology during transforms
+│   │   ├── Edit Mode Overlay/       # Viewport feedback
+│   │   ├── LibraryPublisher/        # Publishes the asset library to the Shared Drive (ST3E_Ext)
+│   │   ├── LibraryRelink/           # Bulk-relink a .blend's linked libraries to a new folder
+│   │   ├── LLMGeonodePipeline/      # GeoNode Layout MCP server + GEONODE_CRITERIA.md
+│   │   ├── MassExporter/            # Collection batch export tool
+│   │   ├── ModifierList_Stephko/    # Modifier-stack UI fork
+│   │   ├── QuickAnimationExport/    # Animation/action clip export
+│   │   ├── SkinTransferSetup/       # Per-part skin setup
+│   │   ├── Smart Collapse/          # Context-aware mesh collapse
+│   │   ├── Smart Crease/            # Edge crease management
+│   │   ├── Smart Set Orientation/   # Transform orientation helper
+│   │   ├── SyncedModifiers/         # Multi-object modifier synchronization
+│   │   ├── TileUVProjector/         # Tile-based UV projection
+│   │   └── Toggle Modifier Display/ # Modifier visibility toggle
 │   └── Geonodes/                    # Geometry node presets
 │       ├── GN_AttributeFunctions_4.5.blend
 │       ├── GN_CollectionInstancer.blend
@@ -280,7 +292,7 @@ Stephko_Tooling/
 - Automatic version detection for backward compatibility
 
 ### Add Bounds To Name v1.0
-**File:** `Blender/Addons/AddBoundsToName/__init__.py`
+**File:** `Blender/Addons/AddBoundsToName/source/__init__.py`
 
 **Core Functionality:**
 - Automatic object renaming based on bounding box dimensions
@@ -709,7 +721,7 @@ if __name__ == "__main__":
 
 ---
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-09-19 (addon folders flattened into `Blender/Addons/`)
 **Documentation Version:** 2.1
 **Primary Branch:** main
 **Active Worktree:** optimistic-dewdney

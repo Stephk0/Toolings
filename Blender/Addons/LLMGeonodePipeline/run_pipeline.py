@@ -39,11 +39,16 @@ BLOCKING_RULES = layout_audit.BLOCKING
 ADVISORY_RULES = layout_audit.ADVISORY
 
 
-def _audit_gate(ng):
-    """gate(ng) -> (ok, report). ok is False only if a BLOCKING rule FAILs."""
-    report = layout_audit.audit(ng)
-    ok = all(report[r]["status"] != "FAIL" for r in BLOCKING_RULES)
-    return ok, report
+def _audit_gate(trees):
+    """gate(trees) -> (ok, {tree name: report}).
+
+    EVERY tree the tool owns is audited, not just the outermost one: a helper group is a
+    graph the user opens and reads, so it is held to the same bar. ok is False if a
+    BLOCKING rule FAILs in ANY of them -- one unreadable helper blocks the save."""
+    reports = {ng.name: layout_audit.audit(ng) for ng in trees}
+    ok = all(r[rule]["status"] != "FAIL"
+             for r in reports.values() for rule in BLOCKING_RULES)
+    return ok, reports
 
 
 def run(fname, save=True):
@@ -52,15 +57,20 @@ def run(fname, save=True):
     res = tidy_layout.process_file(fname, save=save, gate=_audit_gate)
 
     print(f"\n########## LLM Geonode Pipeline: {fname} ##########")
-    s = res["stats"]
-    print(f"  tidy_and_route: local-GIs={s['local_gis']} node-entries={s.get('node_entries', 0)} "
-          f"hv={s['hv']} fan={s['fan']} around={s['around']}")
-    if res["gate_info"]:
-        layout_audit.print_report(res["gate_info"])
-    report = res["gate_info"] or {}
-    advisories = [r for r in ADVISORY_RULES if report.get(r, {}).get("status") == "FAIL"]
+    print(f"  trees tidied: {', '.join(res['trees'])}")
+    for nm, s in [(fname, res["stats"])] + sorted(res.get("sub_stats", {}).items()):
+        print(f"  tidy_and_route [{nm}]: local-GIs={s['local_gis']} "
+              f"node-entries={s.get('node_entries', 0)} hv={s['hv']} fan={s['fan']} "
+              f"around={s['around']}")
+    reports = res["gate_info"] or {}
+    for nm, report in reports.items():
+        layout_audit.print_report(report)
+    advisories = sorted({f"{r} [{nm}]" for nm, report in reports.items()
+                         for r in ADVISORY_RULES
+                         if report.get(r, {}).get("status") == "FAIL"})
     print(f"  GOAL 1 geometry unchanged      : {'PASS' if res['geom_ok'] else 'FAIL'}")
-    print(f"  GOAL 2 structural rules (R1,R2): {'PASS' if res['gate_ok'] else 'FAIL'}")
+    print(f"  GOAL 2 structural rules (R1,R2), all {len(reports)} tree(s): "
+          f"{'PASS' if res['gate_ok'] else 'FAIL'}")
     if advisories:
         print(f"  advisories not met (non-blocking): {', '.join(advisories)}")
     both_ok = res["geom_ok"] and res["gate_ok"]
@@ -69,7 +79,7 @@ def run(fname, save=True):
     elif not res["geom_ok"]:
         verdict = "NOT SAVED -- geometry changed!"
     elif not res["gate_ok"]:
-        verdict = "NOT SAVED -- structural rule (R1/R2) failed"
+        verdict = "NOT SAVED -- structural rule (R1/R2) failed in one of the trees"
     else:  # both goals met but save was disabled (dry run)
         verdict = "OK (both goals met) -- dry run, not saved"
     print(f"  => {verdict}")

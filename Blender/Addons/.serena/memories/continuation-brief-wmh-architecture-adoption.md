@@ -2,7 +2,7 @@
 
 ## Context
 Research task that turned into setting a forward-direction architecture standard for the
-Toolings suite. We compared our `ClaudeVibe_WIPs` Blender addons against our OWN sister repo
+Toolings suite. We compared our `Blender/Addons` Blender addons against our OWN sister repo
 `wmh-dcc-tooling` (github.com/Windmillhill-Games/wmh-dcc-tooling). Key correction the user made:
 both repos are OURS (Stephko / Windmill Hill Games) — no license barrier to sharing code/patterns.
 WMH is the more architecturally mature repo; we adapt patterns FROM it.
@@ -49,7 +49,7 @@ WMH is the more architecturally mature repo; we adapt patterns FROM it.
 ## Open Questions
 - Update vs delete the legacy `blender_addon_creation_workflow` memory? (awaiting user)
 - Which tool to pilot the core/blender refactor on — assumed MassExporter, confirm with user.
-- Does the user want snippet_manager(_api) physically copied into ClaudeVibe_WIPs, or referenced
+- Does the user want snippet_manager(_api) physically copied into Blender/Addons, or referenced
   from the wmh-dcc-tooling repo?
 
 ## Key references

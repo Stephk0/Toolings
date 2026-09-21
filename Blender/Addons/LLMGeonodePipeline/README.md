@@ -77,6 +77,29 @@ placed upstream) have legitimate backward links and can never hit zero.
 The gate fires for real: re-running tidy on already-routed output once overlapped a
 node (R1), and the pipeline refused to save — the two engines guard each other.
 
+### Every group the tool owns, not just the outer tree
+
+**A node group is a graph the user opens and reads, so it is held to the same
+R1–R13 bar as the tree that instances it.** `tidy_layout.own_trees(ng)` walks the
+`GeometryNodeGroup` nodes transitively and `process_file` tidies *every* local
+group it finds; `run_pipeline`'s gate audits each one and **a blocking failure in
+any helper blocks the save**. Two deliberate exclusions:
+
+- **Linked groups are skipped.** They belong to the `.blend` they live in (that
+  file tidies and audits them), and a linked datablock cannot be edited from here
+  anyway. So `GN_VertexDataComposer` tidies itself + `GNG_VertexChannel`, and
+  leaves the linked `GNG_AmbientOcclusion` to `GN_AmbientOcclusion.blend`.
+- **Unreachable groups are left alone** — third-party or leftover datablocks
+  sitting in the file that the tool does not instance are not ours to rewrite.
+
+This was added after `GNG_AmbientOcclusion` shipped as an untidied pile: the
+pipeline had only ever laid out `bpy.data.node_groups[<file name>]`.
+
+**The engine is not idempotent — run it twice.** The second pass reliably improves
+R3/R6, because the first pass is what gives the frames their real drawn extents
+(`node.dimensions` is only valid post-draw). `GN_AmbientOcclusion` went 5 backward
+links → 0, and the helper 10 → 2, on the second run, then held steady on the third.
+
 ## Usage
 
 ### Default automated path — `run_pipeline.py`

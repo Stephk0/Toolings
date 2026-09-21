@@ -39,6 +39,10 @@ HELP = "GNG_VertexChannel"
 PATH = os.path.join(GEO, NAME + ".blend")
 CAT  = "9b90781b-f051-4cdb-9dcb-c8909914a87b"      # ST3E/Modify
 
+AO_NAME  = "GNG_AmbientOcclusion"                  # linked, not rebuilt -- see below
+AO_BLEND = os.path.join(GEO, "GN_AmbientOcclusion.blend")
+AO_REL   = "//GN_AmbientOcclusion.blend"
+
 # internal cached-source attribute names (stripped before output)
 A_FRAND = "__vdc_face_random"
 A_IIDX  = "__vdc_island_index"
@@ -168,7 +172,7 @@ SOURCES = [
     ("Element Index (Normalized)",    "The vertex index divided by the vertex count, 0 to 1. Mostly a debug or ordering source."),
     ("Face Area",                     "Area of the face. On a vertex channel it averages the adjacent faces."),
     ("Curvature",                     "Average signed edge angle at the vertex: positive on convex ridges, negative in concave creases, zero on flat ground. Turn Auto Range on to normalize it."),
-    ("Ambient Occlusion",             "Cheap five-ray self-occlusion, 1 = open, 0 = fully enclosed. Requires Compute Ambient Occlusion in the Sources panel, otherwise it reads 1."),
+    ("Ambient Occlusion",             "Raycast self-occlusion, 1 = open, 0 = fully enclosed. Same sampling core as the GN_AmbientOcclusion modifier. Requires Compute Ambient Occlusion in the Sources panel, otherwise it reads 1."),
     ("Distance To Boundary",          "Distance to the nearest boundary edge, in object units -- the leaf-tip and stiffness gradient. Requires Compute Boundary Distance in the Sources panel."),
     ("Distance To Object",            "Distance to the surface of Source Object, in object units. Requires Compute Object Distance in the Sources panel."),
     ("Radial Distance",               "Distance from Source Object's origin, or from this object's own origin when no Source Object is set."),
@@ -187,6 +191,22 @@ COMP_DESCS = ["First component: X of a vector, Red of a colour, U of a UV pair."
 for _nm in (NAME, HELP):
     while _nm in bpy.data.node_groups:
         bpy.data.node_groups.remove(bpy.data.node_groups[_nm])
+
+# ============================================================================= linked AO core
+# The occlusion pass is NOT reimplemented here -- it is the same GNG_AmbientOcclusion the
+# standalone GN_AmbientOcclusion modifier uses, linked from its .blend so a fix in the ray
+# code reaches both tools.  The library path is rewritten to a relative one after the save.
+while AO_NAME in bpy.data.node_groups:
+    bpy.data.node_groups.remove(bpy.data.node_groups[AO_NAME])
+if not os.path.exists(AO_BLEND):
+    raise SystemExit(f"BUILD: {AO_BLEND} is missing -- run build_gn_ambient_occlusion.py first")
+bpy.ops.wm.link(filepath=os.path.join(AO_BLEND, "NodeTree", AO_NAME),
+                directory=os.path.join(AO_BLEND, "NodeTree") + os.sep,
+                filename=AO_NAME, relative_path=True)
+AO_GROUP = bpy.data.node_groups[AO_NAME]
+if AO_GROUP.library is None:
+    raise SystemExit(f"BUILD: {AO_NAME} came in as a local copy, expected a link")
+print(f"BUILD: linked {AO_NAME} from {AO_GROUP.library.filepath}", flush=True)
 
 # ############################################################################# HELPER GROUP
 hg = bpy.data.node_groups.new(HELP, "GeometryNodeTree")
@@ -509,16 +529,19 @@ sock("Source Object", 'INPUT', 'NodeSocketObject', parent=p_src,
 sock("Seed", 'INPUT', 'NodeSocketInt', parent=p_src, default=0,
      desc="Drives every Random source. Same seed and same mesh give the same result.")
 sock("Compute Ambient Occlusion", 'INPUT', 'NodeSocketBool', parent=p_src, default=False,
-     desc="Enable the five-ray self-occlusion pass. It raycasts the mesh against itself, "
-          "so leave it off unless a channel actually reads Ambient Occlusion.")
+     desc="Enable the self-occlusion pass. It raycasts the mesh against itself once per "
+          "sample, so leave it off unless a channel actually reads Ambient Occlusion.")
+sock("Occlusion Samples", 'INPUT', 'NodeSocketInt', parent=p_src, default=8, mn=1, mx=256,
+     desc="Rays fired per vertex by the occlusion pass. Cost is linear -- 8 is a good "
+          "preview, 32 to 64 a clean bake. Values below 1 are clamped to 1.")
 sock("Occlusion Distance", 'INPUT', 'NodeSocketFloat', parent=p_src, default=1.0, mn=0.0,
      subtype='DISTANCE',
      desc="How far the occlusion rays travel -- roughly the radius of the detail you want "
           "shaded. Larger values darken more.")
 sock("Occlusion Spread", 'INPUT', 'NodeSocketFloat', parent=p_src, default=0.7,
      mn=0.0, mx=1.0, subtype='FACTOR',
-     desc="How far the four side rays tilt away from the normal. 0 fires every ray "
-          "straight out, 1 fires them nearly along the surface.")
+     desc="Width of the sampling cone around the normal. 1 is the full hemisphere, small "
+          "values tighten the rays towards the normal and only catch head-on blockers.")
 sock("Compute Boundary Distance", 'INPUT', 'NodeSocketBool', parent=p_src, default=False,
      desc="Enable the distance-to-boundary pass used by the Distance To Boundary source.")
 sock("Boundary From Open Edges", 'INPUT', 'NodeSocketBool', parent=p_src, default=True,
@@ -726,58 +749,28 @@ t.link(eang, "Signed Angle", curv, "Value")
 cur = store(cur, A_CURV, curv, "Value")
 
 t.f("Ambient Occlusion")
-ao_geo = switch(t, 'GEOMETRY', g("Compute Ambient Occlusion"), None, cur, "Gate AO Geometry")
-nrm1 = t.n("GeometryNodeInputNormal", "Normal")
-pos1 = t.n("GeometryNodeInputPosition", "Position")
-# tangent basis: pick the reference axis the normal is NOT parallel to, or the cross degenerates
-ref_a = vmath(t, 'CROSS_PRODUCT', (nrm1, "Normal"), (0.0, 0.0, 1.0), "Normal Cross Z")
-ref_b = vmath(t, 'CROSS_PRODUCT', (nrm1, "Normal"), (1.0, 0.0, 0.0), "Normal Cross X")
-len_a = vmath(t, 'LENGTH', (ref_a, "Vector"), None, "Length Of Cross Z")
-degen = t.n("FunctionNodeCompare", "Normal Parallel To Z", data_type='FLOAT', operation='LESS_THAN')
-t.link(len_a, "Value", degen, "A")
-isock(degen, "B").default_value = 1e-3
-tan_r = switch(t, 'VECTOR', (degen, "Result"), (ref_a, "Vector"), (ref_b, "Vector"), "Pick Reference")
-tanv  = vmath(t, 'NORMALIZE', (tan_r, "Output"), None, "Tangent")
-bitv  = vmath(t, 'CROSS_PRODUCT', (nrm1, "Normal"), (tanv, "Vector"), "Bitangent")
-eps   = fmath(t, 'MULTIPLY', g("Occlusion Distance"), 1e-4, "Ray Bias")
-lift  = vmath(t, 'SCALE', (nrm1, "Normal"), None, "Lift Along Normal")
-t.link(eps, "Value", lift, "Scale")
-origin = vmath(t, 'ADD', (pos1, "Position"), (lift, "Vector"), "Ray Origin")
-spread_a = fmath(t, 'MULTIPLY', g("Occlusion Spread"), pymath.pi * 0.5 * 0.9, "Spread Angle")
-sp_sin = fmath(t, 'SINE', (spread_a, "Value"), None, "Sine Of Spread")
-sp_cos = fmath(t, 'COSINE', (spread_a, "Value"), None, "Cosine Of Spread")
-n_part = vmath(t, 'SCALE', (nrm1, "Normal"), None, "Normal Part")
-t.link(sp_cos, "Value", n_part, "Scale")
-
-ray_dirs = []
-for k, (ca, sa) in enumerate([(1, 0), (0, 1), (-1, 0), (0, -1)]):
-    tm = fmath(t, 'MULTIPLY', (sp_sin, "Value"), float(ca), f"Tangent Weight {k}")
-    tp = vmath(t, 'SCALE', (tanv, "Vector"), None, f"Tangent Part {k}")
-    t.link(tm, "Value", tp, "Scale")
-    bm = fmath(t, 'MULTIPLY', (sp_sin, "Value"), float(sa), f"Bitangent Weight {k}")
-    bp = vmath(t, 'SCALE', (bitv, "Vector"), None, f"Bitangent Part {k}")
-    t.link(bm, "Value", bp, "Scale")
-    side = vmath(t, 'ADD', (tp, "Vector"), (bp, "Vector"), f"Side Offset {k}")
-    ray_dirs.append(vmath(t, 'ADD', (n_part, "Vector"), (side, "Vector"), f"Ray Direction {k}"))
-ray_dirs.append(n_part)                                   # the straight-out ray
-
-hits = []
-for k, d in enumerate(ray_dirs):
-    rc = t.n("GeometryNodeRaycast", f"Occlusion Ray {k}")
-    t.link(ao_geo, "Output", rc, "Target Geometry")
-    t.link(origin, "Vector", rc, "Source Position")
-    t.link(d, "Vector", rc, "Ray Direction")
-    t.link(GI, "Occlusion Distance", rc, "Ray Length")
-    hv = fmath(t, 'ADD', None, 0.0, f"Hit {k} As Float")
-    t.link(rc, "Is Hit", hv, 0)
-    hits.append(hv)
-hs = hits[0]
-for k in range(1, len(hits)):
-    hs = fmath(t, 'ADD', (hs, "Value"), (hits[k], "Value"), f"Sum Hits {k}")
-occ  = fmath(t, 'DIVIDE', (hs, "Value"), float(len(hits)), "Occlusion Fraction")
-ao_v = fmath(t, 'SUBTRACT', 1.0, (occ, "Value"), "Ambient Occlusion")
-ao_final = switch(t, 'FLOAT', g("Compute Ambient Occlusion"), 1.0, (ao_v, "Value"), "AO Or One")
-cur = store(cur, A_AO, ao_final, "Output")
+# The sampling core lives in GNG_AmbientOcclusion, LINKED from GN_AmbientOcclusion.blend, so
+# this tool and the standalone AO modifier always fire the same rays.  Switch is lazy on
+# geometry, so the disabled branch does not merely read 1 -- the group is never evaluated.
+ao_off = t.n("GeometryNodeStoreNamedAttribute", "Cache Fully Open",
+             data_type='FLOAT', domain='POINT')
+t.set(ao_off, "Name", A_AO)
+t.set(ao_off, "Value", 1.0)
+t.link(cur[0], cur[1], ao_off, "Geometry")
+ao_bias = fmath(t, 'MULTIPLY', g("Occlusion Distance"), 1e-3, "Ray Bias")
+ao_bias_g = fmath(t, 'MAXIMUM', (ao_bias, "Value"), 1e-6, "Guard Ray Bias")
+ao_grp = t.n("GeometryNodeGroup", "Ambient Occlusion")
+ao_grp.node_tree = AO_GROUP
+t.link(cur[0], cur[1], ao_grp, "Geometry")
+t.link(GI, "Occlusion Samples",  ao_grp, "Samples")
+t.link(GI, "Occlusion Distance", ao_grp, "Distance")
+t.link(GI, "Occlusion Spread",   ao_grp, "Spread")
+t.link(GI, "Seed",               ao_grp, "Seed")
+t.link(ao_bias_g, "Value",       ao_grp, "Bias")
+t.set(ao_grp, "Cache Attribute", A_AO)
+ao_sw = switch(t, 'GEOMETRY', g("Compute Ambient Occlusion"),
+               (ao_off, "Geometry"), (ao_grp, "Geometry"), "AO Enabled")
+cur = (ao_sw, "Output")
 
 t.f("Boundary Distance")
 en = t.n("GeometryNodeInputMeshEdgeNeighbors", "Edge Face Count")
@@ -943,6 +936,9 @@ ng.asset_data.description = (
     "never created.")
 
 # ============================================================================= DEMO
+# --factory-startup hands us the startup Cube; it is not part of the asset.
+for _o in [o for o in bpy.data.objects if o.type == 'MESH']:
+    bpy.data.objects.remove(_o, do_unlink=True)
 bpy.ops.mesh.primitive_monkey_add(size=2.0)          # Suzanne: body + 2 eye islands
 demo = bpy.context.object
 demo.name = "GN_Demo"
@@ -954,6 +950,7 @@ def setv(name, value):
     md[ID[name]] = value
 
 setv("Compute Ambient Occlusion", True)
+setv("Occlusion Samples", 16)
 setv("Occlusion Distance", 0.6)
 setv("Col 1 R Write", True); setv("Col 1 R Source", SRC["Ambient Occlusion"])
 setv("Col 1 R Auto Range", True)
@@ -981,6 +978,12 @@ leaked = [a for a in ev.attributes.keys() if a.startswith("__vdc")]
 print(f"BUILD: leaked internal attributes: {leaked}", flush=True)
 
 bpy.ops.wm.save_as_mainfile(filepath=PATH)
+# wm.link cannot make the path relative while the file is still unsaved, so pin it now
+for _lib in bpy.data.libraries:
+    if os.path.basename(_lib.filepath).lower() == os.path.basename(AO_BLEND).lower():
+        _lib.filepath = AO_REL
+bpy.ops.wm.save_mainfile(filepath=PATH)
+print(f"BUILD: libraries = {[l.filepath for l in bpy.data.libraries]}", flush=True)
 print(f"BUILD: saved {PATH}", flush=True)
 sys.stdout.flush()
 os._exit(0)

@@ -3,7 +3,7 @@
 Canonical criteria for **creating**, **tidying**, or otherwise **altering** any
 geonode in `Blender/Geonodes/` — same bar for all three. Tool-agnostic: this file
 lives with the pipeline, not in any AI config. Deterministic enforcement is this
-folder's `layout_audit.py` (rules R1–R11) and `run_pipeline.py` (gates saves on
+folder's `layout_audit.py` (rules R1–R13) and `run_pipeline.py` (gates saves on
 geometry-unchanged + blocking rules). Live interactive flow: skill
 `geonode-layout-mcp`.
 
@@ -63,7 +63,23 @@ geometry-unchanged + blocking rules). Live interactive flow: skill
    neighbours, so adjacent links stay direct instead of getting reroute lanes.
    (Engine: socket-anchored Y refinement in `tidy_layout`, columns swept
    right-to-left.)
-5. **Spacing.** No overlapping node bodies (R1), ≥70px clearance between nodes
+5. **Every group is a graph.** A helper group (`GNG_*`, or any nested node group)
+   is something the user opens and reads, so it gets the SAME treatment as the
+   tree that instances it — labeled function frames, panels, subway wiring, and a
+   full tidy + R1–R13 audit. "The tool is tidy" is false while one of its groups
+   is a pile at the origin. `run_pipeline.py` enforces this: it tidies every LOCAL
+   group reachable from the main tree (`tidy_layout.own_trees`) and a blocking
+   failure in any of them blocks the save. Linked groups are skipped on purpose —
+   the `.blend` that owns a group is the one that tidies it.
+   - **Run the tidy twice.** The engine is not idempotent: `node.dimensions` is
+     only valid post-draw, so the first pass is what gives frames their real
+     extents and the second pass is measurably better (GN_AmbientOcclusion: 5
+     backward links → 0; its helper 10 → 2, then stable).
+   - A **Repeat / Simulation Zone brackets its body, but a frame is ONE layout
+     band** — put the zone's input and output in their OWN frames, created before
+     and after the body frames, or the whole loop body lands left of its own input
+     and every entry link reads backwards.
+6. **Spacing.** No overlapping node bodies (R1), ≥70px clearance between nodes
    sharing a row (R5). Use real drawn `dimensions` when available — socket-count
    estimates miss unlinked vector inputs (3 sliders each). Frames stay compact:
    a band is only as tall as its content actually needs.
@@ -77,6 +93,23 @@ geometry-unchanged + blocking rules). Live interactive flow: skill
   `Preview` (default_closed). Even a small tool gets one named base panel.
   NB: top-level interface items report an implicit ROOT panel with an empty
   name — "in a panel" means a NAMED panel.
+- **A `Selection` gate always ships with its invert.** Any tool that exposes a boolean
+  selection input also exposes **`Invert Selection`** directly beneath it, in the same
+  panel. Implementation is one `FunctionNodeBooleanMath` set to **XOR** between the
+  Group Input and every consumer of the selection, in its own frame labeled
+  `Selection Gate  (Selection XOR Invert Selection)`. XOR is the whole trick: off is an
+  exact passthrough, on is the complement — so adding it to an existing tool cannot
+  change a single vertex (verify with the A/B/C/D truth table: `(Sel 1, Inv 0)` must
+  equal `(Sel 0, Inv 1)`, and `(Sel 0, Inv 0)` must equal `(Sel 1, Inv 1)`). Drive the
+  gate through the modifier's *sets via attribute* binding and one vertex group serves
+  as both a mask and its complement.
+  **Adding a `Selection` that defaults to True is NOT backward compatible.** Blender
+  backfills a newly added group input on an *already existing* modifier with the
+  type's zero value, never with the socket default (verified across a save/reload:
+  GN_Wireframe went to 0 vertices). So a new default-True bool silently kills every
+  instance of that modifier in scenes saved beforehand. Set the value explicitly on
+  every modifier instance in the shipped .blend, and document the manual re-tick for
+  users. Adding a default-FALSE bool (like `Invert Selection`) has no such problem.
 - **Unique display names (R9).** Never two interface sockets with the same name
   — any by-name scripting silently miswires (bit us: two "Auto Angle Degrees"
   inputs re-linked to the wrong socket and changed the geometry). Rename to
@@ -108,8 +141,10 @@ Details: memory `feedback_gn_deformer_center_gizmo_symmetry`.
    tooltips.
 3. **Run the deterministic tidy**: `run_pipeline.py -- <GN_X>` (headless) or
    `tidy_layout.tidy_and_route(ng)` live — layering, per-function inputs,
-   subway routing.
-4. **Audit + verify**: `layout_audit` R1–R11 AND evaluated-geometry-unchanged.
+   subway routing. It covers every local group the tool owns, not just the outer
+   tree (criterion 5). **Run it twice** — the engine is not idempotent.
+4. **Audit + verify**: `layout_audit` R1–R13 on EVERY tree the tool owns, AND
+   evaluated-geometry-unchanged.
    Never save when a blocking rule fails or geometry changed.
 
 ## Publishing

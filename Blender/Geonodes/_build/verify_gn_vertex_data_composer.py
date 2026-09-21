@@ -479,7 +479,7 @@ def named_panel(it):
     return p is not None and p.name != ""
 loose = [s.name for s in socks if not named_panel(s) and s.name not in ("Geometry", "Selection")]
 ck("F3 R10 only Geometry/Selection sit outside a panel", not loose, str(loose[:5]))
-ck("F4 socket count is the expected 528", len(socks) == 528, str(len(socks)))
+ck("F4 socket count is the expected 529", len(socks) == 529, str(len(socks)))
 frames = [n for n in ng.nodes if n.bl_idname == "NodeFrame"]
 ck("F5 R4 every frame is labeled", all(f.label for f in frames), str(len(frames)))
 # same exemptions as layout_audit's R8: frames, the group in/out buses, and the

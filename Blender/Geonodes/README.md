@@ -45,12 +45,11 @@ the empty's location the pivot. The manual X/Y/Z + Center controls stay fully fi
 | Modifier | File | What it does | Key parameters |
 |----------|------|--------------|----------------|
 | **GN_Inflate** | `GN_Inflate.blend` | Push geometry along its normals | Amount, Selection |
-| **GN_Spherify** | `GN_Spherify.blend` | Blend shape toward a sphere | Factor, Radius, Center |
 | **GN_Twist** | `GN_Twist.blend` | Twist around an axis | Axis (X/Y/Z/**Object**), Angle, Symmetry, Center, Direction Object, Use Object As Center |
 | **GN_Taper** | `GN_Taper.blend` | Scale cross-section along an axis | Axis (X/Y/Z/**Object**), Factor, Symmetry, Affect X/Y/Z, Center, Direction Object, Use Object As Center |
 | **GN_Stretch** | `GN_Stretch.blend` | Volume-preserving squash & stretch | Axis (X/Y/Z/**Object**), Factor, Affect X/Y/Z, Center, Direction Object, Use Object As Center |
 | **GN_Bend** | `GN_Bend.blend` | Bend a bar into an arc, in any direction | **Bend Axis** (length, X/Y/Z/Object), **Bend Direction** (deflection, X/Y/Z/Object), Angle, Center, Direction Object, Use Object As Center |
-| **GN_Wave** | `GN_Wave.blend` | Concentric/radial sine displacement | Amplitude, Wavelength, Phase, Displace Along (X/Y/Z/Normal/**Object**), Center, Direction Object, Use Object As Center |
+| **GN_Wave** | `GN_Wave.blend` | Continuous sine displacement that keeps cycling across the whole object; **Symmetry** restores the mirrored concentric ripple, **Ripple Axes** sets the travel direction/weights (zero an axis -> planar wave), **Affect Axes** weights the offset | Amplitude, Wavelength, Phase, Displace Along (X/Y/Z/Normal/**Object**), **Symmetry**, **Ripple X/Y/Z**, **Affect X/Y/Z**, Center, Direction Object, Use Object As Center |
 | **GN_Cast** | `GN_Cast.blend` | Cast toward a sphere / cylinder / box | Shape, Factor, Radius, Axis (X/Y/Z/**Object**), Center, Direction Object, Use Object As Center |
 | **GN_Smooth** | `GN_Smooth.blend` | Relax positions (blur) | Iterations, Factor, Selection |
 | **GN_Displace** | `GN_Displace.blend` | Coherent noise displacement | Strength, Midlevel, Scale, Detail, Direction (Normal/X/Y/Z/**Object**), Direction Object |
@@ -67,9 +66,9 @@ Create, replace, or restructure geometry.
 |----------|------|--------------|----------------|
 | **GN_Subdivide** | `GN_Subdivide.blend` | Subdivide (Catmull-Clark or simple) | Level, Smooth |
 | **GN_Triangulate** | `GN_Triangulate.blend` | Triangulate faces | Selection |
-| **GN_Wireframe** | `GN_Wireframe.blend` | Convert edges to a wireframe mesh | Thickness, Resolution, Fill Caps |
-| **GN_ConvexHull** | `GN_ConvexHull.blend` | Convex hull of the input | Geometry |
-| **GN_BoundingBox** | `GN_BoundingBox.blend` | Axis-aligned bounding-box mesh | Geometry |
+| **GN_Wireframe** | `GN_Wireframe.blend` | Convert edges to a wireframe mesh | Selection (which edges), Thickness, Resolution, Fill Caps |
+| **GN_ConvexHull** | `GN_ConvexHull.blend` | Convex hull of the input, or of the selected part | Geometry, Selection |
+| **GN_BoundingBox** | `GN_BoundingBox.blend` | Axis-aligned bounding-box mesh of the input, or of the selected part | Geometry, Selection |
 | **GN_DualMesh** | `GN_DualMesh.blend` | Dual mesh (faces ↔ vertices) | Keep Boundaries |
 | **GN_VoxelRemesh** | `GN_VoxelRemesh.blend` | Volume-based voxel remesh | Voxel Size, Adaptivity |
 | **GN_RadialArray** | `GN_RadialArray.blend` | Radial duplicate around a center (realized) | Count, Radius, Axis, Center |
@@ -86,11 +85,11 @@ Edit materials, shading, or attribute data without changing the silhouette.
 | Modifier | File | What it does | Key parameters |
 |----------|------|--------------|----------------|
 | **GN_FlipFaces** | `GN_FlipFaces.blend` | Flip face normals | Selection |
-| **GN_AutoSmooth** | `GN_AutoSmooth.blend` | Shade smooth by angle | Angle |
+| **GN_AutoSmooth** | `GN_AutoSmooth.blend` | Shade smooth by angle | Angle, Selection (which faces get smoothed) |
 | **GN_SetMaterial** | `GN_SetMaterial.blend` | Assign a material to a selection | Material, Selection |
 | **GN_MaterialOverride** | `GN_CollectionInstancer.blend` | Override all materials | On, Invert, Material Override |
 | **GN_Weld** | `GN_Weld.blend` | Merge by distance | Mode (All/Connected), Distance, Selection |
-| **GN_Delete** | `GN_Delete.blend` | Delete geometry by selection/material/axis filters | Selection Mode, Material ID, Domain, Axis filters |
+| **GN_Delete** | `GN_Delete.blend` | Delete geometry by selection/material/axis filters, plus an optional stray-geometry cleanup pass | Selection Mode, Material ID, Domain, Axis filters, Stray Geometry (loose verts/edges/faces/tris, small islands) |
 | **GN_ExtrudeFace** | `GN_ExtrudeSelection.blend` | Full-featured face extrusion (incl. region fill from marked edges) | Selection, Height, Divisions, Smooth, Crease, Material ID, … |
 | **GN_MirrorGroup** | `GN_Mirror_Groupable.blend` | Per-axis mirror with UV & merge controls | X/Y/Z Axis, Mirror Object, Merge, UV controls |
 | **GN_SplitEdgeByAttribute** | `GN_SplitByAttribute.blend` | Split edges by an attribute / face-group boundary | Attribute Preset, Custom Attribute, Boundary of Face Group |
@@ -98,11 +97,41 @@ Edit materials, shading, or attribute data without changing the silhouette.
 | **GN_AttributeTransfer** | `GN_AttributeFunctions_4.5.blend` | Transfer & remap attributes | From/To Attribute, Domain, Mix Mode, Blur |
 | **GN_NormalTransfer** | `GN_NormalTransfer.blend` | Transfer custom normals from a source object, masked to keep originals where wanted | Source Object, Masking Mode (None / Attribute / Open Boundary Edges), Mask Attribute, Invert Mask |
 | **GN_PolygonTileableNoise** | `GN_PolygonTileableNoise.blend` | Store a tileable piecewise-linear (triangulated) Perlin/Voronoi noise value as a face-corner attribute, keyed on UVs (Position.xy fallback) | Noise Type, Noise Scale, Seed, UV Map, Tile Size, Output Attribute |
-| **GN_VertexDataComposer** | `GN_VertexDataComposer.blend` | Author every channel an FBX mesh can carry — 4 colour attributes (RGBA) + 8 UV maps (U/V) = 32 independently writable channels, each with its own source and processing chain. Channels left off are untouched; unused slots are never created | Per channel: Write, Source (30 of them), Attribute, Component, Constant, Auto Range, From/To Min-Max, Clamp, Invert, Gamma, Quantize Steps, Blur, Encode sRGB. Per colour slot: Name, Domain (Vertex/Face Corner), Data Type (Byte/Float). Shared: Source Object, Seed, Compute Ambient Occlusion (+Distance, Spread), Compute Boundary Distance (+Boundary Edges), Compute Object Distance |
+| **GN_AmbientOcclusion** | `GN_AmbientOcclusion.blend` | Bake raycast ambient occlusion into a colour attribute (vertex colours), a float attribute, or both. A Repeat Zone fires `Samples` rays per vertex over the hemisphere — golden-angle azimuths rotated per vertex, so the noise is fine grain rather than banding — and the sampling core (`GNG_AmbientOcclusion`) is a standalone group other files LINK rather than reimplement; GN_VertexDataComposer's Ambient Occlusion source is this exact group | Selection, Samples, Distance, Spread, Cosine Weighted, Distance Falloff, Ray Bias, Jitter, Seed, Self Occlusion, Occluder Object/Collection, Auto Range, Input Min/Max, Invert, Gamma, Strength, Blur Iterations/Weight, Write To (Colour/Float/Both), Domain (Face Corner/Point), Colour Attribute, Float Attribute |
+| **GN_VertexDataComposer** | `GN_VertexDataComposer.blend` | Author every channel an FBX mesh can carry — 4 colour attributes (RGBA) + 8 UV maps (U/V) = 32 independently writable channels, each with its own source and processing chain. Channels left off are untouched; unused slots are never created | Per channel: Write, Source (30 of them), Attribute, Component, Constant, Auto Range, From/To Min-Max, Clamp, Invert, Gamma, Quantize Steps, Blur, Encode sRGB. Per colour slot: Name, Domain (Vertex/Face Corner), Data Type (Byte/Float). Shared: Source Object, Seed, Compute Ambient Occlusion (+Samples, Distance, Spread — the linked `GNG_AmbientOcclusion` core), Compute Boundary Distance (+Boundary Edges), Compute Object Distance |
 
 > Several deformers accept their `Selection` (and `GN_FlattenByBoundary` its `Boundary Edges`)
 > as a **bindable attribute** via the modifier's *"sets via attribute"* toggle, so you can drive
 > them from a stored edge/vertex group.
+
+> **`Selection` always comes with `Invert Selection`.** Every modifier that gates on a selection
+> carries an **Invert Selection** toggle directly beneath it, in the same panel. The gate is
+> `Selection XOR Invert Selection`: left off it is an exact passthrough (byte-identical output),
+> switched on the modifier acts everywhere the selection is *not* set. It earns its keep together
+> with the *"sets via attribute"* binding above — bind one vertex group and use it as either a
+> mask or its complement without authoring a second group. Note that inverting a `Selection` left
+> at its `True` default deselects everything, which is the mathematically correct no-op.
+>
+> Modifiers with the pair: `GN_Inflate`, `GN_Twist`, `GN_Taper`, `GN_Stretch`, `GN_Bend`,
+> `GN_Wave`, `GN_Cast`, `GN_Smooth`, `GN_Displace`, `GN_RandomizePosition`,
+> `GN_RandomizeMeshElements`, `GN_ShearGeometry`, `GN_FlattenByBoundary`,
+> `GN_SimpleTransformMesh`, `GN_Triangulate`, `GN_PointsToSpheres`, `GN_Scatter`, `GN_Mosaic`,
+> `GN_FlipFaces`, `GN_SetMaterial`, `GN_Weld`, `GN_ExtrudeFace`, `GN_MirrorGroup`,
+> `GN_AmbientOcclusion`, `GN_VertexDataComposer`, `GN_AttributeTransfer` — plus `GN_Delete`,
+> `GN_SetAttribute` and `GN_NormalTransfer` (`Invert Mask`), which already had one.
+>
+> Nine more gained the whole gate (a `Selection` defaulting to **on** plus its invert) where
+> they previously acted on everything: `GN_AutoSmooth` (which faces get smoothed),
+> `GN_Wireframe` (which edges become wire), `GN_ConvexHull` and `GN_BoundingBox` (hull / box
+> of the selected part, via a `Separate Geometry`), `GN_NoiseDisplace`, `GN_VoronoiDisplace`,
+> `GN_Erosion`, `GN_Erosion_3D` and `GN_RandomDistribute`.
+>
+> ⚠️ **Re-add these nine in scenes you saved earlier.** Blender backfills a newly added group
+> input on an *existing* modifier with the type's zero value, not with the socket default — so
+> a `GN_Wireframe` (etc.) modifier already sitting in a scene you saved before this change
+> reads `Selection = False` and quietly stops producing anything. Tick its `Selection` box once,
+> or remove and re-add the modifier. Modifiers added from now on are unaffected, and the other
+> 26 tools are unaffected because their `Selection` already existed.
 
 ---
 

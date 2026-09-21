@@ -619,4 +619,4 @@ Research on Blender's naming system:
 
 ---
 
-*Part of the ClaudeVibe_WIPs toolkit*
+*Part of the Stephko Toolings addon set (`Blender/Addons/`)*

@@ -119,4 +119,4 @@ This program is free software; you can redistribute it and/or modify it under th
 
 ---
 
-**Note**: This addon is part of the ClaudeVibe_WIPs collection and is in active development.
+**Note**: This addon is part of the Stephko Toolings collection (`Blender/Addons/`) and is in active development.

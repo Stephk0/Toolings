@@ -1,6 +1,6 @@
 ---
 name: wmh-tool-architecture
-description: Build a NEW Blender/DCC tool or refactor an EXISTING one to the WMH architecture standard — a bpy-free core/ + blender/ UI split with headless pytest, plus folder layout, dev installer, and snippet/MCP wiring. Use whenever creating a new addon in ClaudeVibe_WIPs, restructuring a monolithic __init__.py tool, or when the user mentions "the architecture scheme", "core/blender split", "WMH pattern", or "make this testable".
+description: Build a NEW Blender/DCC tool or refactor an EXISTING one to the WMH architecture standard — a bpy-free core/ + blender/ UI split with headless pytest, plus folder layout, dev installer, and snippet/MCP wiring. Use whenever creating a new addon in Blender/Addons, restructuring a monolithic __init__.py tool, or when the user mentions "the architecture scheme", "core/blender split", "WMH pattern", or "make this testable".
 ---
 
 # WMH Tool Architecture

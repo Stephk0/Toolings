@@ -1,6 +1,6 @@
 ---
 name: geonode-layout-mcp
-description: The entry point for ANY Geometry Nodes work — creating, tidying, or otherwise altering a geonode. Loads the ST3E criteria (GEONODE_CRITERIA.md) and the GeoNode Layout MCP flow (capture → autolayout/reason → apply → verify → audit R1–R11). Use whenever a geonode is created, tidied, refactored, or edited, when the user mentions "layout MCP", "capture_graph / apply_layout / autolayout_pass", "tidy the nodes", or when a newly-authored geonode needs its graph laid out and checked.
+description: The entry point for ANY Geometry Nodes work — creating, tidying, or otherwise altering a geonode. Loads the ST3E criteria (GEONODE_CRITERIA.md) and the GeoNode Layout MCP flow (capture → autolayout/reason → apply → verify → audit R1–R13). Use whenever a geonode is created, tidied, refactored, or edited, when the user mentions "layout MCP", "capture_graph / apply_layout / autolayout_pass", "tidy the nodes", or when a newly-authored geonode needs its graph laid out and checked.
 ---
 
 # GeoNode work — criteria + Layout MCP
@@ -95,7 +95,7 @@ layout_audit.print_report(layout_audit.audit(ng))`):
 
 **The full creation/tidying criteria live in `LLMGeonodePipeline/GEONODE_CRITERIA.md`**
 — tidying is held to the SAME bar as authoring (function frames, panels + naming,
-per-function group inputs, subway wiring). The audit mirrors it as R1–R11.
+per-function group inputs, subway wiring). The audit mirrors it as R1–R13.
 
 **Subway-map principle (the visual north star):** you must be able to trace which
 station (node) feeds which via which line. Lines/reroutes/nodes should almost never
@@ -163,6 +163,24 @@ Both satisfy R1–R4. Verified on `GN_NormalTransfer` (2026-07): MCP autolayout 
 compact aspect ~0.36; `tidy_layout` → 0 overlaps, 20/20 links L→R, 21 orthogonal
 reroutes, aspect ~0.86. **Run `layout_audit.py` after either** to confirm.
 
+## Helper groups count — and run the tidy twice
+
+`run_pipeline` / `process_file` tidy **every LOCAL group the tool owns**, found by
+walking `GeometryNodeGroup` nodes transitively (`tidy_layout.own_trees`), and the
+gate audits each one — a blocking failure in any helper blocks the save. A group
+is a graph the user opens and reads, so `GNG_*` helpers are held to the same bar;
+"the tool is tidy" is false while one of them is a pile at the origin. Linked
+groups are skipped: the `.blend` that owns a group is the one that tidies it.
+
+**The engine is not idempotent — run it twice.** `node.dimensions` is only valid
+post-draw, so the first pass is what gives frames their real extents; the second
+is measurably better and then holds steady (GN_AmbientOcclusion: 5 backward links
+→ 0, helper 10 → 2).
+
+When you author a **Repeat / Simulation Zone**, give its input and output their
+OWN frames, created before and after the body frames — a frame is one layout band,
+so a single frame around both ends drags the whole loop body left of its own input.
+
 ## Gotchas (all bitten in practice)
 
 - **Draw-handler gating:** the index-stamp handler fires for *every* node editor
@@ -189,7 +207,7 @@ reroutes, aspect ~0.86. **Run `layout_audit.py` after either** to confirm.
 
 - `run_pipeline.py` — default orchestrator: tidy → verify both goals → save.
 - `tidy_layout.py` — deterministic engine (`tidy_and_route`, `process_file`).
-- `layout_audit.py` — score a tree against R1–R11 (CLI or importable); the shared
+- `layout_audit.py` — score a tree against R1–R13 (CLI or importable); the shared
   rule set both engines are checked against.
 - `prepare_capture.py` — open + frame a node editor and start the server.
 - `GEONODE_CRITERIA.md` — the canonical creation/tidying criteria (read it first).

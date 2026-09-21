@@ -7,6 +7,8 @@
 > **Method:** Headless Blender 5.0 (`--background --factory-startup`), opened each file and
 > inspected `bpy.data.libraries`, `bpy.data.images`, etc.
 > **Files scanned:** 59
+> **Since the scan:** `GN_Spherify` was deleted (2026-09-21, covered by
+> `GN_Cast` in Sphere mode) and is no longer listed below.
 
 ---
 
@@ -16,7 +18,7 @@ GN_AutoSmooth, GN_Bend, GN_BoundingBox, GN_Cast, GN_ConvexHull, GN_Delete, GN_Di
 GN_DualMesh, GN_Erosion, GN_Erosion_3D, GN_FlattenByBoundary, GN_FlipFaces, GN_Inflate,
 GN_MeshBoolean, GN_Mirror_Groupable, GN_NormalTransfer, GN_PointsToSpheres, GN_RadialArray,
 GN_RandomizePosition, GN_Scatter, GN_SetMaterial, GN_ShearGeometry, GN_SimpleTransform,
-GN_Smooth, GN_Spherify, GN_Stretch, GN_Subdivide, GN_Taper, GN_Triangulate, GN_Twist,
+GN_Smooth, GN_Stretch, GN_Subdivide, GN_Taper, GN_Triangulate, GN_Twist,
 GN_VoxelRemesh, GN_Wave, GN_Weld, GN_Wireframe, SHG_TileableNoise, GN_treeGenerator_03,
 TreeGenDocu/GN_treeGenerator_02, TreeGenDocu/GN_treeGenerator_03
 

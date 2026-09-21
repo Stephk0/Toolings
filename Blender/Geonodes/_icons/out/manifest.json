@@ -1,0 +1,26 @@
+[
+  {
+    "group": "GN_Mosaic",
+    "catalog": "Generate",
+    "file": "GN_Mosaic.blend",
+    "expect": "topology",
+    "effect_ok": true,
+    "effect": "verts 507->7998, polys 500->4983, hash changed",
+    "cage": false,
+    "ghost_wire": false,
+    "ortho_scale": 3.8113,
+    "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_Mosaic.png"
+  },
+  {
+    "group": "GN_CellFrac",
+    "catalog": "Generate",
+    "file": "GN_CellFrac.blend",
+    "expect": "topology",
+    "effect_ok": true,
+    "effect": "verts 2012->3224, polys 1968->2534, hash changed",
+    "cage": false,
+    "ghost_wire": false,
+    "ortho_scale": 3.7329,
+    "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_CellFrac.png"
+  }
+]

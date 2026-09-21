@@ -85,10 +85,10 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 **Status:** ✅ Active
 **Full reference:** **[ST3E Geometry Nodes Library README](Blender/Geonodes/README.md)**
 
-A library of **37 ST3E modifiers** available from the **Add Modifier → ST3E** quick-pick menu,
+A library of **36 ST3E modifiers** available from the **Add Modifier → ST3E** quick-pick menu,
 grouped into:
 
-- **Deformers** (14) — Inflate, Spherify, Twist, Taper, Stretch, Bend, Wave, Cast, Smooth,
+- **Deformers** (13) — Inflate, Twist, Taper, Stretch, Bend, Wave, Cast, Smooth,
   Displace, RandomizePosition, ShearGeometry, FlattenByBoundary, SimpleTransformMesh
 - **Generators & Topology** (12) — Subdivide, Triangulate, Wireframe, ConvexHull, BoundingBox,
   DualMesh, VoxelRemesh, RadialArray, PointsToSpheres, Scatter, MeshBoolean, CollectionInstancer

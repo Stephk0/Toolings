@@ -181,7 +181,7 @@ hash = hashlib.md5(selection_str.encode()).hexdigest()
 
 ## Contributing
 
-This addon is part of the ClaudeVibe toolset. For issues, suggestions, or contributions:
+This addon is part of the Stephko Toolings addon set (`Blender/Addons/`). For issues, suggestions, or contributions:
 - Report bugs with detailed steps to reproduce
 - Include Blender version and OS information
 - Describe expected vs actual behavior

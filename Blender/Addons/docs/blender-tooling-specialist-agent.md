@@ -317,7 +317,7 @@ See `CLAUDE.md` in repository root for:
 
 **v1.0 (2025-01-17)**
 - Initial agent specification
-- Based on learnings from ClaudeVibe_WIPs repository
+- Based on learnings from the Blender/Addons tool set
 - Covers core Blender addon development patterns
 - Includes modal operators, state management, and pipeline integration
 
