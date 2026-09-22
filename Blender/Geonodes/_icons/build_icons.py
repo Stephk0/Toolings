@@ -32,8 +32,11 @@ def frame_for(catalog):
 
 
 def build_one(group, rec):
+    # `group` is the recipe KEY (the icon id and PNG name); `name` is the
+    # node-group datablock, which differs when two groups share a name.
+    name = rec.get("group", group)
     stage.wipe()
-    cam = stage.build_scene()
+    cam = stage.build_scene(rec.get("engine", "CYCLES"))
 
     base = stage.BASES[rec.get("base", "suzanne")]
     subject = base(**rec.get("base_args", {}))
@@ -82,6 +85,16 @@ def build_one(group, rec):
         subject.data.materials.append(stage.two_sided_clay_material())
     elif mat_spec == "clay" and not subject.data.materials:
         subject.data.materials.append(stage.clay_material())
+    elif isinstance(mat_spec, (list, tuple)) and mat_spec[0] == "mask2":
+        subject.data.materials.clear()
+        subject.data.materials.append(stage.mask2_material(
+            mat_spec[1], mat_spec[2],
+            stage.TINTS.get(rec.get("catalog"), stage.TINTS["Neutral"])))
+    elif isinstance(mat_spec, (list, tuple)) and mat_spec[0] == "mask":
+        subject.data.materials.clear()
+        subject.data.materials.append(stage.mask_material(
+            mat_spec[1],
+            stage.TINTS.get(rec.get("catalog"), stage.TINTS["Neutral"])))
     elif isinstance(mat_spec, (list, tuple)) and mat_spec[0] == "split":
         subject.data.materials.clear()
         subject.data.materials.append(
@@ -93,6 +106,39 @@ def build_one(group, rec):
         subject.data.materials.clear()
         subject.data.materials.append(
             stage.attribute_material(mat_spec[1], channel, shade))
+
+    # A shader recipe instances a SHADER node group in a material instead of
+    # attaching a modifier. Its gate compares the render against plain clay.
+    if rec.get("shader"):
+        blend = os.path.join(GEONODES, rec["file"])
+        ng = stage.append_group(blend, name)
+        params = rec.get("params", {})
+        shader_mat = stage.shader_group_material(
+            ng, params, rec.get("output", "Color"),
+            rec.get("into", "base_color"))
+        base_col = params.get("Base Color", stage.CLAY)
+        ref_mat = stage.clay_material("IconShaderRef", tuple(base_col))
+        subject.data.materials.clear()
+        subject.data.materials.append(shader_mat)
+        scale, centre = stage.frame_camera(cam, [subject])
+        stage.refit_lights(scale, centre)
+        ok, msg = stage.shader_effect_check(subject, shader_mat, ref_mat, OUT)
+        path = os.path.join(OUT, group + ".png")
+        record = {"group": group, "catalog": rec.get("catalog"),
+                  "file": rec["file"], "expect": "shader", "effect_ok": ok,
+                  "effect": msg, "cage": False, "ghost_wire": False,
+                  "ortho_scale": round(scale, 4)}
+        if not ok:
+            if os.path.exists(path):
+                os.remove(path)
+            return record
+        stage.recentre_camera(cam, scale, OUT)
+        stage.build_label(cam, rec.get("short", group.replace("SH_", "")),
+                          scale)
+        stage.setup_compositor(frame_for(rec.get("catalog")))
+        stage.render_to(path)
+        record["png"] = path
+        return record
 
     # An emblem recipe photographs no modifier at all: the group cannot be
     # attached as one. Skip straight to framing.
@@ -108,7 +154,7 @@ def build_one(group, rec):
         path = os.path.join(OUT, group + ".png")
         stage.render_to(path)
         return {"group": group, "catalog": rec.get("catalog"),
-                "file": rec.get("file", recipes.source_file(group)),
+                "file": rec.get("file", recipes.source_file(name)),
                 "expect": "emblem", "effect_ok": True,
                 "effect": "emblem (group has no modifier form)",
                 "cage": False, "ghost_wire": False,
@@ -128,14 +174,23 @@ def build_one(group, rec):
         host.data.materials.clear()
         host.data.materials.append(stage.clay_material())
 
-    blend = os.path.join(GEONODES, rec.get("file", recipes.source_file(group)))
-    ng = stage.append_group(blend, group)
+    blend = os.path.join(GEONODES, rec.get("file", recipes.source_file(name)))
+    ng = stage.append_group(blend, name)
     md = subject.modifiers.new(group, 'NODES')
     md.node_group = ng
     params = {k: (helpers[v[1:]] if isinstance(v, str) and v.startswith("@")
                   else v)
               for k, v in rec.get("params", {}).items()}
     stage.set_params(md, ng, params)
+    # Anonymous-attribute OUTPUTS (e.g. a "Cap" flag) only reach the mesh when
+    # the modifier is given a name to store them under.
+    for out_name, attr_name in rec.get("outputs", {}).items():
+        out = next((it for it in ng.interface.items_tree
+                    if it.item_type == 'SOCKET' and it.in_out == 'OUTPUT'
+                    and it.name == out_name), None)
+        if out is None:
+            raise KeyError("%s: no output socket %r" % (group, out_name))
+        md[out.identifier + "_attribute_name"] = attr_name
     subject.update_tag()
     bpy.context.view_layer.update()
 
@@ -156,6 +211,9 @@ def build_one(group, rec):
             subject, md, ng,
             stage.TINTS.get(rec.get("catalog"), stage.TINTS["Neutral"]),
             rec.get("cage_resolution", stage.CAGE_RESOLUTION))
+
+    if rec.get("promote"):
+        stage.freeze_flags(subject, rec["promote"])
 
     # wire_only hides the solid result and keeps just its wireframe, for
     # generators whose output would otherwise occlude what it was built from.
@@ -195,6 +253,9 @@ def build_one(group, rec):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     wanted = argv or sorted(recipes.RECIPES)
+    # EEVEE recipes last: headless EEVEE has segfaulted mid-batch before, and a
+    # crash kills the whole process - so everything else is written first.
+    wanted.sort(key=lambda g: recipes.RECIPES.get(g, {}).get("engine") == "EEVEE")
     os.makedirs(OUT, exist_ok=True)
 
     results = []

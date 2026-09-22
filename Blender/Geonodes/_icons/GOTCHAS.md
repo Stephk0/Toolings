@@ -161,6 +161,48 @@ it is now `GNG_Mirror` on the Group catalog with `is_modifier` cleared. Check
 the first input's type before writing a recipe, and before trusting the
 `is_modifier` trait.
 
+## Screen-space derivatives are EEVEE-only
+
+Any shader that builds curvature from the Bump node's screen-space derivative
+renders flat in Cycles: Bump there goes through ray differentials, not GLSL
+`dFdx/dFdy`, and the derivative trick evaluates to exactly zero. Measured on
+`SH_ScreenCavity` — 0.0000 mean difference from plain clay in Cycles, 0.075 in
+EEVEE. The render-diff gate is what caught it; a geometry diff never could.
+
+## Named outputs do not reach the render
+
+`GN_QuadCap`'s "Cap" flag, stored via its OUTPUT socket's attribute name, shows
+up in `to_mesh()` but never reached the shader at render time — neither read
+directly nor re-stored as a float by a follow-up GN modifier. The same float
+written from Python rendered fine, and a GN modifier promoting a *prep-made*
+flag rendered fine too; only the named-output path failed. `freeze_flags()`
+bakes the evaluated mesh to a static one and writes the float from Python,
+which removes the live modifier from the question. The wire over the cap always
+rendered, which was the clue: it is built from `to_mesh()` into static geometry.
+
+## Many files, one process: never look a group up by name
+
+`coverage.py` and `verify_embed.py` load dozens of `.blend`s into one
+background process. A helper nested inside an earlier file survives a by-name
+remove (it is still used), so the next file's copy of the same group arrives as
+`<name>.001` — and `bpy.data.node_groups.get(name)` then returns the STALE one.
+This reported `GNG_TileableNoiseCoords` missing and `GN_GrowSelection`
+not-an-asset while both were perfectly fine. Purge every group before each load
+and use the datablocks `libraries.load` returns in `dst.node_groups`.
+
+## Recipe keys become filenames
+
+A key containing `/` makes the PNG path a subdirectory and the render fails to
+save. Keep keys filesystem-safe and put the real name in `group=`.
+
+## A name is not a spec
+
+`GN_InsetFaces` has no Extrude node and never adds a face at any Offset: it
+pulls open-border vertices inward (42 of stock Suzanne's 507 — the eye-socket
+rims). Its first recipe drew a wireframe and passed on `topology` purely
+because positions moved. Probe what a node DOES before deciding what its icon
+should show, and prefer the tightest `expect` that is true — here `deform`.
+
 ## Sockets
 
 **A modifier's attribute toggle is a Boolean IDProperty, not an int.**

@@ -85,20 +85,29 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 **Status:** ✅ Active
 **Full reference:** **[ST3E Geometry Nodes Library README](Blender/Geonodes/README.md)**
 
-A library of **36 ST3E modifiers** available from the **Add Modifier → ST3E** quick-pick menu,
+A library of **53 ST3E modifiers** available from the **Add Modifier → ST3E** quick-pick menu,
 grouped into:
 
-- **Deformers** (13) — Inflate, Twist, Taper, Stretch, Bend, Wave, Cast, Smooth,
-  Displace, RandomizePosition, ShearGeometry, FlattenByBoundary, SimpleTransformMesh
-- **Generators & Topology** (12) — Subdivide, Triangulate, Wireframe, ConvexHull, BoundingBox,
-  DualMesh, VoxelRemesh, RadialArray, PointsToSpheres, Scatter, MeshBoolean, CollectionInstancer
-- **Mesh & Attribute Utilities** (11) — FlipFaces, AutoSmooth, SetMaterial, MaterialOverride,
-  Weld, Delete, ExtrudeFace, MirrorGroup, SplitEdgeByAttribute, SetAttribute, AttributeTransfer
+- **Deformers** (18) — Inflate, Twist, Taper, Stretch, Bend, Wave, Cast, Smooth,
+  Displace, RandomizePosition, RandomizeMeshElements, ShearGeometry, FlattenByBoundary,
+  SimpleTransformMesh, Erosion, Erosion_3D, NoiseDisplace, VoronoiDisplace
+- **Generators & Topology** (20) — Subdivide, Triangulate, Wireframe, ConvexHull, BoundingBox,
+  DualMesh, VoxelRemesh, RadialArray, PointsToSpheres, Scatter, RandomDistribute, MeshBoolean,
+  QuadCap, InsetFaces, Solidify2, CellFrac, EdgeDestruct, CollectionInstancer, Mosaic,
+  TileableMeshNoise
+- **Mesh & Attribute Utilities** (15) — FlipFaces, AutoSmooth, SetMaterial, MaterialOverride,
+  Weld, Delete, GrowSelection, ExtrudeFace, MirrorGroup, SplitEdgeByAttribute, SetAttribute,
+  AttributeTransfer, NormalTransfer, AmbientOcclusion, VertexDataComposer
 
-Plus Asset-Browser-only utility groups (FillBorder, GrowSelection, InsetFace, etc.), the
+Every asset has an **Asset Browser icon** (67 in total, including 12 helper groups and 2 shader
+groups), rendered and embedded by the headless pipeline in
+[`Blender/Geonodes/_icons/`](Blender/Geonodes/_icons/ICONS.md); the library README shows them
+as a gallery.
+
+Plus Asset-Browser-only utility groups (FillBorder, MeshFromImage, DisplaceByImage), the
 **Procedural Tree Generator** ([`TreeGenDocu/`](Blender/Geonodes/TreeGenDocu/README.md)), and the
-`geonode_route_tidy.py` layout tool. See the library README for the full table, parameters, and
-installation steps.
+layout tooling in [`Blender/Addons/LLMGeonodePipeline/`](Blender/Addons/LLMGeonodePipeline/README.md).
+See the library README for the full table, parameters, and installation steps.
 
 **Installation:**
 1. Add the `Blender/` folder as an Asset Library in **Preferences → File Paths**.

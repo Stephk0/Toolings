@@ -217,6 +217,7 @@ Most addons add operators accessible via:
 Watch this repository or star it to be notified of updates!
 
 **Recent Updates:**
+- September 2026: Asset Browser icons for every ST3E asset (67, rendered headlessly — see `Blender/Geonodes/_icons/`); library now 53 modifiers, incl. GN_QuadCap
 - June 2026: ST3E Geometry Nodes library expanded to 37 modifiers (Add Modifier → ST3E)
 - June 2026: Documentation refresh — full 16-addon roster + geonode library reference
 - Earlier: Mass Exporter v13.6, Synced Modifiers v2.5, Tile UV Projector, Edge Constraint Mode

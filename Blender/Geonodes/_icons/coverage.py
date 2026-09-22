@@ -37,24 +37,44 @@ CATALOGS = {
 }
 
 
+SHADING = os.path.join(os.path.dirname(GEONODES), "Shading")
+
+
 def scan():
     rows = []
-    for path in sorted(glob.glob(os.path.join(GEONODES, "*.blend"))):
+    paths = sorted(glob.glob(os.path.join(GEONODES, "*.blend")))
+    paths += sorted(glob.glob(os.path.join(SHADING, "*.blend")))
+    for path in paths:
+        # Purge EVERY group between files. Nested helpers survive a by-name
+        # remove (they are still used), so the next file's copy of the same
+        # group arrives as "<name>.001" and a lookup by name returns the stale
+        # one from the previous file - GNG_TileableNoiseCoords was reported
+        # missing that way while perfectly asset-marked.
+        for ng in list(bpy.data.node_groups):
+            try:
+                bpy.data.node_groups.remove(ng)
+            except Exception:
+                pass
         try:
             with bpy.data.libraries.load(path, assets_only=True) as (src, dst):
                 names = list(src.node_groups)
                 dst.node_groups = list(names)
+            loaded = list(dst.node_groups)   # the actual datablocks, renamed or not
         except Exception as exc:
             rows.append({"file": os.path.basename(path), "error": str(exc)})
             continue
-        for name in names:
-            ng = bpy.data.node_groups.get(name)
-            if ng is None or ng.bl_idname != "GeometryNodeTree":
+        for name, ng in zip(names, loaded):
+            if ng is None or ng.bl_idname not in ("GeometryNodeTree",
+                                                  "ShaderNodeTree"):
                 continue
             ad = ng.asset_data
             cat_now = CATALOGS.get(ad.catalog_id, "") if ad else ""
-            # Modifiers, plus the GNG_* helper groups which get emblem icons.
-            if not getattr(ng, "is_modifier", False) and cat_now != "Group":
+            # Modifiers, the GNG_*/SHG_* helper groups (Group catalog) and the
+            # SH_* shader groups on the Shading catalog.
+            if ng.bl_idname == "ShaderNodeTree":
+                if cat_now not in ("Shading", "Group"):
+                    continue
+            elif not getattr(ng, "is_modifier", False) and cat_now != "Group":
                 continue
             cat = CATALOGS.get(ad.catalog_id, ad.catalog_id) if ad else None
             preview = bool(ng.preview and ng.preview.image_size[0] > 0
@@ -65,13 +85,6 @@ def scan():
                          "inputs": sum(1 for it in ng.interface.items_tree
                                        if it.item_type == 'SOCKET'
                                        and it.in_out == 'INPUT')})
-        for name in names:
-            ng = bpy.data.node_groups.get(name)
-            if ng is not None:
-                try:
-                    bpy.data.node_groups.remove(ng)
-                except Exception:
-                    pass
     return rows
 
 
@@ -81,11 +94,18 @@ def main():
     print("\n=== ICON COVERAGE ===")
     print("%-5s %-6s %-28s %-11s %5s  %s"
           % ("recipe", "png", "group", "catalog", "in", "file"))
+    covered = recipes.covered()
     for r in sorted(rows, key=lambda x: ((x["catalog"] or "zz"), x["group"])):
-        has_recipe = r["group"] in recipes.RECIPES
-        has_png = os.path.exists(os.path.join(OUT, r["group"] + ".png"))
+        key = covered.get((r["group"], r["file"]))
+        has_recipe = key is not None
+        has_png = os.path.exists(os.path.join(OUT, (key or r["group"]) + ".png"))
         if r["catalog"] in (None, "(none)"):
             mark, note = "  -  ", "legacy/helper - no icon"
+            skip += 1
+        elif r["catalog"] not in CATALOGS.values():
+            # A catalog UUID ST3E does not define: a foreign asset carried
+            # along inside a file (ash_char_base_SSS holds one). Not ours.
+            mark, note = "  -  ", "foreign catalog - not an ST3E asset"
             skip += 1
         elif has_recipe and r["preview"]:
             mark, note = " ok  ", ""
@@ -98,18 +118,19 @@ def main():
                  "yes" if has_png else ("emb" if r["preview"] else "-"),
                  r["group"], r["catalog"], r["inputs"], r["file"],
                  ("   <- " + note) if note else ""))
-    print("=== %d done, %d to do, %d skipped (null catalog) ===\n"
+    print("=== %d done, %d to do, %d skipped (null or foreign catalog) ===\n"
           % (done, todo, skip))
 
-    orphan = [g for g in recipes.RECIPES
-              if g not in {r["group"] for r in rows}]
+    present = {(r["group"], r["file"]) for r in rows}
+    orphan = [k for pair, k in covered.items() if pair not in present]
     if orphan:
         print("RECIPES WITH NO MATCHING ASSET GROUP:", orphan)
 
     # A rendered PNG with no recipe is unambiguous: a recipe was lost. The
     # build still reports N/N in that case, so nothing else catches it.
     lost = [r["group"] for r in rows
-            if r["group"] not in recipes.RECIPES
+            if (r["group"], r["file"]) not in covered
+            and r["group"] not in {recipes.group_of(k) for k in recipes.RECIPES}
             and os.path.exists(os.path.join(OUT, r["group"] + ".png"))]
     if lost:
         print("!! RENDERED ICON BUT NO RECIPE - recipe lost:", lost)
@@ -117,7 +138,7 @@ def main():
     # Custom previews that predate this pipeline; harmless, replaced when the
     # recipe is written.
     stale = [r["group"] for r in rows
-             if r["preview"] and r["group"] not in recipes.RECIPES
+             if r["preview"] and (r["group"], r["file"]) not in covered
              and r["catalog"] not in (None, "(none)")
              and r["group"] not in lost]
     if stale:

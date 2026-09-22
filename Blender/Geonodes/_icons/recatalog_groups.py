@@ -29,6 +29,9 @@ HOMES = {
     "GNG_StoreAttributeOnDomain": "GN_AttributeFunctions_4.5.blend",
     "GNG_TileableNoiseCoords": "SHG_TileableNoise.blend",
     "GNG_VertexChannel": "GN_VertexDataComposer.blend",
+    # SHADER helper groups belong on the same catalog.
+    "SHG_TwistedTorusUV": "SHG_TileableNoise.blend",
+    "SHG_TileableNoiseUV": "SHG_TileableNoise.blend",
 }
 
 
@@ -73,8 +76,10 @@ def main():
             ng.asset_data.catalog_id = GROUP_CATALOG
             if not any(t.name == "ST3E" for t in ng.asset_data.tags):
                 ng.asset_data.tags.new("ST3E")
-            ng.is_modifier = False
-            ng.is_tool = False
+            # Only geometry trees carry the modifier/tool traits.
+            if hasattr(ng, "is_modifier"):
+                ng.is_modifier = False
+                ng.is_tool = False
             dirty = True
             results.append((blend, group, True,
                             "catalog %s -> Group" % was[:8]))

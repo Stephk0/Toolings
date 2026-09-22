@@ -141,7 +141,7 @@ def _build_layers(sc):
     return subject_vl, label_vl
 
 
-def build_scene():
+def build_scene(engine="CYCLES"):
     """Create the world, camera and the three subject-anchored area lights."""
     sc = bpy.context.scene
     _build_layers(sc)
@@ -162,6 +162,14 @@ def build_scene():
     sc.render.image_settings.color_depth = '8'
     sc.view_settings.view_transform = 'Standard'
     sc.view_settings.look = 'None'
+    if engine == "EEVEE":
+        # Per-recipe opt-in only, for shaders that need GLSL screen-space
+        # derivatives (SH_ScreenCavity renders EXACTLY like plain clay in
+        # Cycles). Headless EEVEE has segfaulted in nvoglv64 before, so
+        # build_icons runs these recipes last.
+        sc.render.engine = 'BLENDER_EEVEE'
+        if hasattr(sc.eevee, "taa_render_samples"):
+            sc.eevee.taa_render_samples = 64
 
     world = bpy.data.worlds.new("IconWorld")
     world.use_nodes = True
@@ -380,6 +388,226 @@ def transfer_split_material(attr_name, hue_shift=0.45, name="IconXfer"):
     return mat
 
 
+def freeze_flags(obj, mapping):
+    """Bake the evaluated result to a static mesh, turning BOOLEAN face flags
+    into CORNER floats the shader can read.
+
+    Needed for a modifier whose flag arrives through a named OUTPUT socket
+    (GN_QuadCap's "Cap"): the flag is present in to_mesh() but never reached
+    the shader at render time - neither directly nor re-stored by a follow-up
+    GN modifier - while an identical float written from Python renders fine.
+    Freezing removes the live modifier from the question. Render-only; the
+    effect check has already run against the live modifier.
+    """
+    dg = bpy.context.evaluated_depsgraph_get()
+    oe = obj.evaluated_get(dg)
+    mesh = bpy.data.meshes.new_from_object(oe, preserve_all_data_layers=True,
+                                           depsgraph=dg)
+    for src, dst in mapping.items():
+        flag = mesh.attributes.get(src)
+        out = mesh.attributes.new(dst, 'FLOAT', 'CORNER')
+        if flag is None:
+            continue
+        if flag.domain == 'FACE':
+            for poly in mesh.polygons:
+                v = 1.0 if flag.data[poly.index].value else 0.0
+                for li in poly.loop_indices:
+                    out.data[li].value = v
+        elif flag.domain == 'POINT':
+            for loop in mesh.loops:
+                out.data[loop.index].value = (
+                    1.0 if flag.data[loop.vertex_index].value else 0.0)
+    mats = list(obj.data.materials)
+    obj.modifiers.clear()
+    obj.data = mesh
+    mesh.materials.clear()
+    for m in mats:
+        mesh.materials.append(m)
+    obj.update_tag()
+    bpy.context.view_layer.update()
+    return mesh
+
+
+def shader_group_material(ng, params, output="Color", into="base_color",
+                          name="IconShader"):
+    """A material that runs a SHADER node group, the way its demo does.
+
+    Shader groups (SH_*) are not modifiers: there is nothing to attach and no
+    geometry to diff, so the icon is Suzanne wearing a material that instances
+    the group. `into="base_color"` feeds the chosen output into a lit
+    Principled so it sits under the family rig; `"emission"` shows it flat.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    grp = nt.nodes.new("ShaderNodeGroup")
+    grp.node_tree = ng
+    coords = None
+    for key, value in params.items():
+        sock = grp.inputs.get(key)
+        if sock is None:
+            raise KeyError("%s: no such shader input %r" % (ng.name, key))
+        if isinstance(value, tuple) and value and value[0] == "texcoord":
+            # Coordinate inputs mean nothing as a constant: wire a Texture
+            # Coordinate output in instead.
+            if coords is None:
+                coords = nt.nodes.new("ShaderNodeTexCoord")
+            nt.links.new(coords.outputs[value[1]], sock)
+            continue
+        sock.default_value = value
+    src = grp.outputs.get(output)
+    if src is None:
+        raise KeyError("%s: no such shader output %r" % (ng.name, output))
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    if into == "noise":
+        # For coordinate helpers: run a noise through the mapping they build,
+        # between two slate tones so it stays on the Group family.
+        noise = nt.nodes.new("ShaderNodeTexNoise")
+        noise.inputs["Scale"].default_value = 4.0
+        noise.inputs["Detail"].default_value = 3.0
+        nt.links.new(src, noise.inputs["Vector"])
+        tone = nt.nodes.new("ShaderNodeMix")
+        tone.data_type = 'RGBA'
+        tone.inputs[6].default_value = (0.16, 0.20, 0.24, 1.0)
+        tone.inputs[7].default_value = (0.86, 0.89, 0.91, 1.0)
+        nt.links.new(noise.outputs["Fac"], tone.inputs["Factor"])
+        bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        bsdf.inputs["Roughness"].default_value = 0.45
+        nt.links.new(tone.outputs[2], bsdf.inputs["Base Color"])
+        nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
+        return mat
+    if into == "emission":
+        em = nt.nodes.new("ShaderNodeEmission")
+        nt.links.new(src, em.inputs["Color"])
+        nt.links.new(em.outputs[0], out.inputs["Surface"])
+    else:
+        bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+        bsdf.inputs["Roughness"].default_value = 0.45
+        nt.links.new(src, bsdf.inputs["Base Color"])
+        nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
+    return mat
+
+
+def _rgb_alpha(path):
+    img = bpy.data.images.load(path)
+    w, h = img.size
+    buf = array('f', [0.0]) * (w * h * 4)
+    img.pixels.foreach_get(buf)
+    bpy.data.images.remove(img)
+    return buf
+
+
+def shader_effect_check(obj, shader_mat, ref_mat, tmp_dir, threshold=0.015,
+                        samples=32):
+    """The effect check for a shader: does it measurably change the render?
+
+    Renders the subject twice - once with the shader, once with plain clay of
+    the SAME base colour - and compares them over the subject's pixels. A
+    shader whose output is flat or unwired renders identical to the clay and
+    fails, exactly as an idle modifier fails the geometry diff.
+    """
+    sc = bpy.context.scene
+    eevee = sc.render.engine == 'BLENDER_EEVEE'
+    keep_comp = sc.compositing_node_group
+    keep_samples = (sc.eevee.taa_render_samples if eevee
+                    else sc.cycles.samples)
+    sc.compositing_node_group = None
+    if eevee:
+        sc.eevee.taa_render_samples = samples
+    else:
+        sc.cycles.samples = samples
+    bufs = []
+    for tag, mat in (("ref", ref_mat), ("fx", shader_mat)):
+        obj.data.materials[0] = mat
+        probe = os.path.join(tmp_dir, "_shader_probe_" + tag)
+        render_to(probe)
+        bufs.append(_rgb_alpha(probe + ".png"))
+        try:
+            os.remove(probe + ".png")
+        except OSError:
+            pass
+    obj.data.materials[0] = shader_mat
+    sc.compositing_node_group = keep_comp
+    if eevee:
+        sc.eevee.taa_render_samples = keep_samples
+    else:
+        sc.cycles.samples = keep_samples
+    ref, fx = bufs
+    total = count = 0.0
+    for i in range(0, len(fx), 4):
+        if fx[i + 3] < 0.5 or ref[i + 3] < 0.5:
+            continue
+        total += (abs(fx[i] - ref[i]) + abs(fx[i + 1] - ref[i + 1])
+                  + abs(fx[i + 2] - ref[i + 2])) / 3.0
+        count += 1
+    diff = total / count if count else 0.0
+    return diff > threshold, "mean |shader - clay| = %.4f over %d px" % (
+        diff, int(count))
+
+
+def mask2_material(strong_attr, light_attr, tint, name="IconMask2"):
+    """Clay, a light tint where `light_attr` is set, full tint where
+    `strong_attr` is. For GN_GrowSelection: the seed drawn over the region it
+    grew into, which is what makes the icon read as GROWTH rather than as a
+    plain selection."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    light = tuple(c + (1.0 - c) * 0.28 for c in tint[:3])
+
+    def attr(n):
+        node = nt.nodes.new("ShaderNodeAttribute")
+        node.attribute_type = 'GEOMETRY'
+        node.attribute_name = n
+        return node.outputs["Fac"]
+
+    grown = nt.nodes.new("ShaderNodeMix")
+    grown.data_type = 'RGBA'
+    grown.inputs[6].default_value = CLAY
+    grown.inputs[7].default_value = light + (1.0,)
+    nt.links.new(attr(light_attr), grown.inputs["Factor"])
+    seed = nt.nodes.new("ShaderNodeMix")
+    seed.data_type = 'RGBA'
+    seed.inputs[7].default_value = (tint[0], tint[1], tint[2], 1.0)
+    nt.links.new(grown.outputs[2], seed.inputs[6])
+    nt.links.new(attr(strong_attr), seed.inputs["Factor"])
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Roughness"].default_value = 0.45
+    nt.links.new(seed.outputs[2], bsdf.inputs["Base Color"])
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
+    return mat
+
+
+def mask_material(attr_name, tint, name="IconMask"):
+    """Clay, with the elements flagged by a boolean attribute in `tint`.
+
+    For modifiers that ADD geometry into an existing surface (a cap, a fill):
+    the new part has to read as new, and colouring it by the modifier's own
+    output flag is the honest way to do that.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    attr = nt.nodes.new("ShaderNodeAttribute")
+    attr.attribute_type = 'GEOMETRY'
+    attr.attribute_name = attr_name
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = 'RGBA'
+    mix.inputs[6].default_value = CLAY
+    mix.inputs[7].default_value = (tint[0], tint[1], tint[2], 1.0)
+    nt.links.new(attr.outputs["Fac"], mix.inputs["Factor"])
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    bsdf.inputs["Roughness"].default_value = 0.45
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    nt.links.new(bsdf.outputs[0], out.inputs["Surface"])
+    return mat
+
+
 def attribute_material(attr_name, channel="color", shade="emission"):
     """Show a geometry attribute the modifier wrote.
 
@@ -475,6 +703,11 @@ def base_nodegraph(spacing=0.95, box=0.30, wire=0.055):
     return obj
 
 
+def base_cube(size=1.6):
+    bpy.ops.mesh.primitive_cube_add(size=size, location=(0, 0, 0))
+    return bpy.context.object
+
+
 def base_icosphere(subdiv=3, r=1.0):
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=subdiv, radius=r,
                                           location=(0, 0, 0))
@@ -487,6 +720,7 @@ BASES = {
     "plane": base_plane,
     "cylinder": base_cylinder,
     "icosphere": base_icosphere,
+    "cube": base_cube,
     "nodegraph": base_nodegraph,
 }
 
@@ -591,7 +825,7 @@ def prep_convexity_colour(obj, name="src", base=(0.05, 0.05, 0.06),
 
 
 def prep_bool_attribute(obj, name, domain='EDGE', mode="bands", bands=4,
-                        axis="z"):
+                        axis="z", centre=(0.0, 0.0, 0.0), radius=0.2):
     """Write a BOOLEAN attribute for attribute-bound selection sockets.
 
     `mode="bands"` marks evenly spaced rings along `axis`, which gives a
@@ -613,6 +847,9 @@ def prep_bool_attribute(obj, name, domain='EDGE', mode="bands", bands=4,
         v = getattr(co, axis)
         if mode == "bands":
             attr.data[i].value = (int((v + 2.0) * bands) % 2) == 0
+        elif mode == "spot":
+            # A small contiguous patch - a seed for selection-growing modifiers.
+            attr.data[i].value = (co - Vector(centre)).length < radius
         elif mode == "noise":
             key = "%.3f%.3f%.3f" % (co.x, co.y, co.z)
             attr.data[i].value = (int(hashlib.md5(key.encode())
@@ -818,7 +1055,31 @@ def build_ghost_wire(subject, colour=WIRE_COLOUR, mode="removed",
     result = oe.to_mesh()
 
     bm = bmesh.new()
-    if mode == "result":
+    if mode.startswith("attr:"):
+        # Only the edges of faces whose boolean attribute is set: shows the
+        # topology a modifier ADDED without wiring the whole subject.
+        name = mode.split(":", 1)[1]
+        bm.from_mesh(result)
+        layer = (bm.faces.layers.bool.get(name)
+                 or bm.faces.layers.int.get(name))
+        vlayer = bm.verts.layers.bool.get(name) if layer is None else None
+        keep_faces = []
+        for f in bm.faces:
+            if layer is not None:
+                hit = bool(f[layer])
+            elif vlayer is not None:
+                hit = all(v[vlayer] for v in f.verts)
+            else:
+                hit = False
+            if hit:
+                keep_faces.append(f)
+        keep_edges = {e for f in keep_faces for e in f.edges}
+        bmesh.ops.delete(bm, geom=list(bm.faces), context='FACES_ONLY')
+        bmesh.ops.delete(bm, geom=[e for e in bm.edges if e not in keep_edges],
+                         context='EDGES')
+        survivors = set()
+        mode = "result"
+    elif mode == "result":
         bm.from_mesh(result)
         survivors = set()
     else:
@@ -942,6 +1203,13 @@ def _attr_varies(obj, name):
         oe.to_mesh_clear()
         return False, "attribute %r missing (have %s)" % (name, have)
     n = len(a.data)
+    if a.data_type == 'BOOLEAN':
+        flags = array('b', [0]) * n
+        a.data.foreach_get("value", flags)
+        oe.to_mesh_clear()
+        on = sum(flags)
+        # A selection is only informative when it is partial.
+        return (0 < on < n), "%s: %d of %d set" % (name, on, n)
     is_col = a.data_type in ('FLOAT_COLOR', 'BYTE_COLOR')
     width, field = (4, "color") if is_col else (1, "value")
     buf = array('f', [0.0]) * (n * width)

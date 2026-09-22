@@ -8,12 +8,19 @@ build FAILS instead of quietly emitting an unmodified Suzanne.
 Keys
 ----
 file      .blend under Blender/Geonodes/ holding the group (default: group + ".blend")
+group     datablock name, when the recipe KEY differs (two groups share a name)
+also_embed  extra .blend files holding an identical copy - same icon embedded
 catalog   asset catalog, picks the frame tint: Deform|Generate|Modify|Scatter|Shading
 short     short name burned over the lower part of the icon
 emblem    no modifier at all - a shared tile for a reusable node group
+shader    a SHADER node group: rendered as a material, gated against plain clay
+output    (shader) which group output to show; into = base_color | emission
+engine    "EEVEE" to opt out of Cycles (run last - headless EEVEE can crash)
 base      base mesh: suzanne|grid|plane|cylinder|icosphere  (default suzanne)
 base_args kwargs for the base builder
 helpers   extra objects for Object/Collection sockets; reference as "@name"
+outputs   {output socket name: attribute name} - store an anonymous output
+promote   {bool attr: float attr} - freeze the result and bake a flag to a shadeable float
 prep      ordered list of prep steps, each ("step_name", *args, {kwargs})
 params    {socket NAME: value}; Menu sockets take the item NAME as a string
 cage      draw the modifier's deformation preview cage (deformers only)
@@ -28,6 +35,8 @@ expect    deform | verts_up | verts_down | topology | any | attribute:<name>
 
 # Params every deformer wants off so the gizmo/preview overlays stay out of
 # the icon. Only applied where the socket actually exists.
+import os
+
 NO_OVERLAY = {"Show Center Gizmo": False, "Show Deformation Preview": False}
 
 
@@ -501,10 +510,14 @@ RECIPES = {
         expect="topology",
     ),
 
+    # On a box, not Suzanne: it chips edges sharper than its auto angle, and a
+    # subdivided Suzanne has almost none, so the damage read as random lumps.
     "GN_EdgeDestruct": dict(
         short="Edge Destruct",
         catalog="Generate",
-        prep=[("subsurf", 1), "shade_smooth"],
+        base="cube",
+        base_args={"size": 1.6},
+        prep=[],
         params={"Max Damage": 1.0, "Min Damage": 0.2, "Cuts": 2,
                 "Voronoi Scale": 3.0, "Noise Scale": 2.0,
                 "Corner Damage": True},
@@ -626,6 +639,81 @@ RECIPES = {
         expect="attribute:Col",
     ),
 
+    # Needs a hole to close, so the prep cuts the crown off Suzanne. The cap is
+    # tinted via the modifier's own Cap output and only ITS edges are wired, so
+    # the all-quad grid - the point of the node - is what reads.
+    "GN_QuadCap": dict(
+        short="Quad Cap",
+        catalog="Generate",
+        prep=["shade_smooth", ("mark_open_boundary", "z", 0.42)],
+        params={"Relax Iterations": 4, "Dome": 0.18,
+                "Merge With Mesh": True, "Cap Loose Edge Loops": False},
+        outputs={"Cap": "cap"},
+        # The Cap flag never reaches the shader from the live modifier, so the
+        # result is frozen and the flag re-written as a float from Python.
+        promote={"cap": "cap_f"},
+        material=("mask", "cap_f"),
+        ghost_wire="attr:cap",
+        expect="topology",
+    ),
+
+    # Grows a seed selection; the output is a flag, not geometry. The prep
+    # marks a small seed patch, the modifier's Selection output is stored as
+    # "grown", and both are drawn: seed in the full Modify tint over the region
+    # it grew into in a lighter one. Selection Domain's menu default is empty,
+    # so it has to be set explicitly.
+    "GN_GrowSelection": dict(
+        short="Grow Sel",
+        catalog="Modify",
+        prep=[("subsurf", 1), "shade_smooth",
+              ("bool_attribute", "seed", 'FACE', "spot",
+               {"centre": (0.0, -0.85, 0.25), "radius": 0.18})],
+        params={"Selection": ("attr", "seed"), "Grow Iterations": 4,
+                "Selection Domain": "Face"},
+        outputs={"Selection": "grown"},
+        promote={"grown": "grown_f", "seed": "seed_f"},
+        material=("mask2", "seed_f", "grown_f"),
+        expect="attribute:grown",
+    ),
+
+    # ---- ST3E/Shading: shader node groups ------------------------------------
+    # Not modifiers - Suzanne wears a material instancing the group, set up
+    # like each file's own demo material (group Color -> Principled Base
+    # Color). Ridge/Valley are pushed past the demo's 1.0 so the effect holds
+    # at icon size. These live in Blender/Shading, hence the relative path.
+    "SH_Cavity": dict(
+        short="Cavity",
+        catalog="Shading",
+        file="../Shading/SH_Cavity.blend",
+        shader=True,
+        prep=[("subsurf", 1), "shade_smooth"],
+        params={"Base Color": (0.62, 0.63, 0.66, 1.0),
+                "World Ridge": 1.6, "World Valley": 1.6,
+                "World Distance": 0.2,
+                "Screen Ridge": 1.6, "Screen Valley": 1.6,
+                "Screen Distance": 0.05},
+        output="Color",
+        into="base_color",
+    ),
+
+    # EEVEE, not Cycles: its curvature comes from the Bump node's screen-space
+    # derivative (GLSL dFdx/dFdy). Cycles evaluates Bump by ray differentials,
+    # where the trick is identically zero - the render matched plain clay to
+    # four decimal places.
+    "SH_ScreenCavity": dict(
+        short="Screen Cavity",
+        catalog="Shading",
+        file="../Shading/SH_ScreenCavity.blend",
+        shader=True,
+        engine="EEVEE",
+        prep=[("subsurf", 1), "shade_smooth"],
+        params={"Base Color": (0.62, 0.63, 0.66, 1.0),
+                "Ridge": 1.6, "Valley": 1.6,
+                "Curvature Scale": 2.0, "Distance Scaling": 0.0},
+        output="Color",
+        into="base_color",
+    ),
+
     # ---- ST3E/Group: reusable node groups, not modifiers ---------------------
     "GNG_AmbientOcclusion": dict(
         short="AO Core",
@@ -691,6 +779,77 @@ RECIPES = {
         emblem=True,
     ),
 
+    # ---- catalogued later: new modifiers and helpers --------------------------
+    # Despite the name it adds no faces: it pulls OPEN-BORDER vertices inward
+    # by Offset (on stock Suzanne that is only the 42 eye-socket rim verts).
+    # So the crown is cut off to give it a border worth seeing, and the gate
+    # is `deform` - topology never changes.
+    "GN_InsetFaces": dict(
+        short="Inset",
+        catalog="Generate",
+        file="GN_InsetFace.blend",
+        prep=[("subsurf", 1), "shade_smooth",
+              ("mark_open_boundary", "z", 0.35)],
+        params={"Offset": 0.22, "Selection": True},
+        expect="deform",
+    ),
+
+    # Solidify on a closed mesh builds its shell out of sight, inside. Cutting
+    # the crown off leaves a rim where the new thickness shows.
+    "GN_Solidify2": dict(
+        short="Solidify",
+        catalog="Generate",
+        file="GN_Solidify2.blend",
+        prep=["shade_smooth", ("mark_open_boundary", "z", 0.3)],
+        params={"Thickness": 0.12, "Offset": 0.5},
+        expect="topology",
+    ),
+
+    # Key is the PNG filename, so it must be filesystem-safe - the real group
+    # name contains a "/".
+    "GN_ExpandContractSelection": dict(
+        group="Expand / Contract Selection",
+        short="Expand Sel",
+        catalog="Group",
+        file="GN_ExtrudeSelection.blend",
+        base="nodegraph",
+        emblem=True,
+    ),
+
+    "GN_Smooth Position": dict(
+        short="Smooth Pos",
+        catalog="Group",
+        file="GN_ExtrudeSelection.blend",
+        base="nodegraph",
+        emblem=True,
+    ),
+
+    # SHG_* are SHADER helpers - they output coordinates, which mean nothing
+    # shown raw. Feeding them into a Noise Texture shows what they are FOR: a
+    # noise pattern laid out through their mapping.
+    "SHG_TwistedTorusUV": dict(
+        short="Torus UV",
+        catalog="Group",
+        file="SHG_TileableNoise.blend",
+        shader=True,
+        prep=[("subsurf", 1), "shade_smooth"],
+        params={"Vector": ("texcoord", "Object")},
+        output="Vector",
+        into="noise",
+    ),
+
+    "SHG_TileableNoiseUV": dict(
+        short="Tile Noise UV",
+        catalog="Group",
+        file="SHG_TileableNoise.blend",
+        shader=True,
+        prep=[("subsurf", 1), "shade_smooth"],
+        params={"Position Vector": ("texcoord", "Object"),
+                "Tile Scale": (2.0, 2.0, 2.0),
+                "Position": "Geometry Position"},
+        output="Vector",
+        into="noise",
+    ),
 }
 
 
@@ -711,3 +870,21 @@ FILE_OVERRIDES = {
 
 def source_file(group):
     return FILE_OVERRIDES.get(group, group + ".blend")
+
+
+def group_of(key):
+    """The node-group datablock a recipe renders; the key is only an icon id."""
+    return RECIPES[key].get("group", key)
+
+
+def files_of(key):
+    """Every .blend this recipe's icon is embedded into."""
+    rec = RECIPES[key]
+    first = rec.get("file", source_file(group_of(key)))
+    return [first] + list(rec.get("also_embed", []))
+
+
+def covered():
+    """{(group, file basename): recipe key} for everything that gets an icon."""
+    return {(group_of(k), os.path.basename(f)): k
+            for k in RECIPES for f in files_of(k)}

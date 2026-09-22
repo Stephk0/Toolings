@@ -17,17 +17,27 @@ if HERE not in sys.path:
 import recipes  # noqa: E402
 
 ROOT = os.path.dirname(HERE)
-GROUPS = sorted(recipes.RECIPES)
+JOBS = [(key, recipes.group_of(key), f)
+        for key in sorted(recipes.RECIPES) for f in recipes.files_of(key)]
 bad = 0
-for g in GROUPS:
-    rec = recipes.RECIPES[g]
-    path = os.path.join(ROOT, rec.get("file", recipes.source_file(g)))
+for key, g, f in JOBS:
+    path = os.path.join(ROOT, f)
+    # Purge every group first and use the datablock the load RETURNS. Looking
+    # the group up by name finds a stale same-named copy left behind by an
+    # earlier file (nested helpers survive a by-name remove), which reported
+    # GN_GrowSelection as not-an-asset while it plainly was one.
+    for old_ng in list(bpy.data.node_groups):
+        try:
+            bpy.data.node_groups.remove(old_ng)
+        except Exception:
+            pass
     # Cold read of the closed file, asset metadata only.
     with bpy.data.libraries.load(path, assets_only=True) as (df, dt):
         dt.node_groups = [n for n in df.node_groups if n == g]
-    ng = bpy.data.node_groups.get(g)
+    loaded = list(dt.node_groups)
+    ng = loaded[0] if loaded else None
     if ng is None:
-        print("FAIL %-24s not an asset in the file" % g)
+        print("FAIL %-30s not an asset in the file" % ("%s @ %s" % (g, os.path.basename(f))))
         bad += 1
         continue
     pv = ng.preview
@@ -36,12 +46,11 @@ for g in GROUPS:
     nonzero = sum(1 for v in px if v > 0.0)
     asset = ng.asset_data is not None
     ok = (size == (256, 256) and pv.is_image_custom and nonzero > 0 and asset)
-    print("%s %-24s size=%s custom=%s asset=%s nonzero=%d" %
-          ("ok  " if ok else "FAIL", g, size,
+    print("%s %-30s size=%s custom=%s asset=%s nonzero=%d" %
+          ("ok  " if ok else "FAIL", "%s @ %s" % (g, os.path.basename(f)), size,
            pv.is_image_custom if pv else None, asset, nonzero))
     if not ok:
         bad += 1
-    bpy.data.node_groups.remove(ng)
-print("=== %d/%d previews verified cold ===" % (len(GROUPS) - bad, len(GROUPS)))
+print("=== %d/%d previews verified cold ===" % (len(JOBS) - bad, len(JOBS)))
 sys.stdout.flush()
 os._exit(1 if bad else 0)

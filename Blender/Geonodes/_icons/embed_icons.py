@@ -28,16 +28,16 @@ OUT = os.path.join(HERE, "out")
 def groups_by_file(wanted):
     """Bundle the requested groups per source .blend so each file opens once."""
     buckets = {}
-    for group in wanted:
-        rec = recipes.RECIPES.get(group)
-        if rec is None:
+    for key in wanted:
+        if key not in recipes.RECIPES:
             continue
-        png = os.path.join(OUT, group + ".png")
+        png = os.path.join(OUT, key + ".png")
         if not os.path.exists(png):
-            print("skip %s - no rendered icon at %s" % (group, png))
+            print("skip %s - no rendered icon at %s" % (key, png))
             continue
-        blend = rec.get("file", recipes.source_file(group))
-        buckets.setdefault(blend, []).append((group, png))
+        for blend in recipes.files_of(key):
+            buckets.setdefault(blend, []).append(
+                (recipes.group_of(key), png, key))
     return buckets
 
 
@@ -48,7 +48,7 @@ def embed(blend_name, jobs, dry_run):
     bpy.ops.wm.open_mainfile(filepath=path)
     results = []
     dirty = False
-    for group, png in jobs:
+    for group, png, key in jobs:
         ng = bpy.data.node_groups.get(group)
         if ng is None:
             results.append({"file": blend_name, "group": group, "ok": False,

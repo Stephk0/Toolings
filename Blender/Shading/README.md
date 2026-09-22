@@ -15,7 +15,7 @@ inside **EEVEE** and **Material Preview**.
 | Node group | `SH_Cavity` (7 inputs in 2 panels, 4 outputs) |
 | Materials | `M_SH_Cavity_Demo` (Principled), `M_SH_Cavity_Demo_Flat` (Emission — the literal overlay) |
 | Objects | `SH_Cavity_Demo`, `SH_Cavity_Demo_Flat` |
-| Asset | catalog `ST3E/Shading`, tag `ST3E` |
+| Asset | catalog `ST3E/Shading`, tag `ST3E`, Asset Browser icon ![](../Geonodes/_icons/out/SH_Cavity.png) |
 | Engine | EEVEE (works in Cycles too) |
 | Built with | Blender 5.0 |
 
@@ -130,9 +130,16 @@ Ambient Occlusion node and no ray tracing at all**.
 | Node group | `SH_ScreenCavity` (5 inputs in 1 panel, 4 outputs) |
 | Materials | `M_SH_ScreenCavity_Demo` (Principled), `M_SH_ScreenCavity_Demo_Flat` (Emission — the literal overlay) |
 | Objects | `SH_ScreenCavity_Demo`, `SH_ScreenCavity_Demo_Flat` |
-| Asset | catalog `ST3E/Shading`, tag `ST3E` |
-| Engine | EEVEE (works in Cycles too) |
+| Asset | catalog `ST3E/Shading`, tag `ST3E`, Asset Browser icon ![](../Geonodes/_icons/out/SH_ScreenCavity.png) |
+| Engine | **EEVEE only** — renders as plain base colour in Cycles |
 | Built with | Blender 5.0 |
+
+> **EEVEE only.** The curvature is built from the Bump node's *screen-space*
+> derivative, which is GLSL `dFdx`/`dFdy`. Cycles evaluates Bump through ray
+> differentials instead, where this trick is identically zero — measured, the
+> Cycles render differs from the plain base colour by 0.0000 on average, against
+> 0.075 in EEVEE. `SH_Cavity` above is AO-based and does work in Cycles; use it
+> when you need cavity in a Cycles render.
 
 ![SH_ScreenCavity in EEVEE](assets/sh_screencavity_eevee.png)
 

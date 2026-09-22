@@ -23,6 +23,7 @@ _icons/
   coverage.py      which modifiers still have no recipe / no preview
   recatalog_groups.py  puts the GNG_* helpers on the ST3E/Group catalog
   verify_embed.py  cold-reads every closed .blend and checks the preview landed
+  gallery.py       writes the icon gallery into ../README.md (plain Python, no Blender)
   fonts/           vendored Familjen Grotesk (static) + its OFL licence
   frames/          256² catalog overlays: ring, bar, vignette, scrim, inner shadow
   out/             rendered icons + manifest.json
@@ -43,6 +44,7 @@ cd D:\Stephko_Tooling\Toolings\Blender\Geonodes\_icons
 & $B --background --factory-startup --python build_icons.py           # all recipes
 & $B --background --factory-startup --python build_icons.py -- GN_Twist   # one
 & $B --background --factory-startup --python embed_icons.py -- --dry-run
+python gallery.py                                                      # refresh the README gallery
 & $B --background --factory-startup --python embed_icons.py           # WRITES the .blends
 & $B --background --factory-startup --python verify_embed.py          # cold check, always run this
 ```
@@ -96,7 +98,7 @@ For each recipe, `build_one()`:
 ),
 ```
 
-Keys: `file`, `catalog`, `short`, `base`, `base_args`, `prep`, `helpers`,
+Keys: `file`, `group`, `also_embed`, `catalog`, `short`, `base`, `base_args`, `prep`, `helpers`,
 `params`, `material`, `cage`, `cage_resolution`, `ghost_wire`, `keep_base`,
 `wire_only`, `two_sided`, `expect`.
 
@@ -280,8 +282,15 @@ Still one render call. The label layer is off unless a recipe has a `short`.
 
 ## Roster status
 
-`coverage.py` prints it live. At the last run: **57 recipes, 0 outstanding** —
-49 modifiers plus 8 group emblems.
+`coverage.py` prints it live. At the last run (2026-09-22): **67 done, 0 to do** —
+53 modifiers (Deform 19, Generate 17, Modify 13, Scatter 4), 12 helper-group
+emblems on `ST3E/Group`, and 2 shader groups on `ST3E/Shading`. The six skipped
+groups are legacy/scratch copies on no catalog, plus `Ambient Occlusion` in
+`ash_char_base_SSS.blend` on a foreign catalog.
+
+Known drift: `GN_TileableMeshNoise`'s recipe says `catalog="Generate"`, but the
+2026-09-22 catalog sweep moved the asset to `ST3E/Deform`. Its icon still has the
+Generate tint until the two are reconciled and it is rebuilt.
 
 ## ST3E/Group — the helper groups
 
@@ -303,6 +312,53 @@ under every setting. `GN_MirrorGroup` in the same file is the real modifier.
 
 `GN_VariousTest.blend` is a scratch file and is excluded, so `GNG_MixValues`
 (which lives only there) has no recipe.
+
+## ST3E/Shading — the shader groups
+
+`SH_*` groups are **shader** node trees living in `Blender/Shading/`, so there
+is no modifier to attach and no geometry to diff. `shader=True` renders Suzanne
+wearing a material that instances the group, set up like each file's own demo
+material (group `Color` -> Principled Base Color). Recipes reference the file
+relatively, `file="../Shading/SH_Cavity.blend"`.
+
+**Their gate is a render diff.** The subject is rendered twice at low samples —
+once with the shader, once with plain clay of the *same* base colour — and the
+icon fails if the two do not measurably differ over the subject's pixels. It is
+the shader analogue of the geometry diff, and it earned its keep immediately:
+
+`SH_ScreenCavity` renders **identically to plain clay in Cycles** — mean
+difference 0.0000. Its curvature comes from the Bump node's *screen-space*
+derivative, which is GLSL `dFdx/dFdy`, i.e. EEVEE; Cycles evaluates Bump by ray
+differentials, where the trick is identically zero. Under EEVEE the same recipe
+differs by 0.075 and reads. So that one recipe opts out with `engine="EEVEE"`,
+and `build_icons` runs EEVEE recipes **last**, because headless EEVEE has
+segfaulted mid-batch before and a crash takes the whole process with it.
+
+`Blender/Shading/README.md` now marks ScreenCavity as EEVEE-only. `SH_Cavity`
+(AO-based) genuinely does work in Cycles.
+
+## Recipe keys are icon ids, not group names
+
+A recipe's key names the PNG; `group=` names the node-group datablock when
+they differ. Two cases need it: two *different* groups sharing a name in two
+files, and a group name that is not a valid filename
+(`Expand / Contract Selection` has a `/`, so its key is
+`GN_ExpandContractSelection`). `also_embed=[...]` embeds one icon into further
+files holding an *identical* copy. `recipes.group_of()`, `files_of()` and
+`covered()` resolve all of it; `build`, `embed`, `verify` and `coverage` go
+through them.
+
+**The SHG_ shader helpers** (`SHG_TwistedTorusUV`, `SHG_TileableNoiseUV`) join
+the GNG_ helpers on `ST3E/Group`. They output coordinates, which mean nothing
+shown raw, so `into="noise"` runs a Noise Texture through their mapping and a
+`("texcoord", "Object")` param wires a Texture Coordinate into their vector
+input. Their gate is the same render diff as the SH_ shaders.
+
+**`GN_GrowSelection`** outputs a grown *selection*, not geometry. The prep
+marks a small seed patch (`bool_attribute ... "spot"`), the Selection output is
+stored as `grown`, both are baked by `freeze_flags` and drawn by `mask2`: the
+seed in the full Modify tint over the region it grew into in a lighter one —
+growth, not just a selection.
 
 ## One representational icon
 
