@@ -26,6 +26,9 @@ own project with its own scope; do not assume shared dependencies or architectur
 Addons were flattened on 2026-09-18 from `Blender/Addons/ClaudeVibe_WIPs/<Tool>` to
 `Blender/Addons/<Tool>`. Any path containing `ClaudeVibe_WIPs` is stale.
 
+Engineering findings (API traps, pipeline rules, recipes) live in `Blender/Knowledge/`,
+not in auto-memory — add new ones there.
+
 Current tool versions: `DOCUMENTATION_INDEX.md`. When a version here and in code disagree,
 trust `source/__init__.py` / `blender_manifest.toml`.
 
@@ -36,6 +39,7 @@ trust `source/__init__.py` / `blender_manifest.toml`.
 | Any Blender addon work | `Blender/Addons/CLAUDE.md`, then the tool's `README.md` (and `CLAUDE.md` if present) |
 | New addon, or refactor a monolithic one | skill `wmh-tool-architecture` (reference implementation: Compositor Render Sets v2.0.0) |
 | Any Geometry Nodes work (create / tidy / alter) | skill `geonode-layout-mcp` — always first. Criteria: `Blender/Addons/LLMGeonodePipeline/GEONODE_CRITERIA.md`. Folder rules: `Blender/Geonodes/CLAUDE.md` |
+| Blender API traps, export rules, headless runs, shading | `Blender/Knowledge/README.md` (index of topic pages) — check it before debugging a silent failure |
 | Geonode icons | `Blender/Geonodes/_icons/ICONS.md` + `GOTCHAS.md` |
 | Publishing the asset library | skill `publish-library` / `publish-library-config` |
 | Unity / C# | `Unity/CLAUDE.md` |
@@ -45,8 +49,9 @@ trust `source/__init__.py` / `blender_manifest.toml`.
 
 - **Pure Python, no external dependencies** in Blender addons.
 - **Target Blender 5.0**, keep 4.5+ working unless told otherwise.
-- **Always build a versioned installable zip** after any addon change (files at archive
-  root, into the tool's `distribution/`, previous zip to `distribution/archive/`).
+- **Always build a versioned installable zip** after any addon change, into the tool's
+  `distribution/` (previous zip to `distribution/archive/`). Match the archive layout of the
+  tool's previous zip.
 - **Exporters never mutate source data** — destructive ops on duplicates, in-place changes
   restored in `finally`.
 - **Comment geonodes like code** — labeled frames and named nodes.

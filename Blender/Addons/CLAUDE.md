@@ -32,6 +32,12 @@ Prefer moving shared logic into plain functions (or `core/`) for new code.
 - Verify undo/redo and viewport updates.
 - Build the versioned zip and update the tool's README version line and CHANGELOG.
 
+## Known traps
+
+Read before touching the area: `../Knowledge/bpy-api-gotchas.md` (modals, BMesh, draw
+handlers, bpy wrappers), `../Knowledge/export-pipeline.md` (any exporter),
+`../Knowledge/addon-architecture.md` (WMH split, zips).
+
 ## Tool-specific context
 
 Complex tools carry their own agent notes — read them before editing:
