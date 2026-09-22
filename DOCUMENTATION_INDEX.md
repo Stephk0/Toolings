@@ -132,6 +132,7 @@ See the library README for the full table, parameters, and installation steps.
 > **Status:** ⚠️ Development paused in 2023. Maintained for legacy projects only.
 
 **Location:** `3DSMAX/`
+**Repo README:** [3DSMAX/README.md](3DSMAX/README.md)
 **Full Documentation:** [ST3E Google Docs](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
 
 **ST3E** (Stephko's 3ds Max Extensions) is a comprehensive MaxScript collection for enhanced

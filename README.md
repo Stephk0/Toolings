@@ -42,7 +42,7 @@ topology & attribute tools, plus a procedural tree generator.
 Import automation and workflow helpers - Coming soon!
 
 ### 🔸 3DS Max Tools (Legacy - ST3E)
-Comprehensive MaxScript collection - [Documentation](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
+Comprehensive MaxScript collection - [README](3DSMAX/README.md) · [Documentation](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
 
 > ⚠️ **Note:** 3DS Max tools are in maintenance mode (development stopped 2023)
 
