@@ -14,7 +14,7 @@ dist/
 build/
 
 # Blender
-*.blend1
+*.blend[0-9]*
 *.blend2
 
 # OS files
