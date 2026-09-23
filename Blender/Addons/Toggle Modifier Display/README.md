@@ -61,31 +61,7 @@ Instead of manually enabling/disabling modifiers in the modifier panel, you can 
 - Font (Text)
 - Lattice
 
-## Technical Details
-
-### Version Information
-- **Version**: 1.3.0
-- **Blender Compatibility**: 2.80 and above
-- **Authors**: Stephan Viranyi, Blender MCP
-- **License**: GPL v2
-
-### How It Works
-
-The addon uses a "parity" system to intelligently manage modifier states:
-
-1. **Parity Check**: Compares edit mode display with viewport display
-2. **Smart Toggle**: 
-   - If parity exists and modifiers are on → Disable all edit mode display
-   - If parity doesn't exist → Create parity by syncing to viewport
-
-This approach provides a predictable, two-state toggle that matches common workflow needs.
-
-### Operators
-
-- `mesh.toggle_modifier_display` - Main edit mode display toggle
-- `mesh.toggle_on_cage_display` - On cage display toggle
-
-### Keyboard Shortcuts
+## Keyboard Shortcuts
 
 - **D** (in Edit Mode) - Toggle modifier edit mode display
 - **Shift+D** (in Edit Mode) - Toggle on cage display
@@ -105,10 +81,6 @@ This approach provides a predictable, two-state toggle that matches common workf
 - Check the Info panel (Window > Toggle System Console) for operator messages
 - Verify your object type is supported
 
-## Development
-
-This addon was developed to streamline the Edit Mode workflow by providing quick access to modifier visibility controls that would otherwise require multiple clicks in the Properties panel.
-
 ## Support
 
 For issues, suggestions, or contributions, please refer to the project repository or contact the addon authors.
@@ -120,3 +92,7 @@ This program is free software; you can redistribute it and/or modify it under th
 ---
 
 **Note**: This addon is part of the Stephko Toolings collection (`Blender/Addons/`) and is in active development.
+
+---
+
+[Developer notes](source/DEVELOPMENT.md)

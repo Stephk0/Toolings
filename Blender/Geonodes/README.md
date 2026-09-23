@@ -23,11 +23,8 @@ they appear directly in the modifier menu.
 Each `.blend` ships a **demo object** with the modifier already attached, so you can open the
 file directly to inspect a working setup.
 
-> **Note:** the modifier menu only lists groups that are asset-marked **and** have the
-> *Modifier* asset trait enabled (`is_modifier = True`) **and** carry the `ST3E` tag. A few
-> older library files (`GN_FillBorder`, `GN_MeshFromImage`, `GN_DisplaceByImage`,
-> `GN_treeGenerator_*`) are not marked as modifiers and only appear in the Asset Browser.
-
+> **Note:** `GN_FillBorder`, `GN_MeshFromImage`, `GN_DisplaceByImage` and the tree-generator
+> files are not in the modifier menu — drag them in from the Asset Browser instead.
 ---
 
 ## 🧱 Modifier Reference
@@ -114,51 +111,23 @@ Edit materials, shading, or attribute data without changing the silhouette.
 > as a **bindable attribute** via the modifier's *"sets via attribute"* toggle, so you can drive
 > them from a stored edge/vertex group.
 
-> **`Selection` always comes with `Invert Selection`.** Every modifier that gates on a selection
-> carries an **Invert Selection** toggle directly beneath it, in the same panel. The gate is
-> `Selection XOR Invert Selection`: left off it is an exact passthrough (byte-identical output),
-> switched on the modifier acts everywhere the selection is *not* set. It earns its keep together
-> with the *"sets via attribute"* binding above — bind one vertex group and use it as either a
-> mask or its complement without authoring a second group. Note that inverting a `Selection` left
-> at its `True` default deselects everything, which is the mathematically correct no-op.
+> **Every `Selection` has an `Invert Selection` toggle** right beneath it. Off, the modifier
+> behaves exactly as before; on, it acts everywhere the selection is *not* set — so one bound
+> vertex group works as either a mask or its complement.
 >
-> Modifiers with the pair: `GN_Inflate`, `GN_Twist`, `GN_Taper`, `GN_Stretch`, `GN_Bend`,
-> `GN_Wave`, `GN_Cast`, `GN_Smooth`, `GN_Displace`, `GN_RandomizePosition`,
-> `GN_RandomizeMeshElements`, `GN_ShearGeometry`, `GN_FlattenByBoundary`,
-> `GN_SimpleTransformMesh`, `GN_Triangulate`, `GN_PointsToSpheres`, `GN_Scatter`, `GN_Mosaic`,
-> `GN_FlipFaces`, `GN_SetMaterial`, `GN_Weld`, `GN_ExtrudeFace`, `GN_MirrorGroup`,
-> `GN_AmbientOcclusion`, `GN_VertexDataComposer`, `GN_AttributeTransfer`, `GN_QuadCap` — plus `GN_Delete`,
-> `GN_SetAttribute` and `GN_NormalTransfer` (`Invert Mask`), which already had one.
->
-> Nine more gained the whole gate (a `Selection` defaulting to **on** plus its invert) where
-> they previously acted on everything: `GN_AutoSmooth` (which faces get smoothed),
-> `GN_Wireframe` (which edges become wire), `GN_ConvexHull` and `GN_BoundingBox` (hull / box
-> of the selected part, via a `Separate Geometry`), `GN_NoiseDisplace`, `GN_VoronoiDisplace`,
-> `GN_Erosion`, `GN_Erosion_3D` and `GN_RandomDistribute`.
->
-> ⚠️ **Re-add these nine in scenes you saved earlier.** Blender backfills a newly added group
-> input on an *existing* modifier with the type's zero value, not with the socket default — so
-> a `GN_Wireframe` (etc.) modifier already sitting in a scene you saved before this change
-> reads `Selection = False` and quietly stops producing anything. Tick its `Selection` box once,
-> or remove and re-add the modifier. Modifiers added from now on are unaffected, and the other
-> 26 tools are unaffected because their `Selection` already existed.
+> ⚠️ **Scenes saved before September 2026:** `GN_AutoSmooth`, `GN_Wireframe`, `GN_ConvexHull`,
+> `GN_BoundingBox`, `GN_NoiseDisplace`, `GN_VoronoiDisplace`, `GN_Erosion`, `GN_Erosion_3D` and
+> `GN_RandomDistribute` gained a `Selection` input then. Blender fills a new input on an
+> *existing* modifier with `False`, so these read "nothing selected" and stop working — tick
+> `Selection` once, or remove and re-add the modifier.
 
 ---
 
 ## 🖼 Asset Browser icons
 
-Every ST3E asset has a 256×256 preview: a framed Suzanne showing the modifier's effect, tinted
-by catalog, with a short label. The icons are rendered and embedded headlessly by the pipeline
-in [`_icons/`](_icons/ICONS.md) — each recipe declares what the modifier should do (deform,
-add vertices, change topology, write an attribute…) and no icon is written unless the
-evaluated mesh measurably changed. Helper groups get a shared node-graph emblem; shader groups
-are gated on a render diff instead. Read [`_icons/ICONS.md`](_icons/ICONS.md) and
-[`_icons/GOTCHAS.md`](_icons/GOTCHAS.md) before changing anything there.
-
-The reference tables above carry each modifier's icon in their first column; the gallery
-below is the same set grouped by catalog. Both are generated — `_icons/readme_tables.py`
-fills the table column, `_icons/gallery.py` writes the gallery block. Run them after
-`build_icons.py`.
+Every ST3E asset has a preview icon: a framed Suzanne showing the modifier's effect, tinted by
+catalog. The gallery below is the full set, including node-editor helper groups and shader
+groups.
 
 <!-- icon-gallery:start -->
 
@@ -211,42 +180,11 @@ fills the table column, `_icons/gallery.py` writes the gallery block. Run them a
 
 ---
 
-## 🛠 Other assets & helpers in this folder
+## 🛠 Also in this folder
 
-- **Layout tooling moved** → `../Addons/LLMGeonodePipeline/`. The deterministic
-  wire-routing / tidy engine (formerly `geonode_route_tidy.py`, now `tidy_layout.py`), the
-  `layout_audit.py` rules checker, and the `run_pipeline.py` orchestrator (tidy → verify →
-  save) that reframes and re-routes these modifier files all live there now.
-- **Node-group utilities** (Asset Browser only, not modifiers): `GN_FillBorder`, `GN_MeshFromImage`,
-  `GN_DisplaceByImage`, and the helper groups on the `ST3E/Group` catalog (`GNG_*`, `SHG_*`,
-  `Expand / Contract Selection`, `GN_Smooth Position`) — see the icon gallery above.
-  `SHG_TileableNoise.blend` holds the tileable-noise helpers that GN_NoiseDisplace links.
-- **Procedural Tree Generator** — see [`TreeGenDocu/`](TreeGenDocu/README.md) for the full
-  Geometry-Nodes tree system and its documentation.
-- **`GN_VariousTest.blend`** — scratch/test file (ignore).
+- **Node-group utilities** (Asset Browser only, not modifiers): `GN_FillBorder`,
+  `GN_MeshFromImage`, `GN_DisplaceByImage`, and the helper groups on the `ST3E/Group` catalog
+  shown in the gallery above.
+- **Procedural Tree Generator** — see [`TreeGenDocu/`](TreeGenDocu/README.md).
 
----
-
-## ✍️ Authoring notes
-
-New ST3E modifiers are built headlessly against Blender 5.0 and must, to appear in the
-**Add Modifier → ST3E** menu:
-
-1. Be **marked as an asset** (`node_group.asset_mark()`).
-2. Be assigned to a **leaf ST3E sub-catalog** (`blender_assets.cats.txt`) — `ST3E/Deform`,
-   `ST3E/Generate`, `ST3E/Modify` or `ST3E/Scatter & Instancing`. The flat `ST3E` root
-   holds no direct assets since the sub-catalog split, so a group left on it lands
-   outside every group in the browser.
-3. Have a **Geometry input + Geometry output** socket.
-4. Have the **Modifier asset trait** on (`node_group.is_modifier = True`).
-5. Carry the **`ST3E` tag** (`asset_data.tags.new("ST3E")`).
-6. Get an **icon**: add a recipe to `_icons/recipes.py`, run `build_icons.py` and
-   `embed_icons.py` for it, then `python _icons/gallery.py` to refresh the gallery above.
-
-Each modifier ships a demo object, has tooltipped sockets, framed/labelled nodes, and is
-eval-verified (identity at neutral parameters, no NaN).
-
----
-
-**Last Updated:** 2026-09-22
-**Modifier count:** 53 ST3E modifiers
+Building or changing a modifier? See [AUTHORING.md](AUTHORING.md).

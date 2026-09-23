@@ -3,12 +3,12 @@ title: Mass Exporter
 description: Batch-export Blender collections to FBX / OBJ / DAE / glTF with suffix grouping, mesh joining, and per-collection settings.
 tool:
   name: MassExporter
-  version: 13.6.0
+  version: 13.7.0
   status: active
   category: Export
   blenderVersion: 4.5+
-  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/MassExporter_v13.6.0.zip
-  sourcePath: Blender/Addons/MassExporter_v12.4/__init__.py
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/MassExporter/distribution/MassExporter_v13.7.0.zip
+  sourcePath: Blender/Addons/MassExporter/source/
   detailLevel: detailed
 ---
 
@@ -20,12 +20,12 @@ import viewportImg from '../../../assets/tools/mass-exporter/viewport-example.sv
 
 <ToolMeta
   name="Mass Exporter"
-  version="13.6.0"
+  version="13.7.0"
   status="active"
   category="Export"
   blenderVersion="4.5+"
-  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/MassExporter_v13.6.0.zip"
-  sourcePath="Blender/Addons/MassExporter_v12.4/__init__.py"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/MassExporter/distribution/MassExporter_v13.7.0.zip"
+  sourcePath="Blender/Addons/MassExporter/source/"
 />
 
 ## At a glance
@@ -37,7 +37,7 @@ The everyday flow is: organize meshes into collections → tick the ones to expo
 ## Install
 
 <Steps>
-1. Download `MassExporter_v13.6.0.zip` from the meta block above.
+1. Download `MassExporter_v13.7.0.zip` from the meta block above.
 2. **Edit → Preferences → Add-ons → Install from Disk** (or drag the zip in).
 3. Enable the addon. A **Mass Exporter** tab appears in the 3D View N-panel.
 </Steps>
@@ -122,7 +122,8 @@ The two **Quick Export** buttons in the panel find the immediate collection or s
 
 ## Changelog
 
-- **v13.6.0** — current packaged release. See git for cumulative fixes since v13.0.
+- **v13.7.0** — current packaged release. New **Only Visible Modifiers** option (on by default): exports bake only viewport-enabled modifiers.
+- **v13.6.x** — Group by Suffix checkbox restored; hidden-export fixes.
 - **v13.5.x** — multiple stability and suffix-grouping refinements.
 - **v13.0.0** — major refactor, full per-collection property integration across all export paths.
 - **v12.5.1** — suffix grouping shipped to "Export Selected Objects" path; UI added missing checkbox.
@@ -132,6 +133,6 @@ The two **Quick Export** buttons in the panel find the immediate collection or s
 
 <LinkCard
   title="Source on GitHub"
-  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/MassExporter_v12.4"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/MassExporter"
   description="Open the addon source directory."
 />

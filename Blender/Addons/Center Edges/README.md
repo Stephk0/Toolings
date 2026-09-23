@@ -84,22 +84,7 @@ For fine control over vertex positions without full smoothing:
 2. Use Center Vertices to average their position with neighbors
 3. Enable edge length weighting for more natural results
 
-## Technical Details
-
-### How It Works
-
-**Edge Loop Centering:**
-- Identifies perpendicular edges connected to each vertex of the selected edge
-- Calculates the average position of perpendicular vertices
-- Moves edge vertices to the calculated center position
-- Handles multiple face types simultaneously (tris, quads, ngons)
-
-**Vertex Centering:**
-- Finds all connected vertices through manifold edges
-- Calculates weighted or unweighted average of neighbor positions
-- Moves vertex to the averaged position
-
-### Requirements
+## Requirements
 
 - Blender 2.80 or higher
 - Works in Edit Mode only
@@ -130,12 +115,6 @@ For fine control over vertex positions without full smoothing:
 - Check if another addon is using the same hotkey combination
 - You can reassign the hotkey in Blender's Keymap preferences
 
-## Version History
-
-- **v1.5.1**: Current version with full tri/quad/ngon support
-- Improved perpendicular vertex detection
-- Added detailed reporting of processed face types
-
 ## Credits
 
 **Authors:** Stephko, Claude AI  
@@ -149,3 +128,7 @@ For issues, suggestions, or contributions, feel free to modify and improve this 
 ---
 
 *This addon is designed to streamline mesh editing workflows and maintain clean topology in 3D modeling projects.*
+
+---
+
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

@@ -112,23 +112,6 @@ The addon comes with sensible defaults:
 - Draws on top of all viewport content
 - Settings are global (not per-scene or per-workspace)
 
-## Version History
-
-### v1.1.0
-- Added customizable text size factor
-- Improved text positioning and centering
-- Enhanced preferences UI with grouped settings
-- Added quick settings panel in viewport sidebar
-
-### v1.0.0
-- Initial release
-- Basic overlay functionality
-- Customizable colors, size, and position
-
-## Contributing
-
-Feel free to submit issues, feature requests, or pull requests to improve this addon.
-
 ## License
 
 This addon is provided as-is for free use and modification.
@@ -140,3 +123,7 @@ Created with assistance from Claude (Anthropic)
 ---
 
 **Enjoy your enhanced Blender workflow! 🎨**
+
+---
+
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

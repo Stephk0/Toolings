@@ -37,41 +37,12 @@ Compositor Render Sets automates this entire workflow:
 
 ## 📦 Installation
 
-### Method 1: Install from Zip (recommended)
+### Install from zip
 1. Grab `distribution/CompositorRenderSets_v2.0.0.zip`
 2. Open Blender (version 4.2 or later)
 3. Drag and drop the zip into the Blender window (or use
    `Edit` → `Preferences` → `Get Extensions` → `Install from Disk...`)
 4. Enable **"Compositor Render Sets"** if it isn't enabled automatically
-
-### Method 2: Dev deploy (this repo)
-Run `install_to_blender.ps1` at the tool root — it copies `source/` into the
-highest installed Blender's `extensions\user_default\` folder. Restart Blender.
-
-### Folder Layout
-
-```
-Compositor Render Sets/
-├── README.md               # this file
-├── install_to_blender.ps1  # one-click dev deploy
-├── source/                 # addon code (WMH architecture)
-│   ├── __init__.py         # thin: bl_info + register wiring
-│   ├── blender_manifest.toml
-│   ├── core/               # pure Python, bpy-free, unit-tested
-│   │   ├── naming.py       # prefix/slot/output-path computations
-│   │   └── logbuf.py       # capped log buffer helpers
-│   ├── blender/            # bpy boundary
-│   │   ├── compat.py       # Blender 4.x / 5.0+ compositor API layer
-│   │   ├── visibility.py   # collection/modifier/object visibility sync
-│   │   ├── node_state.py   # File Output node cache/configure/restore
-│   │   ├── properties.py   # PropertyGroups
-│   │   ├── operators.py    # all operators
-│   │   └── panels.py       # UI lists + panels
-│   └── tests/              # pytest over core/ (no bpy needed)
-└── distribution/           # current installable zip (+ archive/)
-```
-
-Run the unit tests without Blender: `python -m pytest source/tests`
 
 ### Verification
 
@@ -398,51 +369,6 @@ You have a character model and want to render it from multiple angles with diffe
 
 ---
 
-## ⚙️ Technical Details
-
-### Compositor Integration
-
-The addon manipulates the **File Output** node in the compositor:
-
-1. **Discovery:**
-   - Searches scene.node_tree for a node of type `OUTPUT_FILE`
-   - Matches by the name specified in settings
-
-2. **State Caching:**
-   - Before rendering, caches:
-     - Original `base_path`
-     - Original file slot names/paths
-
-3. **Configuration:**
-   - For each render set:
-     - Sets `base_path` to the render set's output path
-     - Renames file slots that start with the prefix
-     - Replaces prefix with render set name
-
-4. **Restoration:**
-   - After all renders complete:
-     - Restores `base_path` to original
-     - Restores all file slot names to original
-
-### Visibility Management
-
-**Viewport Visibility:**
-- Controlled via `collection.hide_viewport`
-- Modified by Show/Hide and Solo operators
-- Can be synced to render visibility
-
-**Render Visibility:**
-- Controlled via `collection.hide_render`
-- Optionally synced from viewport visibility (if setting enabled)
-- Original states are cached and restored
-
-**Solo Mode:**
-- Caches all collection visibility states as JSON
-- Hides all collections, shows only the set's collections
-- Toggling again restores cached states
-
----
-
 ## 🔧 Troubleshooting
 
 ### Issue: "File Output node 'RenderSetOutput' not found"
@@ -575,111 +501,6 @@ The addon manipulates the **File Output** node in the compositor:
 
 ---
 
-## 🛣️ Future Enhancements
-
-Potential features for future versions:
-
-- [ ] Support for multiple File Output nodes
-- [ ] Camera switching per render set
-- [ ] Render settings override per set (samples, resolution)
-- [ ] Animation/frame range rendering
-- [ ] Export render set configurations to JSON
-- [ ] Import/export presets
-- [ ] Render queue with priority system
-
----
-
-## 📜 Version History
-
-### Version 2.0.0 (Current - 2026-07-02) — WMH Architecture + Bug Fixes
-
-**Architecture refactor** — the 2,800-line single file is now a proper package
-following the suite's WMH standard: bpy-free `core/` (unit-tested with pytest,
-27 tests), `blender/` bpy boundary, thin `__init__.py`, extension manifest,
-dev-install script, and a versioned distribution zip. Verified end-to-end with
-headless renders on Blender 4.5 (prefix-replacement path) and 5.0
-(`file_name`-field path).
-
-**Bug fixes:**
-- **Abort Render started a render instead of aborting one** — it invoked
-  `bpy.ops.render.render`; it is now a pure recovery action (restores the File
-  Output node from the cached state and clears stuck flags)
-- **Blender 5 `file_name` field wiped after every render** — the field is now
-  cached and restored with the rest of the node state
-- **State restoration now guaranteed via try/finally** — an exception
-  mid-render no longer leaves the node reconfigured, visibility mangled, and
-  `is_rendering` stuck on
-- **Create Node Setup was broken on Blender 4.x** — `file_slots.remove()`
-  was called with the slot instead of the input socket (TypeError)
-- **Create Node Setup on a fresh Blender 5 scene** — now creates the
-  compositing node group when none exists yet
-- **Root (master) layer collection is never touched anymore** — hiding it and
-  syncing its state onto `hide_render` could blank the entire render
-- **Modifier/object sync now includes nested sub-collections**
-  (`all_objects` instead of direct `objects`)
-- Render mode is a proper enum (the phantom `'selected'` mode could crash
-  batch setup with an IndexError)
-- Panel log is capped at 200 lines instead of growing unboundedly in the
-  .blend; `Scene.use_nodes` access is guarded for its removal in Blender 6.0
-
-**Improvements:**
-- Console debug spam is now opt-in via the new **Debug Console Output**
-  setting (Settings section)
-- Layer-collection lookups use a prebuilt map instead of repeated recursive
-  searches; per-set mute-state snapshots no longer double-mute
-- Blender min version raised to 4.2 (extension system)
-
-### Version 1.7.1 (2025-12-09)
-- **Blender 5.0 Compatibility:** Added support for Blender 5.0's new File Output node `filename` field
-  - Automatic version detection: uses `filename` field in Blender 5.0+, prefix replacement in Blender 4.x
-  - File output nodes properly reset after each render set
-  - Backward compatible with Blender 4.x
-- **Performance Optimization:** Modifier sync filtering
-  - New option: "Only Sync Modifiers in Render Set" (enabled by default)
-  - Only syncs modifiers on objects in render set collections (not all scene objects)
-  - Significantly reduces debug output and improves render performance
-  - UI: Filter checkbox appears as sub-option when modifier sync is enabled
-- **Bug Fix:** Fixed syntax error preventing addon installation (property definition at line 316)
-
-### Version 1.9.0
-- **Bug Fix:** Override Output Node Settings now correctly uses the specified File Output node
-  - Per-set override nodes are now properly found and configured
-  - Override node name and prefix are correctly applied during rendering
-  - Mute Unused File Output Nodes now correctly identifies and unmutes override nodes
-  - All override nodes are properly restored to original state after rendering
-  - Fixed slot path handling to prioritize the correct 'path' attribute
-  - Override node states are now pre-cached before rendering to preserve original values
-- Fixed issue where override settings were ignored and global settings were always used
-- Fixed potential "file_nametex_" filename corruption by improving slot path getter/setter priority
-
-### Version 1.8.0
-- **UI Improvement:** All main sections are now collapsible/foldable
-  - Render Set Setup (expanded by default)
-  - Constant Render Set Collections (expanded by default)
-  - Render (expanded by default)
-  - Settings (collapsed by default)
-  - Log (collapsed by default)
-- Space-saving UI for cleaner workspace organization
-
-### Version 1.7.0
-- Added batch collection management
-- Create Node Setup feature
-- Mute Unused File Output Nodes feature
-
-### Version 1.0.0
-- Initial release
-- Render set management (add, remove, tabs)
-- Collection assignment per set
-- Visibility controls (show/hide, solo)
-- Three render modes (current, selected, all)
-- Automatic File Output node configuration
-- Prefix replacement system
-- Viewport/render visibility sync
-- Logging system
-- Settings panel
-
----
-
 ## 🙏 Credits
 
 **Concept & Development:** Claude AI + Stephan Viranyi
@@ -689,7 +510,7 @@ headless renders on Blender 4.5 (prefix-replacement path) and 5.0
 
 ## 📄 License
 
-This addon is provided under the GPL v2 license for educational and commercial use.
+GPL-3.0-or-later.
 
 ---
 
@@ -699,7 +520,7 @@ This addon is provided under the GPL v2 license for educational and commercial u
 **GitHub:** [github.com/Stephk0/Toolings](https://github.com/Stephk0/Toolings)
 
 For issues, suggestions, or contributions:
-1. Ensure you're using Blender 4.0 or later
+1. Ensure you're using Blender 4.2 or later
 2. Verify the File Output node is properly configured
 3. Check the log for error messages
 4. Submit detailed bug reports with steps to reproduce
@@ -709,3 +530,7 @@ For issues, suggestions, or contributions:
 **Happy Rendering! 🎨✨**
 
 *Part of the Stephko Toolings collection - Professional tools for Blender artists*
+
+---
+
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

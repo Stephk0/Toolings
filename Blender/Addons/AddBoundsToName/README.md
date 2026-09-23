@@ -400,115 +400,6 @@ Useful for:
 - Seeing the complete rename flow step-by-step
 - Checking dimension calculations
 
-## Technical Details
-
-### Order of Operations (CRITICAL)
-
-The addon processes names in a specific order to handle the common case where Blender numbering appears AFTER bounds:
-
-**Example:** `cube_1x1x1.001` (not `cube.001_1x1x1`)
-
-**Processing Steps:**
-1. **Strip Blender Numbering (.001, .002, etc.)**
-   - Must happen FIRST before bounds detection
-   - Pattern: `\.\d{3,}$` at end of name
-2. **Detect and Remove Previous Bounds**
-   - Now that `.001` is gone, regex can match `_1x1x1` pattern
-   - Extracts base name without dimensions
-3. **Add New Bounds**
-   - Applies current dimensions to clean base name
-
-**Why This Order Matters:**
-
-❌ **WRONG ORDER (detect bounds first):**
-```
-Input:  cube_1x1x1.001
-Step 1: Try to detect bounds → FAILS (ends with .001, not a number)
-Step 2: Strip .001 → cube_1x1x1
-Step 3: Add new bounds → cube_1x1x1_2x2x2  (DOUBLED UP!)
-```
-
-✅ **CORRECT ORDER (strip numbering first):**
-```
-Input:  cube_1x1x1.001
-Step 1: Strip .001 → cube_1x1x1
-Step 2: Detect bounds → cube (removed _1x1x1)
-Step 3: Add new bounds → cube_2x2x2  (CLEAN!)
-```
-
-**Real-World Scenario:**
-```
-1. Create object with bounds:   cube → cube_1x1x1
-2. Duplicate object (Shift+D):  cube_1x1x1 → cube_1x1x1.001
-3. Scale 2x and rename:         cube_1x1x1.001 → cube_2x2x2 ✅
-```
-
-### Bounds Calculation
-
-**Object Bounds:**
-- Uses `object.dimensions` property
-- Includes all modifiers (array, mirror, etc.)
-- Includes child objects
-- Includes armature deformations
-
-**Mesh Bounds:**
-- Calculates from mesh vertex positions
-- Applies object scale only
-- Ignores modifiers
-- Local space calculation
-
-### Blender Numbering Detection
-
-Uses regex pattern: `\.\d{3,}$`
-
-**Matches:**
-- `.001`, `.002`, ..., `.999` (3 digits)
-- `.1000`, `.1001`, ..., `.9999` (4 digits)
-- `.10000` and beyond (5+ digits)
-
-**Does NOT match:**
-- `.1`, `.12` (less than 3 digits - not Blender numbering)
-- `.obj`, `.fbx` (file extensions)
-
-### Previous Bounds Detection
-
-**Auto-Detect Mode:**
-Tries combinations of separators to find patterns in this order:
-
-**Detection Priority (to avoid false matches):**
-1. **3D Suffix** - Try `name_1x2x3` patterns FIRST
-2. **2D Suffix** - Try `name_1x2` patterns if 3D not found
-3. **3D Prefix** - Try `1x2x3_name` patterns
-4. **2D Prefix** - Try `1x2_name` patterns
-
-**Why 3D First?**
-- Prevents matching first 2 numbers of a 3D pattern
-- Example: `cube_100x200x300` should match as 3D, not 2D
-
-**Suffix Patterns:**
-- **3D:** `name[sep]num[dim]num[dim]num[unit]`
-  - Example: `cube_100x200x300cm`
-- **2D:** `name[sep]num[dim]num[unit]`
-  - Example: `floor_500x500mm`
-
-**Prefix Patterns:**
-- **3D:** `[unit]num[dim]num[dim]num[sep]name`
-  - Example: `100x200x300_cube`
-- **2D:** `[unit]num[dim]num[sep]name`
-  - Example: `500x500_floor`
-
-**Separator Priority:**
-1. Name: `_`, `-`, ` `, `.`
-2. Dimension: `x`, `X`, `-`, `*`, `by`
-
-**Examples Detected:**
-- ✅ `cube_1x2x3` (3D suffix)
-- ✅ `wall_400x200` (2D suffix)
-- ✅ `1x2x3_cube` (3D prefix)
-- ✅ `500x500_floor` (2D prefix)
-- ✅ `trim_10x100mm` (2D with unit)
-- ✅ `box_1-2-3` (alternate separator)
-
 ## Troubleshooting
 
 ### "No active object" Error
@@ -549,55 +440,10 @@ Tries combinations of separators to find patterns in this order:
 - Or manually specify the exact separators used in names
 - Verify naming pattern matches: `name_1x2x3` or `1x2x3_name`
 
-## Performance
-
-- **Single Object:** Instant (<1ms)
-- **Batch (100 objects):** ~50ms
-- **Preset Save/Load:** <10ms
-- **Regex Detection:** <1ms per object
-
-No performance impact on viewport or rendering.
-
-## Version History
-
-### v1.1.3 (2025-12-11)
-- **NEW:** Omit Decimal Zero option for smart float formatting
-- **IMPROVED:** Float mode can now produce clean output like `1x1.5x1` instead of `1.0x1.5x1.0`
-- **IMPROVED:** UI shows "Omit Decimal Zero" checkbox when Float numeric style is selected
-- **IMPROVED:** Preset system now includes `omit_decimal_zero` setting
-- Default: Enabled (removes unnecessary .0 from whole numbers)
-
-### v1.1.2 (2025-12-10)
-- **IMPROVED:** Simplified axis swizzle UI labels ("X", "Y", "Z" instead of "1st", "2nd", "3rd")
-- **IMPROVED:** Renamed "Axis Order" section to "Axis Swizzle" for clarity
-
-### v1.1.1 (2025-12-10)
-- **NEW:** 2D pattern detection (detects both `1x2` and `1x2x3` formats)
-- **IMPROVED:** Detection order (3D patterns first, then 2D)
-- **IMPROVED:** Supports upgrading 2D names to 3D (e.g., `wall_400x200` → `wall_400x200x10`)
-
-### v1.1.0 (2025-12-10)
-- **NEW:** Independent axis swizzling (3 separate dropdowns)
-- **NEW:** Replace previous bounds feature with auto-detection
-- **NEW:** Erase Blender numbering (.001, .002, etc.)
-- **NEW:** Auto-detect common separators for bounds detection
-- **NEW:** Manual separator specification option
-- **NEW:** "Smart Renaming" section in UI
-- **IMPROVED:** Regex-based bounds detection handles more cases
-- **IMPROVED:** Debug output shows complete rename flow
-- **FIX:** Correctly handles Blender numbering after bounds (.001 at end)
-
-### v1.0.0 (2025-12-10)
-- Initial release
-- Full specification implementation
-- Preset system
-- Batch processing support
-- Object/Mesh bounds options
-
 ## Support
 
 **Issues & Feature Requests:**
-https://github.com/Stephko/Toolings
+https://github.com/Stephk0/Toolings
 
 **Author:**
 Stephan Viranyi
@@ -610,13 +456,6 @@ Attribution appreciated but not required.
 
 ---
 
-## Sources
-
-Research on Blender's naming system:
-- [Blender Manual - Naming](https://docs.blender.org/manual/en/latest/animation/armatures/bones/editing/naming.html)
-- [Blender Studio - Naming Conventions](https://studio.blender.org/tools/naming-conventions/introduction)
-- [Datablock Names - Blender Studio](https://studio.blender.org/tools/naming-conventions/datablock-names)
-
 ---
 
-*Part of the Stephko Toolings addon set (`Blender/Addons/`)*
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

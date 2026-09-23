@@ -30,7 +30,15 @@ Prefer moving shared logic into plain functions (or `core/`) for new code.
 
 - Test in a live Blender via Blender MCP, or headless (`--background --factory-startup`).
 - Verify undo/redo and viewport updates.
-- Build the versioned zip and update the tool's README version line and CHANGELOG.
+- Build the versioned zip, update the tool's README version line, and add a
+  `source/CHANGELOG.md` entry.
+
+## Where documentation goes
+
+`README.md` is user/artist-facing only. Implementation notes, folder layouts, test commands
+and dev-deploy steps go in `source/DEVELOPMENT.md`; version history in `source/CHANGELOG.md`;
+agent instructions in a `CLAUDE.md`. Never add these to a README — link to them instead.
+(`LLMGeonodePipeline/` has no `source/`, so its files sit at the tool root.)
 
 ## Known traps
 
@@ -42,5 +50,5 @@ handlers, bpy wrappers), `../Knowledge/export-pipeline.md` (any exporter),
 
 Complex tools carry their own agent notes — read them before editing:
 - `SyncedModifiers/source/CLAUDE.md` — driver-based sync architecture
-- `docs/compositor-render-sets-patterns.md` — Compositor Render Sets patterns
+- `Compositor Render Sets/source/DEVELOPMENT.md` + `docs/compositor-render-sets-patterns.md`
 - `MassExporter/EXPORT_FLOW.md` — export pipeline and settings priority

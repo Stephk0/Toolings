@@ -12,6 +12,9 @@ config, so they version with the pipeline):
 Enforcement: `layout_audit.py` (R1–R11) + `run_pipeline.py` in the same folder —
 saves are gated on geometry-unchanged AND the blocking rules.
 
+**Authoring guide:** `AUTHORING.md` — menu requirements, Invert-Selection contract, icon
+steps. Keep this out of `README.md`, which is user-facing only.
+
 **Knowledge.** Build recipe, roster of built modifiers and publish checklist:
 `Blender/Knowledge/geonodes/asset-checklist.md`. Node/socket/layout traps: the other pages
 in `Blender/Knowledge/geonodes/`.

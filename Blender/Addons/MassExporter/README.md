@@ -9,19 +9,17 @@ Allows specifying a collection for export with subcollections (Main Collection E
 >
 > **v13.7.0:** new **Only Visible Modifiers** option (Modifier & Rig Options → Modifiers, **on by default**). Exports now bake only the modifiers that are enabled in the viewport, matching what you actually see. ⚠️ This changes export output for objects that carry viewport-disabled modifiers — see [Only Visible Modifiers](#only-visible-modifiers-v1370).
 >
-> **v13.6.3:** restored the per-collection **Group by Suffix** checkbox in Collection Options (the setting existed and drove the export flow, but the checkbox was lost in the v13 UI rewrite).
 
 ## 📋 Table of Contents
 
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Main Features](#main-features)
-- [Usage Guide](#usage-guide)
-- [Export Options](#export-options)
-- [Workflow Examples](#workflow-examples)
-- [Tips & Best Practices](#tips--best-practices)
-- [Troubleshooting](#troubleshooting)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Main Features](#-main-features)
+- [Export Options](#️-export-options)
+- [Usage Guide](#-usage-guide)
+- [Tips & Best Practices](#-tips--best-practices)
+- [Troubleshooting](#-troubleshooting)
 
 ---
 
@@ -42,21 +40,6 @@ Allows specifying a collection for export with subcollections (Main Collection E
 - **Material Override**: Batch apply materials to exported objects
 - **Transform Options**: Control object transforms, axis orientation, and scaling
 - **Fallback Export**: Automatically exports regular meshes if no empties are found
-
-### v12 Updates
-
-**v12.2** (Latest)
-✅ **Export Selected Object(s)** - NEW quick export button to export collections of selected objects using their configured settings
-
-**v12.1**
-✅ **Quick Export from Selection** - Export collection or sub-collections of selected object with one click
-
-**v12.0**
-✅ **Export meshes even when no empties present** - Falls back to normal mesh export
-✅ **Improved robustness** - Better error handling and validation
-✅ **Enhanced debugging** - Comprehensive debug mode for troubleshooting
-
----
 
 ## 📦 Installation
 
@@ -722,35 +705,6 @@ For Unity:
 
 ---
 
-## 📝 Version History
-
-### v13.7.0 (Current)
-- ✅ **Only Visible Modifiers** — exports bake only viewport-enabled modifiers (default ON)
-- ✅ Workaround for Blender's `modifier_apply` ignoring `show_viewport`: disabled modifiers are stripped from the temporary export copy before applying
-- ✅ Objects whose modifiers are *all* hidden now skip duplication entirely and export as-is
-- ✅ Preserved armature bindings are exempt from the visibility filter
-- ⚠️ Behaviour change: objects carrying viewport-disabled modifiers now export differently. Turn the option off to restore v13.6 output.
-- See `source/__init__.py` `VERSION` for the authoritative current build.
-
-### v13.6.2
-- See git history.
-
-### v12.0.0
-- ✅ **Export meshes even when no empties present**
-- ✅ Automatic fallback to normal mesh export
-- ✅ Improved error handling and validation
-- ✅ Enhanced debug output
-- ✅ Better object existence checks
-
-### Previous Versions
-- v11: Enhanced empty joining logic
-- v10: Added modifier application
-- v9: Sub-collection export modes
-- v8: Parent empty centering
-- v7: Initial release
-
----
-
 ## 🔗 Additional Resources
 
 ### Related Documentation
@@ -765,7 +719,7 @@ For Unity:
 
 ## 📄 License
 
-This addon is created by Claude AI and provided as-is for free use in Blender projects.
+Free for personal and commercial use. Provided as-is, no warranty.
 
 ---
 
@@ -777,7 +731,10 @@ If you encounter issues:
 3. Try the **Debug Tools** buttons first
 4. Verify your **collection structure**
 
-
 ---
 
 **Happy Exporting! 🚀**
+
+---
+
+[Changelog](source/CHANGELOG.md)

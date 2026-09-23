@@ -18,8 +18,10 @@ with pytest and never needs Blender open to verify. This is the single biggest q
 
 ```
 <ToolName>/
-├── README.md               # tool root — version, install, layout (per _TOOLING_STRUCTURE.md)
+├── README.md               # tool root — USER-facing: version, install, usage (no internals)
 ├── source/
+│   ├── DEVELOPMENT.md      # folder layout, architecture, tests, dev deploy
+│   ├── CHANGELOG.md        # version history
 │   ├── __init__.py         # THIN: bl_info / manifest + register()/unregister() wiring ONLY
 │   ├── core/               # pure Python, bpy-FREE, deterministic, unit-tested
 │   │   ├── __init__.py
@@ -57,7 +59,9 @@ If a function needs both, split it: a bpy-free computational kernel in `core/`, 
    the suite's bundled Python (no Blender needed). Red-green before any UI.
 3. Add `blender/operators.py|panels.py|properties.py` that import from `core/` and wire context.
 4. Keep `__init__.py` thin (bl_info + register/unregister).
-5. Add `install_to_blender.ps1` (template below) and a `README.md` from the convention.
+5. Add `install_to_blender.ps1` (template below), a user-facing `README.md`, and
+   `source/DEVELOPMENT.md` + `source/CHANGELOG.md` for everything developer-facing (see
+   `_TOOLING_STRUCTURE.md`). Never put folder layouts or test commands in the README.
 6. Verify live via Blender MCP (`mcp__blender__execute_blender_code`) — see memory
    `reference_blender_mcp`.
 7. Build the versioned distribution zip (always-zip rule) with files at archive root.

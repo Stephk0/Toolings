@@ -26,7 +26,6 @@ Smart Collapse analyzes your selection and automatically:
 - ✅ Falls back to **Merge at Center** when vertices are disconnected
 - ✅ Works in a single operation with one hotkey
 
-
 ---
 
 ## 📦 Installation
@@ -113,21 +112,6 @@ You can also find it in:
 
 ---
 
-## 🔧 Technical Details
-
-### Detection Algorithm
-```python
-1. Get selected vertices and edges
-2. Check if any edges exist in selection
-3. If edges exist → Use standard collapse
-4. If no edges:
-   a. Check if 2 vertices share an edge
-   b. If yes → Use collapse
-   c. If no → Use merge at center
-5. Handle any collapse failures → Fallback to merge
-```
----
-
 ## 🐛 Troubleshooting
 
 ### Issue: "Select at least 2 vertices" warning
@@ -157,36 +141,6 @@ You can also find it in:
 
 ---
 
-
-## 🤝 Contributing
-
-Want to improve Smart Collapse? Here's how:
-
-1. **Report Bugs:**
-   - Include Blender version
-   - Describe steps to reproduce
-   - Provide example .blend file if possible
-
-2. **Suggest Features:**
-   - Explain the use case
-   - Describe expected behavior
-   - Consider edge cases
-
-3. **Submit Improvements:**
-   - Fork the code
-   - Make your changes
-   - Submit with clear description
-
----
-
-## 📜 Version History
-
-### Version 1.0.0 (Current)
-- Initial release
-
-
----
-
 ## 🙏 Credits
 
 **Concept & Development:** Stephan Viranyi + Claude AI  
@@ -213,3 +167,6 @@ Feel free to modify and redistribute with attribution.
 
 **Happy Modeling! 🎨✨**
 
+---
+
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

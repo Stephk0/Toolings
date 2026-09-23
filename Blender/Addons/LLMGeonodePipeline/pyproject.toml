@@ -5,7 +5,7 @@ description = "MCP server that reads a Blender Geometry Nodes graph as an annota
 authors = [{ name = "Stephan Viranyi (Stephko)" }]
 requires-python = ">=3.10"
 dependencies = [
-    "mcp[cli]>=1.2.0",
+    "mcp[cli]>=1.2.0,<2",
     "pillow>=10.0.0",
 ]
 

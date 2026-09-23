@@ -4,12 +4,12 @@
 
 ## 📑 Table of Contents
 
-- [Installation Quick Commands](#installation-quick-commands)
-- [Blender Addon Commands](#blender-addon-commands)
-- [Export Presets](#export-presets)
-- [Common Workflows](#common-workflows)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Troubleshooting Quick Fixes](#troubleshooting-quick-fixes)
+- [Installation Quick Commands](#-installation-quick-commands)
+- [Blender Addon Commands](#-blender-addon-commands)
+- [Export Presets](#-export-presets)
+- [Common Workflows](#-common-workflows)
+- [Keyboard Shortcuts](#️-keyboard-shortcuts)
+- [Troubleshooting Quick Fixes](#-troubleshooting-quick-fixes)
 
 ---
 
@@ -17,18 +17,16 @@
 
 ### Blender Addon Install
 ```
-Method 1 (Direct):
-Edit → Preferences → Add-ons → Install → Select .py file → Enable
-
-Method 2 (Manual):
-Copy to: %APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\
-Restart Blender → Enable in Preferences
+Get the zip:  Blender/Addons/<Tool>/distribution/<Tool>_v<ver>.zip
+Install:      drag the zip onto Blender
+         or:  Edit → Preferences → Add-ons → Install from Disk… → select zip → Enable
 ```
 
 ### Geometry Nodes Install
 ```
 Preferences → File Paths → Asset Libraries → Add Folder
-Set: [Path]/Blender/Geonodes/ with "Link" import method
+Set: [Path]/Blender/  (not Blender/Geonodes/) with "Link" import method
+Use: Add Modifier → ST3E
 ```
 
 ### 3DS Max Install
@@ -52,25 +50,26 @@ Restart 3DS Max
 ### Full Addon Roster (versions)
 | Addon | Ver | Access |
 |-------|-----|--------|
-| Mass Collection Exporter | 13.6.2 | `N` Panel → Mass Exporter |
+| Mass Collection Exporter | 13.7.0 | `N` Panel → Mass Exporter |
 | Synced Modifiers | 2.5.0 | `N` Panel → Item |
 | Compositor Render Sets | 2.0.0 | Compositor → `N` Panel |
 | Modifier List (Stephko fork) | 1.9.89 | Properties → Modifiers / popup |
-| Tile UV Projector | 1.2.1 | `N` Panel (UV) |
+| Tile UV Projector | 1.8.0 | `N` Panel (UV) |
 | Add Bounds To Name | 1.1.3 | `N` Panel → Bounds Name |
 | Edge Constraint Mode | 1.1.2 | `F3` / header toggle |
 | Skin Transfer Setup | 1.3.0 | `N` Panel |
 | Quick Animation Export | 1.0.9 | `N` Panel |
-| Animation Layers Quick Export | 0.3.0 | `N` Panel |
+| Library Relink | 1.0.0 | `N` Panel → Relink |
+| Library Publisher | 1.3.0 | Preferences / CLI |
 | Smart Crease | 1.5.1 | `F3` → Smart Crease |
 | Smart Collapse | 1.0.0 | `F3` → Smart Collapse |
 | Smart Set Orientation | 1.5.0 | `F3` → Smart Orientation |
 | Center Edges/Loops | 1.5.1 | `F3` → Center Loops |
 | Edit Mode Overlay | 1.1.0 | `N` Panel → Overlay |
 | Toggle Modifier Display | 1.3.0 | `D` / `Shift+D` in Edit Mode |
-| **ST3E Geometry Nodes** | 37 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
+| **ST3E Geometry Nodes** | 53 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
 
-### Mass Exporter v13.6
+### Mass Exporter v13.7
 
 **Location:** `N` Panel → Mass Exporter tab
 
@@ -528,7 +527,8 @@ Apply Modifiers Before Join: OFF
 - [Complete Documentation](DOCUMENTATION_INDEX.md)
 - [Mass Exporter Full Guide](Blender/Addons/MassExporter/README.md)
 - [Main README](README.md)
-- [ST3E Documentation](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
+- [Geometry Nodes Library](Blender/Geonodes/README.md)
+- [3ds Max ST3E](3DSMAX/README.md)
 
 ---
 
@@ -541,8 +541,8 @@ Apply Modifiers Before Join: OFF
 
 ---
 
-**Last Updated:** June 2026  
-**Version:** 2.0
+**Last Updated:** 2026-09-23  
+**Version:** 2.1
 
 ---
 

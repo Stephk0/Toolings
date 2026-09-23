@@ -81,7 +81,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 | **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/Edit%20Mode%20Overlay/README.md) |
 | **Compositor Render Sets** | 2.0.0 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/Compositor%20Render%20Sets/README.md) |
 
-### Authoring Tooling
+### Internal Tooling
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
@@ -232,22 +232,8 @@ them: [`Blender/Knowledge/shading.md`](Blender/Knowledge/shading.md).
 
 ## 🧠 Developer Documentation
 
-For working *on* these tools rather than with them.
-
-| Document | What it covers |
-|----------|----------------|
-| **[Blender Knowledge](Blender/Knowledge/README.md)** | Index of every engineering finding — start here |
-| [bpy API gotchas](Blender/Knowledge/bpy-api-gotchas.md) | BMesh after undo, modal teardown, draw handlers, `id()` on wrappers, unique names |
-| [Export pipeline](Blender/Knowledge/export-pipeline.md) | No source mutation, hidden objects, LayerCollection exclude, `modifier_apply` vs `show_viewport` |
-| [Headless & automation](Blender/Knowledge/headless-and-automation.md) | Blender MCP, `--background` edits, headless rendering, UI screenshots |
-| [Addon architecture](Blender/Knowledge/addon-architecture.md) | The WMH `core/` + `blender/` split and its gotchas |
-| [Shading](Blender/Knowledge/shading.md) | URP shader ports, camera-space Z flip, EEVEE cavity/curvature |
-| [Geonode asset checklist](Blender/Knowledge/geonodes/asset-checklist.md) | **Start here for geonodes** — build recipe, roster, publish checklist |
-| [Geonode layout](Blender/Knowledge/geonodes/layout.md) · [nodes & fields](Blender/Knowledge/geonodes/nodes-and-fields.md) · [sockets & menus](Blender/Knowledge/geonodes/sockets-and-menus.md) · [techniques](Blender/Knowledge/geonodes/techniques.md) · [asset files](Blender/Knowledge/geonodes/asset-files.md) | Node spacing and wire lanes, field semantics, relinking, deformer patterns, demo-scene hygiene |
-| [Dependency report](Blender/Knowledge/DEPENDENCY_REPORT.md) | External-dependency audit of every geonode file |
-| [Tool folder convention](Blender/Addons/_TOOLING_STRUCTURE.md) | Per-tool layout and release steps |
-| [Shared addon-dev notes](Blender/Addons/docs/) | Cross-tool notes that are not a tool themselves |
-| [Docs site](docs-site/README.md) | Astro/Starlight build of this documentation |
+Building or changing these tools — architecture, conventions, engineering knowledge, and the
+internal geonode tooling — is covered in **[DEVELOPMENT.md](DEVELOPMENT.md)**.
 
 ---
 

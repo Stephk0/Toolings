@@ -10,15 +10,22 @@ tool (mixed case with spaces is fine, e.g. `Smart Crease`). Inside:
 
 ```
 <ToolName>/
-├── README.md          # tool overview, version, install, layout note (REQUIRED)
-├── source/            # all addon code + ancillary docs (CHANGELOG, LICENSE, plans, icons)
+├── README.md          # user/artist-facing: what it does, version, install, usage (REQUIRED)
+├── source/            # all addon code + ancillary docs:
+│   ├── DEVELOPMENT.md #   architecture, folder layout, tests, dev deploy, internals
+│   ├── CHANGELOG.md   #   version history
+│   └── CLAUDE.md      #   instructions for AI agents (only if the tool needs them)
 ├── distribution/      # the CURRENT installable zip
 │   └── archive/       # all older version zips (and legacy formats like .rar)
 └── assets/            # screenshots / doc images (only if the tool has any)
 ```
 
 ### Rules
-- **README.md** stays at the tool root — never inside `source/`.
+- **README.md** stays at the tool root — never inside `source/`. It is for **users and
+  artists**: what the tool does, how to install and use it, settings, troubleshooting.
+  Folder layouts, implementation notes, test commands, changelogs and AI-agent instructions
+  do **not** belong in it — put them in `source/DEVELOPMENT.md`, `source/CHANGELOG.md` or a
+  `CLAUDE.md`, and end the README with a one-line link to them.
 - **source/** holds everything needed to build/edit the addon: `__init__.py`, modules,
   `blender_manifest.toml`, plus tool-specific dev scripts and design/install/changelog docs.
 - **distribution/** holds exactly **one** zip — the latest version. Every older zip goes
@@ -33,16 +40,16 @@ tool (mixed case with spaces is fine, e.g. `Smart Crease`). Inside:
 2. Build the installable zip with addon files at the **archive root** (drag-and-drop ready).
 3. Move the previous `distribution/*.zip` into `distribution/archive/`.
 4. Drop the new zip into `distribution/`.
-5. Update `README.md`'s version line.
+5. Update `README.md`'s version line and add an entry to `source/CHANGELOG.md`.
 
 ## When creating a brand-new tool
-Create `<ToolName>/` with the four subfolders above, write a `README.md` from the template
-(title, version, Blender min, category, description, install, folder layout), put code in
-`source/`, and the first zip in `distribution/`.
+Create `<ToolName>/` with the four subfolders above, write a user-facing `README.md`
+(title, version, Blender min, category, description, install, usage), put code in `source/`
+with a `DEVELOPMENT.md` for the folder layout and build notes, and the first zip in
+`distribution/`.
 
 ## Notes / gotchas
-- `MassExporter/` source is internally **v13.6.0** (the folder was formerly named
-  `MassExporter_v12.4`; the old `MassExporter` WIP folder was removed). Don't be fooled by
-  the old folder name — trust `source/__init__.py` `VERSION`.
+- `MassExporter/` was formerly named `MassExporter_v12.4`. Trust `source/__init__.py`
+  `VERSION` over any version in a folder or file name.
 - `__pycache__`, `tmpclaude-*`, and scratch `.py` probes are junk — never commit them.
 - `__alqe_test_exports/` and the repo-level `docs/` are NOT tools and stay at the root.

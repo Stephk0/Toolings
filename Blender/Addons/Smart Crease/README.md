@@ -206,30 +206,12 @@ Result: Gradual sharpness falloff
 
 ---
 
-## Technical Details
-
-### Requirements
+## Requirements
 - Blender 4.0 or later (for vertex crease support)
 - Works in Edit Mode only
 - Requires active mesh object with geometry
 
-### Data Attributes
-- **Vertex Crease**: Custom float layer (`crease_vert`)
-  - Created automatically if doesn't exist
-  - Persistent across sessions
-- **Edge Crease**: Built-in edge crease attribute
-  - Native Blender attribute
-  - Range: 0.0 to 1.0
-- Both fully compatible with Subdivision Surface modifier
-
-### Performance
-- Uses BMesh for efficient per-element access
-- Batch operations on all selected elements simultaneously
-- Smooth viewport updates during modal operation
-- Single undo step per operation
-- No performance impact when not active
-
-### Keyboard Shortcuts
+## Keyboard Shortcuts
 Default keymap: **Shift+E** in Edit Mode
 - Overrides default Crease Edge tool in Vertex and Face modes
 - Same hotkey as standard edge crease for consistency
@@ -297,25 +279,6 @@ Default keymap: **Shift+E** in Edit Mode
 
 ---
 
-## Version History
-
-### Version 1.5.1 (Current)
-- Quick preset keys (1-9 = 0.1-0.9, 0 = 1.0)
-- Alt key toggle between 0 and 1
-- Decimal input via numpad
-- Shift+keys alternative for decimal input
-- Preferences for sensitivity, snap increment, HUD size
-- Full vertex/edge/face mode support
-- Modal operator with live HUD
-- Precision and snap modifiers
-
-### Version 1.0.0 (Initial Release)
-- Basic crease functionality
-- V key toggle
-- Simple mouse drag control
-
----
-
 ## Support & Links
 
 - **GitHub Repository**: [Stephko Toolings](https://github.com/Stephk0/Toolings)
@@ -339,3 +302,7 @@ This add-on is provided as-is for educational and production use. Feel free to m
 **Enjoy precise crease control with Smart Crease!** 🎨✨
 
 *Part of the Stephko Toolings collection - Professional tools for 3D artists*
+
+---
+
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

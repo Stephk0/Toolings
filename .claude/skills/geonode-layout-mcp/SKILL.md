@@ -19,8 +19,8 @@ a *visual* judgment the serialized tree can't carry; topology and writes are dat
 
 - **Suite:** `Blender/Addons/LLMGeonodePipeline/` — MCP bridge
   (`addon/`, `server.py`) + deterministic engine (`tidy_layout.py`) + shared
-  verifier (`layout_audit.py`) + orchestrator (`run_pipeline.py`). Full docs in
-  that folder's `README.md`.
+  verifier (`layout_audit.py`) + orchestrator (`run_pipeline.py`). Usage in that
+  folder's `README.md`, internals in its `DEVELOPMENT.md`.
 - **MCP server name:** `geonode-layout` (configured under the `Toolings` project in
   `~/.claude.json`). Tools: `capture_graph`, `apply_layout`, `autolayout_pass`, plus
   (v1.2.0) the self-sufficiency tools `execute_blender_code`, `get_scene_info`,
@@ -211,6 +211,6 @@ so a single frame around both ends drags the whole loop body left of its own inp
   rule set both engines are checked against.
 - `prepare_capture.py` — open + frame a node editor and start the server.
 - `GEONODE_CRITERIA.md` — the canonical creation/tidying criteria (read it first).
-- Suite `README.md`. Rules memory:
+- Suite `README.md` + `DEVELOPMENT.md`. Rules memory:
   `feedback_gn_node_layout_spacing`; rewiring safety: `feedback_gn_link_rewire_gotchas`
   (relink by identifier, viewer dynamic sockets, geometry-unchanged gate).

@@ -40,32 +40,6 @@ instead of absolute (requires the file to be saved).
 - Detail box showing current → new path for the selected entry
 - Confirmation popup (library reload is not undoable), per-library error reporting
 
-## Layout
+---
 
-```
-LibraryRelink/
-├── README.md
-├── install_to_blender.ps1     # dev deploy to newest Blender (restart required)
-├── source/
-│   ├── __init__.py            # bl_info + register wiring only
-│   ├── blender_manifest.toml
-│   ├── core/                  # bpy-free planning logic (relink.py)
-│   ├── blender/               # properties / operators / panels
-│   └── tests/                 # pytest over core/ — runs without Blender
-└── distribution/              # installable zip (+ archive/)
-```
-
-## Development
-
-```
-cd LibraryRelink
-python -m pytest source/tests -q     # core logic tests, no Blender needed
-./install_to_blender.ps1             # deploy to newest installed Blender
-```
-
-## Changelog
-
-### v1.0.0 (2026-07-16)
-- Initial release (WMH architecture: bpy-free core + blender UI split)
-- Preview plan (Relink / Missing / Filtered / Unchanged) with per-library include toggles
-- Source-folder filter, relative-path option, reload with error reporting
+[Developer notes](source/DEVELOPMENT.md) · [changelog](source/CHANGELOG.md)

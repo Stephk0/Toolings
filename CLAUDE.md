@@ -44,6 +44,7 @@ trust `source/__init__.py` / `blender_manifest.toml`.
 | Publishing the asset library | skill `publish-library` / `publish-library-config` |
 | Unity / C# | `Unity/CLAUDE.md` |
 | Resuming earlier work | skill `continue-last` (Serena `continuation-brief-*` memories) |
+| Developer doc map | `DEVELOPMENT.md` |
 
 ## Hard rules
 
@@ -57,6 +58,9 @@ trust `source/__init__.py` / `blender_manifest.toml`.
 - **Comment geonodes like code** — labeled frames and named nodes.
 - Do not remove features or rename things arbitrarily; update the tool's README and
   CHANGELOG with every behavior change.
+- **READMEs are user/artist-facing.** Agent instructions, implementation notes, folder
+  layouts and changelogs go in `CLAUDE.md`, `source/DEVELOPMENT.md` and `source/CHANGELOG.md`
+  — see `DEVELOPMENT.md` at the repo root for the map.
 
 ## Tooling
 
