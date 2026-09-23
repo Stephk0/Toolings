@@ -21,6 +21,8 @@ _icons/
   embed_icons.py   STAGE B — write those PNGs into each .blend as the asset preview
   make_frames.py   regenerates frames/*.png (one per catalog)
   coverage.py      which modifiers still have no recipe / no preview
+  gallery.py       writes the icon gallery block into ../README.md
+  readme_tables.py fills the Icon column of ../README.md's reference tables
   recatalog_groups.py  puts the GNG_* helpers on the ST3E/Group catalog
   verify_embed.py  cold-reads every closed .blend and checks the preview landed
   gallery.py       writes the icon gallery into ../README.md (plain Python, no Blender)
@@ -47,6 +49,7 @@ cd D:\Stephko_Tooling\Toolings\Blender\Geonodes\_icons
 python gallery.py                                                      # refresh the README gallery
 & $B --background --factory-startup --python embed_icons.py           # WRITES the .blends
 & $B --background --factory-startup --python verify_embed.py          # cold check, always run this
+python gallery.py ; python readme_tables.py                            # refresh ../README.md
 ```
 
 Frames only need regenerating when `make_frames.py` changes; the icons
