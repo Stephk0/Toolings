@@ -1,5 +1,7 @@
 # Stephko Toolings
 
+![ST3E Geometry Nodes library in the Asset Browser, next to the character example scene](Blender/Examples/ST3E_Library_Overview.jpg)
+
 > Production-ready tools for Blender, Unity, and 3DS Max workflows
 
 [![Blender](https://img.shields.io/badge/Blender-5.0%20%C2%B7%204.5+-orange.svg)](https://www.blender.org/)
