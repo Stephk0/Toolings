@@ -1,5 +1,18 @@
 # Changelog — LLM Geonode Pipeline
 
+## Unreleased — 2026-09-26
+
+- **Shader trees.** `tidy_layout` / `place_output_rightmost` no longer require Group
+  Input/Output nodes: material, world and light trees use their active output node
+  (`io_nodes`). New `tidy_shader(tree)` lays out a shader graph with the layered pass and
+  Blender's own curved wires (the orthogonal reroute routing made shader graphs harder to
+  read), and parks nodes that don't reach the output in a grey `Unused` frame below the
+  graph. Gated by `logical_links` — real-node connections through reroutes must be
+  identical before and after. First used on the 21 materials of the character example.
+- **Fix:** `place_output_rightmost` compared node wrappers with `is`, which never matches
+  for bpy wrappers, so the output was never aligned to its feeder and got a reroute
+  detour. Now `==`. Geonode trees get the same alignment.
+
 ## v1.3.0 — 2026-08-19
 
 Wire-legibility release. Found by a user image-diff on **SH_ScreenCavity**: the

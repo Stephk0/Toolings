@@ -23,6 +23,16 @@ def isock_or_extend(node, ident):
         s = next((s for s in node.inputs if s.identifier == '__extend__'), None)
     return s
 def fname_of(n): return n.parent.name if n.parent else None   # frame identity by NAME (bpy wrappers fail `is`)
+SHADER_OUTPUTS = ("ShaderNodeOutputMaterial", "ShaderNodeOutputWorld", "ShaderNodeOutputLight")
+def io_nodes(ng):
+    """(group input or None, output node). Material/world/light trees have no group I/O:
+    their active output node stands in for the Group Output."""
+    g_in = next((n for n in ng.nodes if n.bl_idname == "NodeGroupInput"), None)
+    g_out = next((n for n in ng.nodes if n.bl_idname == "NodeGroupOutput"), None)
+    if g_out is None:
+        outs = [n for n in ng.nodes if n.bl_idname in SHADER_OUTPUTS]
+        g_out = next((n for n in outs if n.is_active_output), outs[0] if outs else None)
+    return g_in, g_out
 def est_h(n):
     if n.dimensions.y > 0:                        # actual drawn size (0 when headless/pre-draw)
         return n.dimensions.y / _uiscale()
@@ -40,8 +50,7 @@ def tidy_layout(ng, col_gap=130, row_gap=55, band_gap=120, label_pad=48):
     so stacked clusters (gizmos) have room for clean fan-outs. (run with a SINGLE Group Input)"""
     nodes = [n for n in ng.nodes if n.bl_idname != "NodeFrame"]
     for f in [x for x in ng.nodes if x.bl_idname == "NodeFrame"]: f.location = (0.0, 0.0)
-    g_in = next(n for n in nodes if n.bl_idname == "NodeGroupInput")
-    g_out = next(n for n in nodes if n.bl_idname == "NodeGroupOutput")
+    g_in, g_out = io_nodes(ng)
     preds = {n: set() for n in nodes}
     for l in ng.links:
         if l.from_node.bl_idname == "NodeFrame" or l.to_node.bl_idname == "NodeFrame": continue
@@ -119,14 +128,15 @@ def tidy_layout(ng, col_gap=130, row_gap=55, band_gap=120, label_pad=48):
         band_h = max((top - pad) - (n.location.y - est_h(n)) for n in bn)
         top -= (band_h + band_gap)
         band_x = lx + 140            # next band cascades right of this one's actual width
-    g_in.location = (-340, top / 2.0)
+    if g_in is not None:
+        g_in.location = (-340, top / 2.0)
     g_out.location = (band_x + 160, top / 2.0)
 
 def place_output_rightmost(ng):
-    gout = next(n for n in ng.nodes if n.bl_idname == 'NodeGroupOutput')
-    others = [n for n in ng.nodes if n.bl_idname not in ('NodeFrame', 'NodeGroupOutput')]
+    gout = io_nodes(ng)[1]
+    others = [n for n in ng.nodes if n.bl_idname != 'NodeFrame' and n != gout]
     maxr = max(n.location.x + (n.width or 140) for n in others)
-    feed = [l.from_node for l in ng.links if l.to_node is gout and l.from_node.bl_idname != 'NodeReroute']
+    feed = [l.from_node for l in ng.links if l.to_node == gout and l.from_node.bl_idname != 'NodeReroute']
     if feed: gout.location.y = feed[0].location.y
     gout.location.x = maxr + 260   # clear of content + room for its reroute bus (rx = x-140)
 
@@ -1169,6 +1179,69 @@ def tidy_and_route(ng):
     return {"local_gis": n_gi, "node_entries": n_ne, "hv": n_hv, "fan": n_fb,
             "around": n_ia, "framed_reroutes": n_fr, "frame_shifts": n_sep,
             "lane_shifts": n_lane}
+
+
+def _real_sources(sock):
+    """Upstream (node name, socket identifier) pairs of an input, through reroutes."""
+    out = []
+    for l in sock.links:
+        if l.is_muted: continue
+        if l.from_node.bl_idname == "NodeReroute":
+            out += _real_sources(l.from_node.inputs[0])
+        else:
+            out.append((l.from_node.name, l.from_socket.identifier))
+    return out
+
+def logical_links(ng):
+    """Set of real-node connections, ignoring reroutes -- the gate for layout-only passes."""
+    return {(src, n.name, s.identifier)
+            for n in ng.nodes if n.bl_idname not in ("NodeReroute", "NodeFrame")
+            for s in n.inputs for src in _real_sources(s)}
+
+def tidy_shader(ng, park_unused=True, frame_name="Unused"):
+    """Layout pass for material / world / light trees.
+
+    Shader graphs read best with Blender's own curved wires, so this runs the layered
+    `tidy_layout` without the orthogonal reroute routing. Nodes that don't reach the
+    active output are parked in a grey `Unused` frame below the live graph (links from
+    live nodes into them are kept as direct wires). Returns (parked, links_unchanged)."""
+    before = logical_links(ng)
+    _, out = io_nodes(ng)
+    live, stack = set(), [out]
+    while stack:
+        n = stack.pop()
+        if n.name in live: continue
+        live.add(n.name)
+        stack += [l.from_node for s in n.inputs for l in s.links if not l.is_muted]
+    dead = [n for n in ng.nodes if n.bl_idname not in ("NodeFrame", "NodeReroute") and n.name not in live]
+    dissolve_reroutes(ng)
+    cross = []
+    if park_unused and dead:
+        fr = ng.nodes.get(frame_name) or ng.nodes.new("NodeFrame")
+        fr.name = fr.label = frame_name
+        fr.use_custom_color = True; fr.color = (0.22, 0.22, 0.22)
+        for n in dead: n.parent = fr
+        deadset = {n.name for n in dead}
+        for l in list(ng.links):             # live -> parked links would drag the band into the graph
+            if l.to_node.name in deadset and l.from_node.name not in deadset:
+                cross.append((l.from_node.name, l.from_socket.identifier,
+                              l.to_node.name, l.to_socket.identifier, l.is_muted))
+                ng.links.remove(l)
+    tidy_layout(ng)
+    place_output_rightmost(ng)
+    if cross or (park_unused and dead):
+        kids = [n for n in ng.nodes if n.parent and n.parent.name == frame_name]
+        rest = [n for n in ng.nodes if n.bl_idname != "NodeFrame" and n not in kids]
+        if kids and rest:
+            dx = min(n.location.x for n in rest) - min(n.location.x for n in kids)
+            dy = (min(n.location.y - est_h(n) for n in rest) - 260) - max(n.location.y for n in kids)
+            for n in kids:
+                n.location.x += dx; n.location.y += dy
+        for fn, fs, tn, ts, muted in cross:
+            l = ng.links.new(osock(ng.nodes[fn], fs), isock_or_extend(ng.nodes[tn], ts))
+            l.is_muted = muted
+    for n in ng.nodes: n.select = False
+    return len(dead), before == logical_links(ng)
 
 
 def eval_positions(obj, m, pid, preview):
