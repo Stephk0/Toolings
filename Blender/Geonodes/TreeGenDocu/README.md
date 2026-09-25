@@ -232,7 +232,7 @@ Questions? Check the other documentation files!
 **Contact:** stephko@viranyi.de
 **Portfolio:** https://www.artstation.com/stephko
 **Last Updated:** 2025-12-03
-**License:** Part of Stephko Toolings
+**License:** Part of ST3E — Stephko's 3D Extensions
 
 ---
 

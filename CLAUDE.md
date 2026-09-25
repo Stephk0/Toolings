@@ -1,4 +1,4 @@
-# Stephko Toolings — agent guide
+# ST3E (Stephko's 3D Extensions) — agent guide
 
 Production tools for Blender (active), Unity (occasional), and 3DS Max (maintenance only,
 bug fixes). Author: Stephan Viranyi (Stephko).

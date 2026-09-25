@@ -1,4 +1,4 @@
-# Stephko Toolings — docs site
+# ST3E — docs site
 
 Astro + Starlight documentation for the Blender / Unity / 3DS Max tools collection.
 

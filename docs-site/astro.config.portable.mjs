@@ -13,7 +13,7 @@ export default defineConfig({
   outDir: './dist-portable',
   integrations: [
     starlight({
-      title: 'Stephko Toolings',
+      title: 'ST3E',
       description: 'Production-ready Blender, Unity, and 3DS Max tools by Stephan Viranyi.',
       social: {
         github: 'https://github.com/Stephk0/Toolings',

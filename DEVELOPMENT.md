@@ -1,4 +1,4 @@
-# Developing Stephko Toolings
+# Developing ST3E (Stephko's 3D Extensions)
 
 For building, changing, or releasing the tools. Artist-facing docs live in the
 [README](README.md) and each tool's own `README.md`; this page is the map for everything behind

@@ -1,4 +1,4 @@
-# Stephko Toolings - Documentation Index
+# ST3E — Documentation Index
 
 > Complete documentation for Blender, Unity, and 3DS Max toolings by Stephan Viranyi
 
@@ -158,7 +158,7 @@ them: [`Blender/Knowledge/shading.md`](Blender/Knowledge/shading.md).
 **Repo README:** [3DSMAX/README.md](3DSMAX/README.md)
 **Full Documentation:** [ST3E Google Docs](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing)
 
-**ST3E** (Stephko's 3ds Max Extensions) is a comprehensive MaxScript collection for enhanced
+The **3ds Max tools** are where ST3E (Stephko's 3D Extensions) started — a comprehensive MaxScript collection for enhanced
 3DS Max workflows.
 
 ### Custom Modifiers (`3DSMAX/Modifiers/Custom Modifiers/`)

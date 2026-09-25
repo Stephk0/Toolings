@@ -529,7 +529,7 @@ For issues, suggestions, or contributions:
 
 **Happy Rendering! 🎨✨**
 
-*Part of the Stephko Toolings collection - Professional tools for Blender artists*
+*Part of ST3E — Stephko's 3D Extensions*
 
 ---
 

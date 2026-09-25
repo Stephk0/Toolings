@@ -1,4 +1,4 @@
-# Stephko Toolings - Quick Reference
+# ST3E — Quick Reference
 
 > Fast lookup guide for common tasks and commands
 

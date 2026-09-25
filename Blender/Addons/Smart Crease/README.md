@@ -6,7 +6,7 @@ Integrates particullary well with Solidify Plus using crease edges from vertex c
 **Version**: 1.5.1  
 **Blender**: 4.0+  
 **Author**: Stephan Viranyi + Claude  
-**Repository**: [Stephko Toolings](https://github.com/Stephk0/Toolings)
+**Repository**: [ST3E](https://github.com/Stephk0/Toolings)
 
 ---
 
@@ -281,7 +281,7 @@ Default keymap: **Shift+E** in Edit Mode
 
 ## Support & Links
 
-- **GitHub Repository**: [Stephko Toolings](https://github.com/Stephk0/Toolings)
+- **GitHub Repository**: [ST3E](https://github.com/Stephk0/Toolings)
 - **Author Portfolio**: [Stephan Viranyi on ArtStation](https://www.artstation.com/stephko)
 - **Issues**: Report bugs or request features on GitHub
 
@@ -301,7 +301,7 @@ This add-on is provided as-is for educational and production use. Feel free to m
 
 **Enjoy precise crease control with Smart Crease!** 🎨✨
 
-*Part of the Stephko Toolings collection - Professional tools for 3D artists*
+*Part of ST3E — Stephko's 3D Extensions*
 
 ---
 

@@ -129,4 +129,4 @@ Research on Blender's naming system:
 
 ---
 
-*Part of the Stephko Toolings addon set (`Blender/Addons/`)*
+*Part of ST3E — Stephko's 3D Extensions*

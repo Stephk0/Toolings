@@ -1,4 +1,4 @@
-# Stephko Toolings
+# ST3E — Stephko's 3D Extensions
 
 ![ST3E Geometry Nodes library in the Asset Browser, next to the character example scene](Blender/Examples/ST3E_Library_Overview.jpg)
 
@@ -11,6 +11,11 @@
 Free Blender addons, a 53-modifier Geometry Nodes library, shader ports, and a legacy 3ds Max
 toolkit — built for and tested in real production.
 **Every tool below links straight to its docs and its installable zip.**
+
+**Why "ST3E"?** It is the name for the whole toolset, not just one part of it. Three letters
+you can type with one hand, so it is quick to call up and search for — and wherever it
+appears (the *Add Modifier → ST3E* menu, the `ST3E` asset tag, these docs) it leads you to the
+rest of the tools.
 
 ---
 
@@ -41,7 +46,7 @@ toolkit — built for and tested in real production.
 
 ---
 
-## 🧱 Geometry Nodes — the ST3E library
+## 🧱 Geometry Nodes library
 
 **53 modifiers** straight from **Add Modifier → ST3E**: deformers, generators, topology and
 attribute tools. Every one has an Asset Browser icon and ships with a demo object.
@@ -61,7 +66,7 @@ attribute tools. Every one has an Asset Browser icon and ships with a demo objec
 
 - **[Shading](Blender/Shading/README.md)** — Blender re-creations of Unity URP shaders, plus cavity and curvature effects
 - **[Unity — Model Import Processor](Unity/ModelImportProcessor/README.md)** — automated FBX/model import pipeline (Unity 2019.4+)
-- **[3ds Max — ST3E](3DSMAX/README.md)** — MaxScript tools and custom modifiers. ⚠️ Maintenance only since 2023.
+- **[3ds Max](3DSMAX/README.md)** — the original ST3E MaxScript tools and custom modifiers. ⚠️ Maintenance only since 2023.
 
 ---
 

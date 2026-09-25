@@ -1,6 +1,6 @@
-# ST3E - Stephko's 3ds Max Extensions
+# ST3E for 3ds Max
 
-**Full Name:** Stephko's 3ds Max Extensions  
+**Full Name:** Stephko's 3D Extensions — the 3ds Max tools, where the toolset started  
 **Version:** Final Release (2023)  
 **Status:** 📦 Archived - Development Discontinued  
 **License:** Free to share and extend
@@ -37,14 +37,14 @@
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Installation](#installation)
-- [Scripts](#scripts)
-- [Custom Modifiers](#custom-modifiers)
+- [Overview](#-overview)
+- [Installation](#-installation)
+- [Scripts](#-scripts)
+- [Custom Modifiers](#-custom-modifiers)
 - [Toolsets](#toolsets)
-- [Usage Examples](#usage-examples)
-- [Known Issues](#known-issues)
-- [External Documentation](#external-documentation)
+- [Usage Examples](#-usage-examples)
+- [Known Issues](#️-known-issues)
+- [External Documentation](#-external-documentation)
 
 ---
 
