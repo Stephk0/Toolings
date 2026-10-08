@@ -9,9 +9,34 @@
   read), and parks nodes that don't reach the output in a grey `Unused` frame below the
   graph. Gated by `logical_links` — real-node connections through reroutes must be
   identical before and after. First used on the 21 materials of the character example.
+- **Framed shader graphs** (`shader_rows_layout`, used by `tidy_shader` when the tree has
+  function frames): one row per frame, rows ordered by the shader input they feed (Base
+  Color on top, Normal at the bottom), columns shared by all rows, shader + output on the
+  right. The `tidy_layout` cascade staircased shader frames diagonally with long wires.
 - **Fix:** `place_output_rightmost` compared node wrappers with `is`, which never matches
   for bpy wrappers, so the output was never aligned to its feeder and got a reroute
   detour. Now `==`. Geonode trees get the same alignment.
+- **Polish pass** (`polish_layout.py`, optional, GUI only). Re-verifies a tidied graph
+  against the socket positions Blender actually draws and straightens the last hop of each
+  wire (P1: every link touching a reroute is horizontal or vertical). Slides reroute runs
+  onto the real socket Y or adds a right-angle jog, gated run by run on fewer kinks and no
+  blocking rule getting worse. First run: GN_CurveFromSurface 45→0, its Sweep Curve helper
+  42→4, GN_DistributeObjectOnSurface 36→2, GN_SpawnObjectsAlong 34→2, UV Curve to Mesh
+  65→0. Library run (2026-09-26): 46 more files saved, 2096→216 kinked links.
+- **Polish is fast on big graphs** (`LocalGate`): each fix is gated only on the wires,
+  reroutes and frames it touches, against a cache of the rest, instead of a full
+  re-audit per attempt. GN_Mosaic went from a 30-minute timeout to 4 minutes. Rerun:
+  GN_Mosaic 1206→234, GN_TileableMeshNoise 792→179, GN_VertexDataComposer 546→10.
+- **`group_frames.py`** (Setup for huge graphs, GUI only): collapses large labeled frames
+  into `GNG_<Tool>_<Frame>` helper groups so the tidy and polish work in chunks. Zones are
+  never split; geometry is checked after every frame. GN_Mosaic main tree 3050 → 508 nodes
+  (8 helpers), GN_TileableMeshNoise 1957 → 120 (4 helpers).
+- **Polish fixes from the library run:** the SDNA parser aligned padding to the file offset
+  instead of the block start (failed on most files); the CLI now saves when no blocking rule
+  got *worse* instead of requiring zero failures (pre-existing ones are reported); files
+  with no tree named after them fall back to every local modifier tree.
+- **Fix:** R10 flagged `Invert Selection` as a loose input, although the criteria require it
+  directly beneath `Selection`. It is now allowed top-level with `Geometry` and `Selection`.
 
 ## v1.3.0 — 2026-08-19
 

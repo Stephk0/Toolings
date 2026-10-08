@@ -10,6 +10,7 @@ Node behaviour that differs from what the UI suggests.
 - [Single-input Mesh Boolean UNION is a passthrough](#feedback_gn_mesh_boolean_selfunion)
 - [Vertex data channels FBX actually carries](#feedback_gn_vertex_data_channels)
 - [For-Each preview streams and tube noise](#feedback_gn_foreach_gen_preview_and_tube_noise)
+- [A material index is local to the geometry it sits on](#gn_material_index_is_local)
 
 <a id="feedback_gn_field_on_domain_is_source"></a>
 
@@ -221,3 +222,16 @@ Two verified techniques from EdgeDestruct extra-tube preview work (2026-07-20):
    type-zero legacy backfill of those is harmless (0 = valid). Related:
    [Geonode sockets, interfaces and menus](sockets-and-menus.md#feedback_gn_new_socket_backfills_zero), [Geonode nodes, fields and domains](nodes-and-fields.md#feedback_gn_mesh_boolean_selfunion),
    [Geonode techniques](techniques.md#feedback_gn_deformer_center_gizmo_symmetry).
+
+<a id="gn_material_index_is_local"></a>
+
+## A material index is local to the geometry it sits on
+
+*Set Material Index on freshly generated geometry does NOT mean "the object's slot N" — Join Geometry remaps it. And an empty Material socket on Set Material is not "leave it alone".*
+
+A material index numbers the slots of the geometry carrying it. Generated geometry (Grid, Mesh Circle, …) starts with an EMPTY slot list, so an index set on it before a `Join Geometry` is meaningless: the join appends an empty slot for that geometry and remaps its faces onto it. Symptom (GN_QuadCap v2, 2026-09-23): caps asked for index 1 came out on index 0, and -1 / 0 both came out on index 2 of a 2-slot object.
+
+**How to apply:** set material indices **after** the join, selecting the generated faces by a captured field (`Capture Attribute` bool on FACE survives Join and Merge by Distance). Then the number means the object's own slot, which is what a user reads as a "material ID". Two more from the same build:
+
+- **`Set Material` with an empty Material socket clobbers.** It appends an empty slot and points the selected faces at it; it does not skip. Verified on a 1-slot grid: indices went 0 -> 1 with nothing linked. So an optional material assignment needs its own toggle (`Use Cap Material`), not just an unset socket.
+- **Order matters:** `Set Material Index` after `Set Material` overwrites the assignment. Index first, material second, so an explicitly assigned material wins.

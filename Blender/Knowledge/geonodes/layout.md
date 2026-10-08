@@ -7,6 +7,7 @@ Node spacing, frames and wire lanes. Enforced by the `geonode-layout-mcp` skill.
 - [Node spacing and frames](#feedback_gn_node_layout_spacing)
 - [Wire lane legibility](#feedback_gn_wire_lane_legibility)
 - [The pipeline tidies every group, helpers included](#feedback_geonode_pipeline_tidies_every_group)
+- [Reading drawn socket positions (no RNA for them)](#socket_runtime_location)
 
 <a id="feedback_gn_node_layout_spacing"></a>
 
@@ -192,3 +193,26 @@ the `geonode-layout-mcp` skill. See [Geonode techniques](techniques.md#project_g
   GN_SimpleTransform, GN_Solidify2, GN_SplitByAttribute, GN_CollectionInstancer,
   GN_DisplaceByImage, GN_EdgeDestruct*, GN_VariousTest, GN_AttributeFunctions_4.5,
   GN_treeGenerator_03). `process_file` hard-requires `node_groups[fname]`.
+
+<a id="socket_runtime_location"></a>
+
+## Reading drawn socket positions (no RNA for them)
+
+*`NodeSocket` has no location property; read `bNodeSocket.runtime->location` via ctypes, only after the editor drew the tree*
+
+Verified 2026-09-26 on Blender 5.0 (`LLMGeonodePipeline/polish_layout.py`). Headless
+socket-height estimates were off by up to 88px (vector sliders, dropdowns, panels), which
+is why tidied graphs showed short diagonal stubs into sockets.
+
+- Offset of `runtime` in `bNodeSocket`: parse the SDNA block of an uncompressed copy of the
+  current file (`save_as_mainfile(copy=True, compress=False)`); it was 520 on 5.0.
+- Offset of `location` inside the runtime: calibrate on reroutes — a reroute's socket sits
+  exactly at the reroute's location. It was 24 bytes on 5.0.
+- The value is in view space: **node space × `preferences.system.ui_scale`**. The same
+  applies to `region.view2d.view_to_region` — pass node coordinates × `ui_scale`.
+- Positions exist only after a draw: pin the tree in a node editor
+  (`space.pin = True; space.node_tree = ng`) and run `wm.redraw_timer(type='DRAW_WIN_SWAP')`.
+  Not available in `--background`.
+- `bpy.ops.node.view_selected` did nothing from a timer-driven script; `view2d.zoom_border`
+  + `view2d.pan` on region coordinates worked for screenshots.
+

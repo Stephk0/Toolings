@@ -97,6 +97,12 @@ layout_audit.print_report(layout_audit.audit(ng))`):
 — tidying is held to the SAME bar as authoring (function frames, panels + naming,
 per-function group inputs, subway wiring). The audit mirrors it as R1–R13.
 
+**Circuit-diagram model (read this first):** judge a graph like a schematic — main
+geometry path as a straight spine, functions as boxed sub-circuits, parameters as local
+net labels instead of wires across the sheet, parallel lanes bundled as buses, wires
+square on their pins. Setup = schematic capture, Tidy = placement + routing, Polish =
+design-rule check. Table in `GEONODE_CRITERIA.md` → "The circuit-diagram model".
+
 **Subway-map principle (the visual north star):** you must be able to trace which
 station (node) feeds which via which line. Lines/reroutes/nodes should almost never
 intersect or obstruct — reroutes build *around* nodes in the way, kept horizontal &
@@ -206,6 +212,13 @@ so a single frame around both ends drags the whole loop body left of its own inp
 ## Companion files (all in `LLMGeonodePipeline/`)
 
 - `run_pipeline.py` — default orchestrator: tidy → verify both goals → save.
+- `group_frames.py` — Setup for HUGE graphs (hundreds of nodes): collapses big labeled
+  frames into `GNG_<Tool>_<Frame>` helpers so tidy/polish work in chunks. GUI only;
+  run before `run_pipeline`.
+- `polish_layout.py` — optional second pass once a graph is done: measures wires against
+  the DRAWN socket positions and straightens reroute stubs into sockets (P1). GUI Blender
+  only (`blender --factory-startup <file> --python polish_layout.py -- GN_X --check|--save`,
+  or `polish_live(ng)` in a live session). Run it after `run_pipeline`, not instead of it.
 - `tidy_layout.py` — deterministic engine (`tidy_and_route`, `process_file`).
 - `layout_audit.py` — score a tree against R1–R13 (CLI or importable); the shared
   rule set both engines are checked against.
