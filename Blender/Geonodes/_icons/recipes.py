@@ -676,6 +676,36 @@ RECIPES = {
         expect="attribute:grown",
     ),
 
+    # ---- extracted from the character example, 2026-09-25 -------------------
+    # Builds a tube along the surface's open border, so the subject needs one:
+    # the crown is cut off, and Keep Geometry leaves the head under the rim.
+    "GN_CurveFromSurface": dict(
+        short="Curve Surf",
+        catalog="Generate",
+        prep=[("subsurf", 1), "shade_smooth",
+              ("mark_open_boundary", "z", 0.35)],
+        params={"Keep Geometry": True, "Auto Border from Surface": True,
+                "Profile Shape": "Circle", "Curve Cross Resolution": 6,
+                "Base Profile Radius": 0.035, "Curve Radius": 1.0},
+        expect="verts_up",
+    ),
+
+    # "Distribution Object" is the name of BOTH a Menu and an Object socket, so
+    # the menu has to be addressed as "#1". Its Cube mode means no helper.
+    "GN_DistributeObjectOnSurface": dict(
+        short="Distribute",
+        catalog="Scatter",
+        prep=["shade_smooth"],
+        # Scale is a multiplier on an already-small base cube: at 0.2 the
+        # instances are invisible specks, so it needs whole numbers.
+        params={"Distribution Object#1": "Cube",
+                "Distribution Mode": "Vertices",
+                "Self Surface": True, "Keep Surface": True,
+                "Subdiv Level": 0, "Grow Iterations": 0,
+                "Scale": (2.2, 2.2, 2.2)},
+        expect="verts_up",
+    ),
+
     # ---- ST3E/Shading: shader node groups ------------------------------------
     # Not modifiers - Suzanne wears a material instancing the group, set up
     # like each file's own demo material (group Color -> Principled Base
