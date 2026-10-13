@@ -1,0 +1,11 @@
+# Release spec for Smart Set Orientation, read by Blender/Addons/_release/release.py.
+# Inferred from SmartSetOrientation_v1.5.0.zip on 2026-10-08; edit freely.
+zip_stem = "SmartSetOrientation"
+wrapper = "SmartSetOrientation"  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = []  # globs relative to source_dir
+exclude = ["*.md"]
+
+[files]  # published path = source path relative to the tool folder
+"README.md" = "README.md"
+"__init__.py" = "source/smart_set_orientation_addon.py"

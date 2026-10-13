@@ -1,0 +1,10 @@
+# Release spec for TileUVProjector, read by Blender/Addons/_release/release.py.
+# Inferred from TileUVProjector_v1.8.0.zip on 2026-10-08; edit freely.
+zip_stem = "TileUVProjector"
+wrapper = ""  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["LICENSE", "__init__.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["CHANGELOG.md"]
+
+[files]  # published path = source path relative to the tool folder
+"README.md" = "README.md"

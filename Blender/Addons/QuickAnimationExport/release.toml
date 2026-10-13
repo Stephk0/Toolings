@@ -1,0 +1,7 @@
+# Release spec for QuickAnimationExport, read by Blender/Addons/_release/release.py.
+# Inferred from QuickAnimationExport_v1.0.9.zip on 2026-10-08; edit freely.
+zip_stem = "QuickAnimationExport"
+wrapper = ""  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["icons/**", "__init__.py", "al_bridge.py", "operators.py", "properties.py", "ui.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["DEVELOPMENT.md", "_make_annotated_doc.py"]

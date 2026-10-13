@@ -35,12 +35,22 @@ tool (mixed case with spaces is fine, e.g. `Smart Crease`). Inside:
   Build a versioned zip on the next change (see the always-zip rule below).
 
 ## When building a new zip (release)
+
+Use the release CLI (`_release/README.md`); it does steps 1-4, rewrites the README,
+index and docs-site version lines, and verifies the zip:
+
+```
+python Blender/Addons/_release/release.py release <Tool> patch|minor|major
+```
+
+The zip's layout comes from the tool's `release.toml`. Manual steps, for reference:
 1. Bump the version in `source/__init__.py` (`bl_info` / `VERSION`) and
    `source/blender_manifest.toml`.
 2. Build the installable zip with addon files at the **archive root** (drag-and-drop ready).
 3. Move the previous `distribution/*.zip` into `distribution/archive/`.
 4. Drop the new zip into `distribution/`.
-5. Update `README.md`'s version line and add an entry to `source/CHANGELOG.md`.
+5. Update `README.md`'s version line and add an entry to `source/CHANGELOG.md`
+   (the CLI does the version line; the CHANGELOG entry is yours).
 
 ## When creating a brand-new tool
 Create `<ToolName>/` with the four subfolders above, write a user-facing `README.md`

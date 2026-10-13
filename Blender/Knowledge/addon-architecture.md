@@ -37,6 +37,8 @@ Compositor Render Sets v2.0.0 (2026-07-02) is the FIRST tool refactored to the W
 > extensions with `blender_manifest.toml` (TileUVProjector 1.8.0, LibraryPublisher 1.3.0)
 > have files at root; legacy `bl_info` addons (Smart Crease, SyncedModifiers, …) are
 > folder-wrapped. Match the tool's previous zip until this is settled.
+> Since 2026-10-08 each tool's `release.toml` records its layout and
+> `Blender/Addons/_release/release.py` builds from it.
 
 After any change to a Blender addon under `Blender/Addons/<AddonName>/`, always produce a versioned installable zip in `Blender/Addons/` (sibling to the addon folder), named `<AddonBase>_v<VERSION>.zip` (e.g. `MassExporter_v13.3.3.zip`).
 

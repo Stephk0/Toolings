@@ -1,0 +1,10 @@
+# Release spec for LLMGeonodePipeline, read by Blender/Addons/_release/release.py.
+# Inferred from LLMGeonodePipeline_v1.2.0.zip on 2026-10-08; edit freely.
+zip_stem = "LLMGeonodePipeline"
+wrapper = ""  # folder inside the zip; "" = files at the archive root
+source_dir = "addon"
+include = ["__init__.py", "compat.py", "layout.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["test_layout.py"]
+
+[files]  # published path = source path relative to the tool folder
+"README.md" = "README.md"

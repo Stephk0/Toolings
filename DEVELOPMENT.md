@@ -23,7 +23,8 @@ in the files above and link to them.
   `distribution/` (+ `archive/`) + optional `assets/`, and the release steps.
 - **Pure Python, no external dependencies** in addons. Target Blender 5.0, keep 4.5+ working.
 - **Every addon change ships a versioned zip** in `distribution/`; the previous zip moves to
-  `distribution/archive/`.
+  `distribution/archive/`. [`Blender/Addons/_release/release.py`](Blender/Addons/_release/README.md)
+  does the bump, build and archive, and `release.py check` reports drift.
 - **Exporters never mutate source data** — destructive ops run on duplicates, in-place changes
   are restored in `finally`.
 - **New tools and refactors** follow the WMH split: a bpy-free `core/` with headless pytest and
