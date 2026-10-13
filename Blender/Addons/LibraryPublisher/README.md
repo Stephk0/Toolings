@@ -1,6 +1,6 @@
 # Library Publisher
 
-**Version:** 1.3.0 · **Blender:** 4.2+ (developed and verified on 5.0) · **Category:** Import-Export
+**Version:** 1.3.1 · **Blender:** 4.2+ (developed and verified on 5.0) · **Category:** Import-Export
 
 Publishes the ST3E Blender asset library to a **Google Shared Drive**, renaming the
 asset catalogs to `ST3E_Ext` on the way out so the shared copy loads *beside* your

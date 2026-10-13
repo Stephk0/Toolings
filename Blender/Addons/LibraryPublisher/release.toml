@@ -4,4 +4,4 @@ zip_stem = "LibraryPublisher"
 wrapper = ""  # folder inside the zip; "" = files at the archive root
 source_dir = "source"
 include = ["blender/**", "checks/**", "core/**", "*.py", "blender_manifest.toml"]  # globs relative to source_dir
-exclude = ["tests/**", "DEVELOPMENT.md"]
+exclude = ["tests/**", "*.md"]
