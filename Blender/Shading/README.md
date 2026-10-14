@@ -236,8 +236,7 @@ blender.exe --background --factory-startup SH_ScreenCavity.blend --python _build
 ## ash_char_base_SSS.blend
 
 Blender re-creation of the Unity URP shader
-`ash_char_base_SSS` (Amplify Shader Editor 1.9.9.4), from
-`Project Main/unity/Assets/ProjectAres/Assets/Shader/ash_char_base_SSS.shader`.
+`ash_char_base_SSS` (Amplify Shader Editor 1.9.9.4). The Unity source shader is not part of this repo.
 
 | | |
 |---|---|

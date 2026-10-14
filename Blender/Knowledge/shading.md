@@ -14,11 +14,11 @@ Shader node work in `Blender/Shading/`: Unity URP ports and EEVEE cavity/curvatu
 
 *Blender/Shading/ holds Blender re-creations of Unity URP shaders; ash_char_base_SSS is the reference port*
 
-`D:\Stephko_Tooling\Toolings\Blender\Shading\` is the folder for Blender material networks ported from other engines (created 2026-08-03). First entry: `ash_char_base_SSS.blend` + `README.md`, a port of the Unity URP/Amplify shader at `D:\Work_DistrictGames\Project Main\unity\Assets\ProjectAres\Assets\Shader\ash_char_base_SSS.shader`.
+`D:\Stephko_Tooling\Toolings\Blender\Shading\` is the folder for Blender material networks ported from other engines (created 2026-08-03). First entry: `ash_char_base_SSS.blend` + `README.md`, a port of the Unity URP/Amplify shader `ash_char_base_SSS.shader` from a production project (the source shader is not part of this repo).
 
 **Scope widened 2026-08-14:** the folder also holds shader node groups that port *Blender's own viewport-only features* into a render engine — `SH_Cavity.blend` (Solid-viewport Cavity overlay in EEVEE) is the first, with a `_build/` build+tidy+verify script trio mirroring the `Geonodes/_build/` pattern. See [Shading](shading.md#feedback_eevee_cavity_curvature_sources).
 
-**Why:** Unity shaders for Project Ares get previewed/authored in Blender; the port needs to be behaviourally faithful, not just "looks similar".
+**Why:** production Unity shaders get previewed/authored in Blender; the port needs to be behaviourally faithful, not just "looks similar".
 
 **How to apply — porting an Amplify/URP shader:**
 - Amplify emits every pass with the same body. Only the `Forward` pass matters; `GBuffer` duplicates it, everything else reuses `Alpha`. Grep for `float3 Color = ` to confirm before reading 3000 lines.

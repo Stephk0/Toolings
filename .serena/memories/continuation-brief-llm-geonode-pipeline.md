@@ -59,7 +59,7 @@ case (NormalTransfer, RadialArray, Bend). 5-file dry-run + GN_Wave: all green, g
   (c) GN_Wave.blend re-tidied with the final engine (all gates green).
 - **UNCOMMITTED (user scoped commit):** 4 extracted library geonodes in `Blender/Geonodes/`:
   `GN_Erosion`, `GN_NoiseDisplace`, `GN_VoronoiDisplace`, `GN_RandomDistribute` — extracted from
-  `D:\Work_DistrictGames\Assets\Environment\TextureGenerator\textureGenerator_template.blend`
+  a production texture-generator template
   2026-07-09; template relinked to them (46 swaps / 23 objects eval-verified; backup
   `_pre-library-relink.bak.blend`). Roster now 31 ST3E modifiers.
 

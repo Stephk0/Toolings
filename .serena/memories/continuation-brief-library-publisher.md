@@ -15,9 +15,9 @@ core/  config selection catalogs criteria manifest delivery publish shell
 checks/ blender_inspect.py (criteria facts) · blender_remap_catalogs.py (rewrites catalog_id)
 ```
 
-**Destination:** `DistrictSharedDrive:3D/Tooling/Blender/ST3E_Ext` (team drive
-`0APZXuAVWoNn5Uk9PVA`). Deliberately a **fresh subfolder** — the sibling
-`3D/Tooling/Blender/{Geonodes,Addons,Geonodes_External}/` is a hand-made older mirror (418
+**Destination:** `<remote>:<path>/ST3E_Ext` (remote, path and team drive id live in the untracked
+`publish_config.json`). Deliberately a **fresh subfolder** — the sibling
+`<path>/{Geonodes,Addons,Geonodes_External}/` is a hand-made older mirror (418
 objects) that must stay untouched; `rclone sync` cannot reach outside its own destination, so
 `delete_extraneous` is safe to leave on.
 
@@ -91,7 +91,7 @@ Do not sweep-commit; only ever commit LibraryPublisher paths without asking.
   Blender after publishing. If it does not, the mechanism is sound and the problem lies
   elsewhere (e.g. both folders registered).
 - **6 files are withheld every publish** for genuinely broken external deps:
-  `GN_DisplaceByImage` (4 missing .tif under `D:\Work_DistrictGames\`), `GN_EdgeDestruct` and
+  `GN_DisplaceByImage` (4 missing .tif in an external project folder), `GN_EdgeDestruct` and
   `GN_MeshFromImage` (absolute Dropbox links), `GN_Solidify2` (bradley_geo_nodes_presets),
   `GN_ExtrudeSelection` (missing Higgsas lib), `GN_treeGenerator_03` (missing .py text blocks).
   Fixing these is unstarted.

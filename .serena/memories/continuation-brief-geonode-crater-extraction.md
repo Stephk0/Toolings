@@ -1,7 +1,7 @@
 # Continuation Brief — GeoNode Extraction + Crater Variants (GN_Erosion_3D / GN_CellFrac)
 
 ## Context
-Analyzed `D:\Work_DistrictGames\Assets\Environment\sm_env_masterfile_02.blend` (80 GN trees, 19 local) for library extraction. Extracted two tools into `Blender/Geonodes/` and built a crater-fracture feature set on GN_CellFrac. All work done headlessly (`blender.exe --background --factory-startup --python`, Blender 5.0); masterfile never written.
+Analyzed a production environment masterfile (80 GN trees, 19 local) for library extraction. Extracted two tools into `Blender/Geonodes/` and built a crater-fracture feature set on GN_CellFrac. All work done headlessly (`blender.exe --background --factory-startup --python`, Blender 5.0); masterfile never written.
 
 ## Progress
 - **`GN_Erosion_3D.blend`** — extracted (renamed from `GN_Erosion_fromtexgen`), self-contained, demo Cube attached. Untouched otherwise: NOT tidied, NOT asset-marked.

@@ -60,7 +60,7 @@ folder moves as a whole.
 ### GN_DisplaceByImage
 - `geometry_nodes_essentials.blend` — Blender bundled (×3)
 - Internal: GN_CollectionInstancer
-- ❌ **4 MISSING textures** from `Work_DistrictGames\Project Ares`:
+- ❌ **4 MISSING textures** from an external project folder:
   - Black_Sand_Normal.tif
   - Cliff_Mossy_A_Normal.tif
   - Pebbles_C_Normal.tif
@@ -88,8 +88,8 @@ folder moves as a whole.
 - `nd_asset_library.blend` — ND extension, AppData 4.5 (×2)
 - `geometry_nodes_essentials.blend` — Blender bundled (×2)
 - Internal (relative `//..\`): GN_AttributeFunctions_4.5, GN_GrowSelection, GN_SimpleTransform, SHG_TileableNoise
-- ❌ **MISSING texture:** Bark_Color.tif (Work_DistrictGames\Project Ares)
-- Image `GridBox_Default.png` — Work_DistrictGames (currently exists, outside repo)
+- ❌ **MISSING texture:** Bark_Color.tif (external project folder)
+- Image `GridBox_Default.png` — external project folder (currently exists, outside repo)
 
 ## 4. Recurring external sources — summary
 
@@ -99,7 +99,7 @@ folder moves as a whole.
 | 2 | bradley_geo_nodes_presets `preset.blend` | AppData extensions, split across 4.5/5.0 paths | User- and version-specific |
 | 3 | ND extension `nd_asset_library.blend` | AppData extensions (4.5) | User- and version-specific |
 | 4 | Blender bundled `geometry_nodes_essentials.blend` | `Program Files\Blender Foundation\Blender 5.0\...` | Ships with Blender, but linked via absolute versioned path — breaks on version upgrade |
-| 5 | Work_DistrictGames / WMH project textures | Sibling project folders | Several already missing on disk |
+| 5 | External / WMH project textures | Sibling project folders | Several already missing on disk |
 
 ## 5. Notes
 
