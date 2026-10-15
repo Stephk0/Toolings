@@ -125,83 +125,106 @@ def bbox_is_unit(obj):
 # Checks
 # ---------------------------------------------------------------------------
 
+def live_native(obj, op):
+    """Run a NATIVE transform op the way an interactive drag frame sees it.
+
+    Python-called operators never enter Blender's operator history, and
+    background mode has no modal transform, so the handler is told a
+    transform is running (exactly what Window.modal_operators reports during
+    a real G/R/S or gizmo drag), the op writes its free result, and the
+    depsgraph update lets the live handler snap it back.
+    """
+    from EdgeConstraintMode.blender import live
+    bmesh.update_edit_mesh(obj.data)
+    bpy.context.view_layer.update()            # idle snapshot
+    real = live.transform_running
+    live.transform_running = lambda wm: True
+    try:
+        op()
+        bpy.context.view_layer.update()        # drag frame -> projected
+    finally:
+        live.transform_running = real
+    bmesh.update_edit_mesh(obj.data)
+    bpy.context.view_layer.update()            # "released"
+
+
 def run_checks():
     reset()
     s = bpy.context.scene.edge_constraint_mode
+    s.mode, s.enabled = 'EDGE', True
 
-    # 1. Acceptance: rotate the loop of a cube -> still a cube (shear).
+    # 1. Acceptance: Blender's own rotate on a cube loop -> still a cube (shear).
     obj, (loop,) = make_cube("RotCube", (0, 0, 0))
     enter_edit(obj, set(loop))
-    s.mode = 'EDGE'
-    bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=math.radians(30),
-                                           axis=(0, 1, 0))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y'))
     leave_edit()
-    check(is_cube(obj), "edge rotate: every vertex still on the cube surface")
+    check(is_cube(obj), "live rotate: every vertex still on its cube planes")
     zs = sorted(obj.data.vertices[i].co.z for i in loop)
-    check(zs[-1] - zs[0] > 0.5, f"edge rotate: loop was sheared (z span {zs[-1] - zs[0]:.3f})")
+    check(zs[-1] - zs[0] > 0.5, f"live rotate: loop was sheared (z span {zs[-1] - zs[0]:.3f})")
     for i in loop:
         co = obj.data.vertices[i].co
         check(abs(co.z - (-co.x) * math.sin(math.radians(30))) < 1e-4,
-              f"edge rotate: vert {i} z == -x*sin(30)  ({co.z:.4f})")
+              f"live rotate: vert {i} z == -x*sin(30)  ({co.z:.4f})")
 
-    # 2. Native rotate for contrast: breaks the cube. (transform.rotate's
-    # value is clockwise-positive, hence the minus to match +30 deg here.)
+    # 2. Toggle off: the same native rotate breaks the cube (contrast + proof
+    #    the handler stays out of the way).
+    s.enabled = False
     obj, (loop,) = make_cube("NativeCube", (0, 0, 0))
     enter_edit(obj, set(loop))
-    bpy.ops.transform.rotate(value=-math.radians(30), orient_axis='Y')
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y'))
     leave_edit()
-    check(not is_cube(obj), "native rotate leaves the cube (sanity contrast)")
+    check(not is_cube(obj), "toggle off: native rotate is untouched (cube breaks)")
+    s.enabled = True
 
-    # 3. Move diagonally -> only the rail component survives.
+    # 3. Native move diagonally -> only the rail component survives.
     obj, (loop,) = make_cube("MoveCube", (0, 0, 0))
     enter_edit(obj, set(loop))
-    bpy.ops.mesh.edge_constraint_transform(transform_type='TRANSLATE', value=(0.6, 0.3, 0.5))
+    live_native(obj, lambda: bpy.ops.transform.translate(value=(0.6, 0.3, 0.5)))
     leave_edit()
-    check(is_cube(obj) and bbox_is_unit(obj), "edge move: cube intact")
-    check(all(abs(obj.data.vertices[i].co.z - 0.5) < 1e-4 for i in loop), "edge move: loop at z=0.5")
+    check(is_cube(obj) and bbox_is_unit(obj), "live move: cube intact")
+    check(all(abs(obj.data.vertices[i].co.z - 0.5) < 1e-4 for i in loop), "live move: loop at z=0.5")
 
-    # 4. Uniform scale of two X loops -> they slide apart along X only.
+    # 4. Native uniform scale of two X loops -> they slide apart along X only.
     obj, loops = make_cube("ScaleCube", (0, 0, 0), cuts_axis=0, cut_values=(-0.5, 0.5))
     sel = set(loops[0]) | set(loops[1])
     enter_edit(obj, sel)
-    bpy.ops.mesh.edge_constraint_transform(transform_type='RESIZE', scale=(1.6, 1.6, 1.6))
+    live_native(obj, lambda: bpy.ops.transform.resize(value=(1.6, 1.6, 1.6)))
     leave_edit()
-    check(is_cube(obj) and bbox_is_unit(obj), "edge scale: cube intact")
-    check(all(abs(abs(obj.data.vertices[i].co.x) - 0.8) < 1e-4 for i in sel), "edge scale: loops at x=+-0.8")
+    check(is_cube(obj) and bbox_is_unit(obj), "live scale: cube intact")
+    check(all(abs(abs(obj.data.vertices[i].co.x) - 0.8) < 1e-4 for i in sel), "live scale: loops at x=+-0.8")
 
-    # 5. Face constraint rotate about Z keeps verts on the surface.
+    # 5. Face: native rotate about Z keeps verts on the surface.
     obj, (loop,) = make_cube("FaceCube", (0, 0, 0))
     enter_edit(obj, set(loop))
     s.mode = 'FACE'
-    bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=math.radians(25),
-                                           axis=(0, 0, 1))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(25), orient_axis='Z'))
     leave_edit()
     # Face mode lets corner verts leave the cube edge onto one face (as in Max),
     # so only require every vertex to stay on the surface.
     check(all(on_cube(v.co) for v in obj.data.vertices) and bbox_is_unit(obj),
-          "face rotate: every vertex stays on the cube surface")
+          "live face rotate: every vertex stays on the cube surface")
     check(any(abs(obj.data.vertices[i].co.x) < 0.999 for i in loop),
-          "face rotate: loop verts actually slid over the faces")
+          "live face rotate: loop verts actually slid over the faces")
+    s.mode = 'EDGE'
 
-    # 6. None -> operator unavailable, so the G/R/S key falls through to Blender.
-    obj, (loop,) = make_cube("NoneCube", (0, 0, 0))
-    enter_edit(obj, set(loop))
-    s.mode = 'NONE'
-    check(not bpy.ops.mesh.edge_constraint_transform.poll(), "mode None: operator poll() fails (keys fall through)")
-    leave_edit()
-
-    # 7. Object transform + non-uniform object scale: projection in world space.
+    # 6. Rotated, non-uniformly scaled object: projection happens in world space.
     obj, (loop,) = make_cube("XformCube", (3, 0, 0))
     obj.scale = (2.0, 1.0, 0.5)
     obj.rotation_euler = (0.3, 0.2, 0.1)
     enter_edit(obj, set(loop))
-    s.mode = 'EDGE'
-    bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=math.radians(20),
-                                           axis=(0, 1, 0))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(20), orient_axis='Y'))
     leave_edit()
-    check(is_cube(obj), "edge rotate on transformed object: cube intact (local)")
+    check(is_cube(obj), "live rotate on transformed object: cube intact (local)")
 
-    # 8. Undo restores (needs the undo stack; skipped quietly if unavailable).
+    # 7. Scripted path: the Constrained Transform operator (no live hook).
+    obj, (loop,) = make_cube("OpCube", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=math.radians(30),
+                                           axis=(0, 1, 0), use_scene_constraint=False,
+                                           constraint='EDGE')
+    leave_edit()
+    check(is_cube(obj), "operator rotate: cube intact")
+
     print("Checks done:", "OK" if not FAILS else f"{len(FAILS)} FAILED")
 
 
@@ -305,18 +328,18 @@ def demo(kind, path):
             if kind == 'move':
                 bpy.ops.transform.translate(value=(0.6, 0.3, 0.5))
             elif kind == 'rotate':
-                bpy.ops.transform.rotate(value=-math.radians(30), orient_axis='Y')
+                bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y')
             else:
                 bpy.ops.transform.resize(value=(1.6, 1.6, 1.6))
         else:
-            s.mode = 'EDGE'
+            s.mode, s.enabled = 'EDGE', True
             if kind == 'move':
-                bpy.ops.mesh.edge_constraint_transform(transform_type='TRANSLATE', value=(0.6, 0.3, 0.5))
+                live_native(obj, lambda: bpy.ops.transform.translate(value=(0.6, 0.3, 0.5)))
             elif kind == 'rotate':
-                bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=math.radians(30),
-                                                       axis=(0, 1, 0))
+                live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y'))
             else:
-                bpy.ops.mesh.edge_constraint_transform(transform_type='RESIZE', scale=(1.6, 1.6, 1.6))
+                live_native(obj, lambda: bpy.ops.transform.resize(value=(1.6, 1.6, 1.6)))
+            s.enabled = False
         leave_edit()
         ok = is_cube(obj) and bbox_is_unit(obj)
         obj.color = COL_MESH

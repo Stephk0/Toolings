@@ -1,13 +1,13 @@
 bl_info = {
     "name": "Edge Constraint Mode",
     "author": "Stephan Viranyi",
-    "version": (2, 0, 0),
+    "version": (2, 1, 0),
     "blender": (4, 5, 0),
-    "location": "View3D > Header (Mesh Edit mode) — constraint buttons, then G / R / S",
+    "location": "View3D > Header (Mesh Edit mode): constraint toggle + Edge / Face / Normal",
     "description": (
-        "3ds Max-style sub-object constraints (Edge / Face / Normal): Move, "
-        "Rotate and Scale of the selection slide along the mesh instead of "
-        "leaving it."
+        "3ds Max-style constraint toggle (Edge / Face / Normal): every Move, "
+        "Rotate and Scale in Mesh Edit mode - keys, gizmos, menus - stays on "
+        "the mesh."
     ),
     "category": "Mesh",
 }

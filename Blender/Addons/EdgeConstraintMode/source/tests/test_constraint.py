@@ -70,17 +70,42 @@ def test_free_rotation_would_break_the_cube():
     assert not all(on_cube_surface(p) for p in out.values())
 
 
-def test_rotation_about_loop_axis_slides_along_loop_edges():
+def test_rotation_about_loop_axis_is_absorbed():
     """Rotating the loop about its own normal has no component along the
-    crossing edges, so (as in Max) the verts slide along the loop's own
-    edges instead: still on the cube, still at z=0."""
+    crossing edges; the sideways part is rejected (Max: motion across the
+    edge is ignored), so nothing moves - the loop doesn't slide along itself."""
     def op(pts):
         return T.rotate(pts, (0, 0, 0), (0, 0, 1), math.radians(20))
 
     positions, rings, sel, out = solve_ring(C.MODE_EDGE, [0.0], 1, op)
     for v, p in out.items():
-        assert on_cube_surface(p)
-        assert p[2] == pytest.approx(0.0)
+        assert approx_pt(p, positions[v])
+
+
+def test_tilting_a_round_loop_keeps_hinge_verts_in_place():
+    """Cylinder loop rotated about a horizontal axis: the hinge verts (on the
+    rotation axis's plane) have purely sideways motion and must stay put, the
+    rest only move vertically -> a clean planar tilt."""
+    n = 16
+    rings, positions = [], []
+    for z in (-1.0, 0.0, 1.0):
+        ring = []
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            ring.append(len(positions))
+            positions.append((math.cos(a), math.sin(a), z))
+        rings.append(ring)
+    faces = [(r0[i], r0[(i + 1) % n], r1[(i + 1) % n], r1[i])
+             for r0, r1 in zip(rings, rings[1:]) for i in range(n)]
+    from tests.meshes import edges_from_faces
+    mesh = C.MeshData(positions, edges_from_faces(faces), faces, set(rings[1]))
+    cons = C.build_constraints(mesh, C.MODE_EDGE)
+    pts = {v: positions[v] for v in rings[1]}
+    out = C.solve(cons, T.rotate(pts, (0, 0, 0), (1, 0, 0), math.radians(25)))
+    for v, p in out.items():
+        x0, y0, _ = positions[v]
+        assert approx_pt((p[0], p[1]), (x0, y0))
+        assert p[2] == pytest.approx(y0 * math.sin(math.radians(25)), abs=1e-9)
 
 
 # -- Move ----------------------------------------------------------------------
@@ -227,3 +252,35 @@ def test_mask_vector_and_pivots():
     pts = [(0, 0, 0), (2, 0, 0), (2, 4, 0)]
     assert approx_pt(T.pivot_point(pts, T.PIVOT_BOUNDS), (1, 2, 0))
     assert approx_pt(T.pivot_point(pts, T.PIVOT_CURSOR, cursor=(5, 5, 5)), (5, 5, 5))
+
+
+def test_face_constraint_moves_a_patch_as_a_whole():
+    """A selected patch on a bumpy grid dragged sideways: every vert stays on
+    the original surface and the trailing verts keep up (no squashing)."""
+    import math as m
+    n, size = 16, 4.0
+
+    def h(x, y):
+        return 0.3 * m.sin(1.5 * x) * m.cos(1.5 * y)
+
+    positions, idx = [], {}
+    for j in range(n + 1):
+        for i in range(n + 1):
+            x, y = -size / 2 + size * i / n, -size / 2 + size * j / n
+            idx[i, j] = len(positions)
+            positions.append((x, y, h(x, y)))
+    faces = [(idx[i, j], idx[i + 1, j], idx[i + 1, j + 1], idx[i, j + 1])
+             for j in range(n) for i in range(n)]
+    from tests.meshes import edges_from_faces
+    sel = {idx[i, j] for i in range(4, 8) for j in range(6, 10)}
+    mesh = C.MeshData(positions, edges_from_faces(faces), faces, sel)
+    cons = C.build_constraints(mesh, C.MODE_FACE, reach=8)
+    pts = {v: positions[v] for v in sel}
+    out = C.solve(cons, T.translate(pts, (0.75, 0.0, 0.4)))
+    shifts = [out[v][0] - positions[v][0] for v in sel]
+    assert min(shifts) > 0.6, "trailing verts were left behind"
+    # On the surface: each result lies on some original triangle.
+    tris = [t for f in faces for t in C._triangulate(positions, f)]
+    for p in out.values():
+        d = min(vec.dist_sq(p, vec.closest_point_on_triangle(p, *t)) for t in tris)
+        assert d < 1e-12

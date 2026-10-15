@@ -1,5 +1,28 @@
 # Changelog — Edge Constraint Mode
 
+## 2.1.0 — 2026-10-15
+
+- **New: Live mode.** The constraint is now an on/off toggle that constrains
+  Blender's own transforms: G / R / S in any keymap, the toolbar Move /
+  Rotate / Scale / Transform gizmos, Mesh ▸ Transform, F3 and Adjust Last
+  Operation (F9). Axis locks, typed values, snapping and pivot settings all
+  come from Blender itself.
+- **New:** the header shows an on/off toggle and an Edge / Face / Normal
+  dropdown, placed right after the UV menu so it's always visible.
+- **Fixed:** undo and redo keep the constrained result.
+- **Fixed (Edge):** the "hinge" vertices of a tilted round loop (cylinder,
+  sphere) no longer slide along the loop. A loop's own edges are now used
+  only when the motion points back into the selection.
+- **Fixed (Face):** a moved patch no longer leaves its trailing vertices
+  behind. Every face of the original surface counts.
+- **Fixed (Normal):** vertex normals are angle-weighted, matching Blender.
+- **Changed:** G / R / S are no longer remapped. The v2.0 modal stays
+  available as **Constrained Transform** (F3) for scripting.
+- **Not constrained, by design:** scripted transforms from other add-ons,
+  extrude / duplicate macros, edge and vertex slide.
+- Tests: tracker state-machine tests, Blender 5.0 headless checks through
+  the live handler, and a real-UI simulated-input driver (16 checks).
+
 ## 2.0.0 — 2026-10-15
 
 - **New:** Constraint dropdown like 3ds Max (None / Edge / Face / Normal) in the

@@ -10,6 +10,7 @@ Python-API traps that fail silently: stale wrappers, lazy data, modal lifecycle.
 - [Never key sets on id() of bpy wrappers](#feedback_blender_no_id_on_bpy_wrappers)
 - [Duplicate names get .001 — free the name first](#feedback_blender_unique_names)
 - [Blender 5 links its essentials brushes into every .blend](#feedback_blender_bundled_essentials_false_deps)
+- [Constraining native transforms: post-process in depsgraph_update_post](#finding_native_transform_postprocess)
 
 <a id="feedback_blender_bmesh_invalidated_by_undo_push"></a>
 
@@ -262,3 +263,43 @@ dependencies or asset ownership needs both filters from the start. See
 `Blender/Addons/LibraryPublisher/` (`source/checks/blender_inspect.py`,
 `_bundled_roots` / `_is_bundled`) and the asset checklist in
 [ST3E geonode modifier — build recipe, roster, publish checklist](geonodes/asset-checklist.md).
+
+<a id="finding_native_transform_postprocess"></a>
+
+## Constraining native transforms: post-process in depsgraph_update_post
+
+*There is no API to hook Blender's transform system, but snapping the selected verts in a `depsgraph_update_post` handler is reliable for every keymap, gizmo and menu, and the undo step keeps the result.*
+
+Found building Edge Constraint Mode v2.1 (`Blender/Addons/EdgeConstraintMode/`).
+Measured in a real UI with simulated input on Blender 4.0.2, and headless on 5.0.
+
+- During a modal transform, each mouse move recomputes the selected verts
+  from the transform's stored originals plus the free delta, then the
+  depsgraph updates. A handler that rewrites `BMVert.co` there (and calls
+  `bmesh.update_edit_mesh`) runs **before the viewport draws**, so the user
+  sees only the corrected positions. There's no drift, because the next
+  move recomputes from the originals.
+- On confirm no recalc follows, so the **undo step Blender pushes already
+  holds the corrected positions** (Ctrl+Shift+Z restores them).
+- `Window.modal_operators` (4.2+) tells you a `TRANSFORM_OT_*` is running.
+  A macro such as extrude + move shows up as its own `MESH_OT_*` id.
+- **Operators called from Python never appear in `wm.operators`.** Only
+  UI-invoked operators are registered. So headless tests can't use
+  `wm.operators[-1]` to detect a transform they just ran, and
+  `bpy.ops.transform.*` from other add-ons can be told apart from user
+  edits.
+- F9 is "undo, then exec": `undo_post` fires first. To tell F9 from a plain
+  Ctrl+Z, compare positions at the next update with the post-undo
+  snapshot.
+- Guard re-entrancy: your own `update_edit_mesh` fires the handler again.
+  Use a module flag and skip writes when nothing changed.
+
+**Why:** the alternative (remapping G/R/S to a custom modal) misses the
+gizmos, Industry Compatible keymaps and menus, and has to re-implement axis
+locks, numeric input, snapping and pivots.
+
+**How to apply:** see `EdgeConstraintMode/source/blender/live.py` and the
+state machine in `core/live.py`. Snapshot the selection while idle, freeze
+it when a transform starts, and project every update from that frozen
+snapshot. Never project from the previous frame.
+

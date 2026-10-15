@@ -17,7 +17,7 @@ from mathutils import Matrix, Vector
 
 from ..core import constraint as C
 from ..core import transform as T
-from .properties import CONSTRAINT_ITEMS
+from .properties import CONSTRAINT_ITEMS, TYPE_ITEMS, active_mode
 
 TRANSFORM_ITEMS = (
     ('TRANSLATE', "Move", "Move the selection"),
@@ -155,12 +155,7 @@ class MESH_OT_edge_constraint_transform(Operator):
 
     @classmethod
     def poll(cls, context):
-        # Failing poll lets the keymap fall through to Blender's own G/R/S
-        # when the constraint is set to None.
-        if context.mode != 'EDIT_MESH':
-            return False
-        s = getattr(context.scene, "edge_constraint_mode", None)
-        return s is not None and s.mode != C.MODE_NONE
+        return context.mode == 'EDIT_MESH'
 
     # -- shared core ---------------------------------------------------------
 
@@ -195,7 +190,7 @@ class MESH_OT_edge_constraint_transform(Operator):
     def _prepare(self, context):
         s = self._settings(context)
         if self.use_scene_constraint:
-            self.constraint = s.mode
+            self.constraint = active_mode(s)
         self._sessions = gather_sessions(context, self.constraint, reach=s.reach,
                                          stop_at_selected=s.stop_at_selected)
         if not self._sessions:
@@ -431,28 +426,31 @@ class MESH_OT_edge_constraint_transform(Operator):
 # ---------------------------------------------------------------------------
 
 class VIEW3D_OT_edge_constraint_toggle(Operator):
-    """Toggle the Edge constraint on / off (3ds Max: Shift+X)"""
+    """Turn the transform constraint on / off (right-click > Assign Shortcut to bind a key, e.g. Shift+X like 3ds Max)"""
     bl_idname = "view3d.edge_constraint_toggle"
-    bl_label = "Toggle Edge Constraint"
+    bl_label = "Toggle Transform Constraint"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
         s = context.scene.edge_constraint_mode
-        s.mode = C.MODE_NONE if s.mode == C.MODE_EDGE else C.MODE_EDGE
-        self.report({'INFO'}, f"Constraint: {CONSTRAINT_LABELS[s.mode]}")
+        s.enabled = not s.enabled
+        state = CONSTRAINT_LABELS[s.mode] if s.enabled else "Off"
+        self.report({'INFO'}, f"Transform constraint: {state}")
         return {'FINISHED'}
 
 
 class VIEW3D_OT_edge_constraint_set(Operator):
-    """Set the sub-object transform constraint"""
+    """Pick the constraint type and turn the constraint on"""
     bl_idname = "view3d.edge_constraint_set"
     bl_label = "Set Transform Constraint"
     bl_options = {'REGISTER'}
 
-    mode: EnumProperty(name="Constraint", items=CONSTRAINT_ITEMS, default=C.MODE_EDGE)
+    mode: EnumProperty(name="Constraint", items=TYPE_ITEMS, default=C.MODE_EDGE)
 
     def execute(self, context):
-        context.scene.edge_constraint_mode.mode = self.mode
+        s = context.scene.edge_constraint_mode
+        s.mode = self.mode
+        s.enabled = True
         return {'FINISHED'}
 
 

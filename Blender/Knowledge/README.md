@@ -6,9 +6,9 @@ and how to apply it. Read the relevant page before working in that area.
 
 | Page | Covers |
 |------|--------|
-| [bpy-api-gotchas.md](bpy-api-gotchas.md) | BMesh after undo, modal teardown, draw handlers, `id()` on wrappers, unique names, bundled brush libraries |
+| [bpy-api-gotchas.md](bpy-api-gotchas.md) | BMesh after undo, modal teardown, draw handlers, `id()` on wrappers, unique names, bundled brush libraries, post-processing native transforms |
 | [export-pipeline.md](export-pipeline.md) | No source mutation, hidden objects, LayerCollection exclude, `modifier_apply` vs `show_viewport`, FBX normals |
-| [headless-and-automation.md](headless-and-automation.md) | Blender MCP, `--background` edits, headless rendering/compositor, one file per process, UI screenshots |
+| [headless-and-automation.md](headless-and-automation.md) | Blender MCP, `--background` edits, headless rendering/compositor, one file per process, UI screenshots, real-UI tests under Xvfb, PyPI `bpy` |
 | [addon-architecture.md](addon-architecture.md) | WMH split gotchas, zip/release habit |
 | [shading.md](shading.md) | Unity URP shader ports, camera-space Z flip, EEVEE cavity/curvature |
 | [geonodes/asset-checklist.md](geonodes/asset-checklist.md) | **Start here for geonode modifiers**: build recipe, roster of built modifiers, publish checklist |

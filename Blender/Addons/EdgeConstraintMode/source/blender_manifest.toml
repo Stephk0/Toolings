@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 
 id = "edge_constraint_mode"
-version = "2.0.0"
+version = "2.1.0"
 name = "Edge Constraint Mode"
-tagline = "3ds Max-style Edge / Face / Normal constraints for Move, Rotate, Scale"
+tagline = "3ds Max-style Edge / Face / Normal constraint toggle for every transform"
 maintainer = "Stephan Viranyi"
 type = "add-on"
 blender_version_min = "4.5.0"

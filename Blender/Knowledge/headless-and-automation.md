@@ -9,6 +9,8 @@ Driving Blender from scripts: live MCP, --background runs, rendering, screenshot
 - [Headless render, compositor and text on Blender 5](#feedback_blender_headless_render_and_text)
 - [One .blend per process when diffing evaluated geometry](#feedback_blender_multifile_eval_contamination)
 - [Capturing addon UI screenshots via MCP](#feedback_blender_ui_screenshot_automation)
+- [Real-UI tests without a desktop: Xvfb + event_simulate](#finding_xvfb_event_simulate)
+- [`pip install bpy` gives a headless Blender 5.0 anywhere](#finding_pypi_bpy)
 
 <a id="reference_blender_mcp"></a>
 
@@ -153,3 +155,58 @@ Recipes for automating Blender UI screenshots through `mcp__blender__execute_ble
 
 **Why:** rediscovering these costs hours; the OS-click pitfall risks the user's unsaved scenes.
 **How to apply:** for any addon-documentation or UI-verification task needing screenshots, follow the in-process recipes above; see [Headless Blender and automation](headless-and-automation.md#reference_blender_mcp).
+
+<a id="finding_xvfb_event_simulate"></a>
+
+## Real-UI tests without a desktop: Xvfb + event_simulate
+
+*Blender's full UI runs under Xvfb, and `Window.event_simulate` can press real keys and drag real gizmos, but four traps make simulated input silently do nothing.*
+
+Measured on Blender 4.0.2 (apt) under Xvfb with Mesa llvmpipe, 2026-10-15.
+Recipe: `EdgeConstraintMode/source/tests/headless/gui_drive.py`.
+
+```bash
+Xvfb :99 -screen 0 1600x1000x24 &
+DISPLAY=:99 blender --factory-startup --enable-event-simulate --python drive.py -- args
+```
+
+Step the test from a `bpy.app.timers` generator: yield a delay after each
+batch of events so Blender processes them and redraws.
+
+1. **The splash screen eats the first key presses.** Move the mouse into the
+   viewport and send ESC first.
+2. **Key events need `x=, y=`.** Without them they land at window (0, 0),
+   which is the timeline, so `G` moves keyframes instead of verts. Pass the
+   current cursor position with every key event.
+3. **`ctrl=True` on a key event leaves Ctrl logically held.** Later drags
+   then snap in 1 m increments. Send an explicit `LEFT_CTRL` RELEASE with
+   the flags cleared after any modifier combo.
+4. **Gizmo drags need a big first step.** Send roughly 10 px moves until the
+   drag threshold opens, then fine steps. Tiny steps never start the
+   transform (the header shows `D: 0`).
+
+Also:
+
+- Scripted scene setup isn't an undo step. Call
+  `bpy.ops.ed.undo_push(message=...)` after it, or Ctrl+Z undoes your setup
+  and the object reference dies.
+- `bpy.ops.screen.screenshot*` returns black under llvmpipe. Grab the X
+  display instead: `xwd -root -display :99 | convert xwd:- png:out.png`,
+  then crop to `area.x/y/width/height` (X origin is top-left).
+- `screen.screen_full_area()` called from a timer segfaulted 4.0.2. Don't
+  toggle full-screen areas while driving the UI.
+
+**Why:** each trap gives a clean "nothing happened" run. Here they cost
+five debugging rounds.
+
+<a id="finding_pypi_bpy"></a>
+
+## `pip install bpy` gives a headless Blender 5.0 anywhere
+
+*The PyPI `bpy` wheel (Python 3.11, ~380 MB) is a full Blender 5.0 for headless checks and Workbench renders, even where download.blender.org is blocked.*
+
+`uv venv -p python3.11 && uv pip install bpy==5.0.0`. Workbench rendering
+needs EGL (`apt install libegl1 libgl1-mesa-dri`). Import `bpy` before
+`bmesh` / `mathutils`, which only exist after `bpy` loads. No UI (use
+apt's Blender + Xvfb for that, see above).
+

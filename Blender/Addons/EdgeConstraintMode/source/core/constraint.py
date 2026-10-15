@@ -24,6 +24,8 @@ Everything here works on plain 3-tuples; the Blender wrapper converts to and
 from world space so object scale does not skew the projection.
 """
 
+import math
+
 from . import vec
 
 MODE_NONE = 'NONE'
@@ -36,10 +38,15 @@ DEFAULT_REACH = 4
 # Walking past a vertex only continues onto an edge within ~60 deg of the
 # previous one.
 TURN_LIMIT_COS = 0.5
-# Score multiplier for edges whose both ends are selected (e.g. the loop's own
-# edges): they still work as rails, but a crossing edge wins unless the
-# in-loop edge is much better aligned.
-IN_SELECTION_BIAS = 0.5
+# Edges that leave the selection are the rails. Edges inside it (a loop's
+# own edges, the rungs between two selected loops) are used only when the
+# vertex has no leaving edge, or when the motion points back INTO the
+# selection (every leaving edge opposes it by more than this fraction of the
+# motion) - e.g. two loops scaled toward each other. Sideways motion along a
+# loop is rejected: otherwise the "hinge" verts of a tilted cylinder/sphere
+# loop slide along the loop and kink it.
+MIN_RAIL_SCORE = 1e-6
+INTO_SELECTION = 0.25
 
 
 class MeshData:
@@ -80,9 +87,17 @@ class MeshData:
     def vertex_normal(self, v):
         if self._normals is not None:
             return vec.normalized(self._normals[v])
+        # Angle-weighted, like Blender's own vertex normals.
+        pos = self.positions
         acc = (0.0, 0.0, 0.0)
         for fi in self.vert_faces[v]:
-            acc = vec.add(acc, _face_area_normal(self.positions, self.faces[fi]))
+            f = self.faces[fi]
+            i = f.index(v)
+            a = vec.normalized(vec.sub(pos[f[i - 1]], pos[v]))
+            b = vec.normalized(vec.sub(pos[f[(i + 1) % len(f)]], pos[v]))
+            ang = math.acos(max(-1.0, min(1.0, vec.dot(a, b))))
+            n = vec.normalized(_face_area_normal(pos, f))
+            acc = vec.add(acc, vec.mul(n, ang))
         return vec.normalized(acc)
 
 
@@ -143,8 +158,6 @@ class EdgeRails:
             ln = vec.length(d)
             if ln < 1e-12:
                 continue
-            # Edges that leave the selection are the "real" rails; edges
-            # inside it only win when they are clearly better aligned.
             leaves = not self.mesh.edge_fully_selected(ei)
             yield w, vec.mul(d, 1.0 / ln), ln, leaves
 
@@ -156,15 +169,25 @@ class EdgeRails:
         pos = self.origin
         u, came_from, prev_dir = self.v, None, None
         for _step in range(max(1, self.reach)):
-            best = None
-            best_score = 1e-9
+            # Best positive alignment per tier: [leaving edges, in-selection edges].
+            rlen = vec.length(remaining)
+            tiers = [None, None]
+            scores = [MIN_RAIL_SCORE * rlen] * 2
+            any_leaving = False
+            max_leaving = -float("inf")
             for w, t, ln, leaves in self._edges_from(u, came_from):
                 if prev_dir is not None and vec.dot(t, prev_dir) < self.turn_limit_cos:
                     continue
                 s = vec.dot(remaining, t)
-                score = s * (1.0 if leaves else IN_SELECTION_BIAS)
-                if score > best_score + 1e-12:
-                    best_score, best = score, (w, t, ln, s)
+                if leaves:
+                    any_leaving = True
+                    max_leaving = max(max_leaving, s)
+                k = 0 if leaves else 1
+                if s > scores[k]:
+                    scores[k], tiers[k] = s, (w, t, ln, s)
+            best = tiers[0]
+            if best is None and (not any_leaving or max_leaving < -INTO_SELECTION * rlen):
+                best = tiers[1]
             if best is None:
                 break
             w, t, ln, s = best
@@ -226,12 +249,14 @@ def _triangulate(positions, face):
 
 
 def face_patch_for(mesh, v, *, reach=DEFAULT_REACH, stop_at_selected=True):
-    """Collect the surface triangles vertex v may slide over."""
-    start = [fi for fi in mesh.vert_faces[v] if not mesh.face_fully_selected(fi)]
-    fallback = not start
-    if fallback:
-        start = list(mesh.vert_faces[v])
+    """Collect the surface triangles vertex v may slide over.
 
+    Every face counts, selected or not: positions are the pre-transform
+    ones, so this is simply "the original surface within ``reach`` face
+    rings". (Excluding the selection's own faces stranded the trailing verts
+    of a moved patch behind it.) stop_at_selected only applies to Edge.
+    """
+    start = list(mesh.vert_faces[v])
     seen = set(start)
     frontier = list(start)
     depth = 1
@@ -241,18 +266,10 @@ def face_patch_for(mesh, v, *, reach=DEFAULT_REACH, stop_at_selected=True):
             f = mesh.faces[fi]
             for i, a in enumerate(f):
                 b = f[(i + 1) % len(f)]
-                if stop_at_selected and (a in mesh.selected and b in mesh.selected):
-                    # Don't grow across a selected edge; another selected
-                    # vertex owns the surface on the far side.
-                    if v not in (a, b):
-                        continue
                 for nf in mesh.edge_faces.get(_edge_key(a, b), ()):
-                    if nf in seen:
-                        continue
-                    if not fallback and mesh.face_fully_selected(nf):
-                        continue
-                    seen.add(nf)
-                    nxt.append(nf)
+                    if nf not in seen:
+                        seen.add(nf)
+                        nxt.append(nf)
         frontier = nxt
         depth += 1
 

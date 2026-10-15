@@ -9,7 +9,7 @@ The MDX pages reference filenames in the `<div class="ui-todo">` TODO blocks. Re
 | Tool | Expected images |
 |---|---|
 | `mass-exporter/` | `panel.png`, `header.png`, `viewport-example.png` |
-| `edge-constraint-mode/` | `edge_constraint_move.png`, `edge_constraint_rotate.png`, `edge_constraint_scale.png` |
+| `edge-constraint-mode/` | `edge_constraint_{move,rotate,scale}.png`, `live_cube_move_gizmo.png`, `live_terrain_face_G.png`, `header_toggle.png` |
 | `tile-uv-projector/` | `panel.png`, `preview-vs-applied.png` |
 | `anim-layers-quick-export/` | `panel.png`, `nla-before.png` |
 | `quick-animation-export/` | `panel.png`, `output-folder.png` |
