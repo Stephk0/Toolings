@@ -1,113 +1,95 @@
 ---
 title: Edge Constraint Mode
-description: Persistent mode that constrains edge-vertex movement to the edges' own direction — works with any transform tool.
+description: 3ds Max-style Edge / Face / Normal constraints for Move, Rotate and Scale in Mesh Edit mode.
 tool:
   name: EdgeConstraintMode
-  version: 1.1.2
+  version: 2.0.0
   status: active
   category: Modeling
   blenderVersion: 4.5+
-  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v1.1.2.zip
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v2.0.0.zip
   sourcePath: Blender/Addons/EdgeConstraintMode/source/
   detailLevel: detailed
 ---
 
 import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
 import ToolMeta from '../../../components/ToolMeta.astro';
-import headerImg from '../../../assets/tools/edge-constraint-mode/header.svg';
-import beforeAfterImg from '../../../assets/tools/edge-constraint-mode/before-after.svg';
+import rotateImg from '../../../assets/tools/edge-constraint-mode/edge_constraint_rotate.png';
+import moveImg from '../../../assets/tools/edge-constraint-mode/edge_constraint_move.png';
+import scaleImg from '../../../assets/tools/edge-constraint-mode/edge_constraint_scale.png';
 
 <ToolMeta
   name="Edge Constraint Mode"
-  version="1.1.2"
+  version="2.0.0"
   status="active"
   category="Modeling"
   blenderVersion="4.5+"
-  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v1.1.2.zip"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v2.0.0.zip"
   sourcePath="Blender/Addons/EdgeConstraintMode/source/"
 />
 
 ## At a glance
 
-A persistent edit-mode mode that constrains selected vertex movement to the direction of the edges they sit on. Move, grab, or use any transform tool — vertices slide along their connected edge instead of through free space. Toggle the mode on once and forget it; it works with the regular `G` grab, with proportional editing, with the gizmo handles.
+The 3ds Max Editable Poly **Constraints** dropdown for Blender. Pick **Edge**, **Face** or **Normal** in the Edit-mode header and every **G / R / S** keeps the selection on the mesh. Rotate a cube's loop cut with Edge on: the loop shears across the cube and the cube stays a cube.
 
-Originally a one-shot operator; now a mode that persists across selection changes and tool switches because that's how it should have worked from the start.
+<img src={rotateImg.src} alt="Rotating a cube's loop: Blender native breaks the cube, Edge constraint shears the loop and keeps the cube" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Rotate 30° · left: Blender native · right: Edge constraint (blue = start, orange = result)</span>
+
+<img src={moveImg.src} alt="Moving a loop diagonally: Edge constraint keeps only the motion along the edges" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Move · only the part of the drag along the edges is applied</span>
+
+<img src={scaleImg.src} alt="Uniformly scaling two loops: Edge constraint slides them apart along the cube" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Scale 1.6 · the loops slide apart along their edges</span>
 
 ## Install
 
 <Steps>
-1. Download `EdgeConstraintMode_v1.1.2.zip`.
+1. Download `EdgeConstraintMode_v2.0.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**.
-3. Enable. The toggle appears in the 3D View header in Edit Mode, and also under the N-panel.
+3. Enable it. The **None / Edge / Face / Normal** buttons appear in the 3D View header in Edit Mode.
 </Steps>
-
-## UI tour
-
-<img src={headerImg.src} alt="Edit Mode header with Edge Constraint toggle highlighted" class="tool-screenshot tool-screenshot--wide" />
-<span class="tool-screenshot-caption">Edit Mode header · toggle appears between select-mode pickers and Pivot</span>
-
-<img src={beforeAfterImg.src} alt="Before/after viewport showing edge-constrained drag vs free-space drag" class="tool-screenshot tool-screenshot--wide" />
-<span class="tool-screenshot-caption">Same drag, two solvers · OFF lets the vertex leave the edge, ON projects motion onto it</span>
-
-<p class="mockup-notice">Mockup illustrations · will be replaced with real Blender screenshots when captured.</p>
 
 ## Day-to-day vs Advanced
 
 <Tabs>
 <TabItem label="Day-to-day">
 
-1. Enter Edit Mode on a mesh.
-2. Click the **Edge Constraint** toggle in the header (or press the assigned shortcut if you bound one).
-3. Select vertices and drag with `G`. They follow their connected edges.
-4. Click the toggle again to leave the mode.
-
-That's it. The mode is transform-agnostic, so it also works with the **Move** tool gizmo and with **Proportional Editing**.
+1. Enter Edit Mode and click **Edge** (or Face / Normal) in the header.
+2. Select and press `G`, `R` or `S`.
+3. `X` / `Y` / `Z` lock an axis (press again for Local, `Shift` for a plane), type a number for an exact value, hold `Ctrl` to snap.
+4. Click **None** to get Blender's own G / R / S back.
 
 </TabItem>
 <TabItem label="Advanced">
 
 ### How the solver works
 
-For each moved vertex, the solver:
+1. The transform computes where each selected vertex *would* go with no constraint.
+2. **Edge:** the motion picks the connected edge it is most aligned with, and the vertex moves by the part of the motion along that edge. It can carry on onto the next edge if the path stays roughly straight, but it stops at sharp corners. Edges that cross the selection are preferred over the selection's own edges.
+3. **Face:** the vertex goes to the closest point on the faces around it.
+4. **Normal:** the motion is projected onto the vertex normal.
 
-1. Reads the requested delta from the transform operator.
-2. Projects that delta onto each of the vertex's connected edges.
-3. Picks the edge whose projection is largest in magnitude.
-4. Writes the projected delta back, ignoring the perpendicular component.
-
-This is why it works with any transform tool — the addon doesn't replace the transform, it post-processes the result before it's committed.
-
-### Multiple connected edges
-
-When a vertex has two or more connected edges, the "largest projection" rule effectively picks the edge whose direction is closest to the drag direction. Drag along an edge → it sticks to that edge. Drag perpendicular to all of them → motion approaches zero.
-
-### Persistence across selection changes
-
-The mode survives:
-- Switching between vertex / edge / face select.
-- Tool changes (Move / Rotate / Scale / Inset).
-- Undo / redo.
-
-It does not survive leaving Edit Mode, by design — there is no constraint to apply in Object Mode.
+Pivot follows Blender's Transform Pivot Point setting. **Reach** limits how many edges or face rings a vertex can cross, and **Stop at Selected** stops it at another selected vertex.
 
 </TabItem>
 </Tabs>
 
 ## Troubleshooting
 
-<Aside type="tip" title="Vertex won't move at all">
-If a vertex has no connected edges in the current select-pool (e.g. isolated single-vertex), the constraint has nothing to project onto and motion is zero. Select an edge-connected vertex.
+<Aside type="caution" title="Gizmos and menus are unconstrained">
+Only the G / R / S keys use the constraint. The toolbar Move / Rotate / Scale gizmos and Mesh ▸ Transform still run Blender's free transform.
 </Aside>
 
-<Aside type="caution" title="Conflicts with snapping">
-With both edge constraint and Blender's built-in vertex snapping on, the snap target can pull the vertex off-edge before the constraint runs. Disable snapping or use this mode alone for clean slides.
+<Aside type="tip" title="A vertex doesn't move">
+The drag is at right angles to every edge the vertex could slide along, so there's nothing to keep. Drag along an edge, or lock an axis that runs along the edges.
 </Aside>
 
 ## Changelog
 
-- **v1.1.2** — current packaged release.
-- **v1.1.0** — persistent mode + transform-agnostic solver (replaces old `edge_constraint_mode/` one-shot folder).
-- **v1.0.x** — initial single-operator releases.
+- **v2.0.0**: None / Edge / Face / Normal constraints, Max-style rotate and scale (loop shear keeps a cube a cube), axis locks, numeric input, snapping, pivot modes, redo.
+- **v1.1.2**: restores built-in gizmos hidden by 1.1.0 / 1.1.1.
+- **v1.1.0**: persistent toggle and solver.
+- **v1.0.x**: initial releases.
 
 <LinkCard
   title="Source on GitHub"
