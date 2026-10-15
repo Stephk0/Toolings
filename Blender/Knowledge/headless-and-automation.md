@@ -11,6 +11,7 @@ Driving Blender from scripts: live MCP, --background runs, rendering, screenshot
 - [Capturing addon UI screenshots via MCP](#feedback_blender_ui_screenshot_automation)
 - [Real-UI tests without a desktop: Xvfb + event_simulate](#finding_xvfb_event_simulate)
 - [`pip install bpy` gives a headless Blender 5.0 anywhere](#finding_pypi_bpy)
+- [Background transform ops ignore the Pivot Point without a 3D View](#finding_background_transform_pivot)
 
 <a id="reference_blender_mcp"></a>
 
@@ -209,4 +210,31 @@ five debugging rounds.
 needs EGL (`apt install libegl1 libgl1-mesa-dri`). Import `bpy` before
 `bmesh` / `mathutils`, which only exist after `bpy` loads. No UI (use
 apt's Blender + Xvfb for that, see above).
+
+<a id="finding_background_transform_pivot"></a>
+
+## Background transform ops ignore the Pivot Point without a 3D View
+
+*In `--background` (or the PyPI `bpy` module), `bpy.ops.transform.rotate/resize` with no VIEW_3D context acts as if the pivot were the median: 3D Cursor, Active Element and Individual Origins have no effect.*
+
+Measured on Blender 5.0 (PyPI `bpy`), 2026-10-15. Selecting one vertex,
+setting `transform_pivot_point = 'CURSOR'` and rotating 90° about Z left the
+vertex in place (it rotated about itself). The same call inside a 3D View
+context rotated it about the cursor.
+
+**Why:** the transform reads the pivot through the view context. With no
+area it falls back to the median. Tests that check pivot behaviour pass for
+the wrong reason or fail confusingly.
+
+**How to apply:** run the op inside the startup layout's 3D View (the
+factory startup has one, even in background mode), or pass
+`center_override=` explicitly:
+
+```python
+win = bpy.context.window_manager.windows[0]
+area = next(a for a in win.screen.areas if a.type == 'VIEW_3D')
+region = next(r for r in area.regions if r.type == 'WINDOW')
+with bpy.context.temp_override(window=win, area=area, region=region):
+    bpy.ops.transform.rotate(value=0.4, orient_axis='Y')
+```
 

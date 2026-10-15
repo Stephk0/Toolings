@@ -63,6 +63,21 @@ the drag (left: before, right: during).
 To give the toggle a hotkey (3ds Max uses **Shift+X**), right-click the
 toggle and pick **Assign Shortcut**.
 
+### Pivot points
+
+Rotate and scale use whatever **Transform Pivot Point** you've set:
+Median Point, Bounding Box Center, 3D Cursor, Individual Origins or Active
+Element. Blender works out the rotation or scale around that pivot, and the
+constraint then keeps the result on the mesh. For example, rotating a loop
+around a 3D cursor placed beside the cube swings the loop along the edges.
+With Individual Origins, two separate loops each tilt around their own
+centre.
+
+| | |
+|---|---|
+| **Pivot: 3D Cursor** (right of the cube), R key | ![](assets/live_pivot_cursor_R.png) |
+| **Pivot: Individual Origins**, two loops, R key | ![](assets/live_pivot_individual_R.png) |
+
 ### What each constraint does
 
 - **Edge.** Each vertex slides along one of its edges, and the direction you

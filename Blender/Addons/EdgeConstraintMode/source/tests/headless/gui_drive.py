@@ -348,6 +348,70 @@ def more_objects(s):
           f"extrude E with Edge on: extrusion is free, not constrained (top at z={min(zs):.2f})")
     capture("gui_14_extrude_unconstrained")
 
+    # ---- 11. Pivot = 3D cursor: R drag rotates about the cursor -----------
+    ts = bpy.context.scene.tool_settings
+
+    def loop_cube(cuts, select_z):
+        # Select while building (before Edit mode): a selection changed by a
+        # script inside Edit mode isn't a registered operator, which the
+        # pre-4.2 fallback detection would read as the start of a drag.
+        def build(bm):
+            bmesh.ops.create_cube(bm, size=2.0)
+            for z in sorted(cuts, reverse=True):
+                bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+                                       plane_co=(0, 0, z), plane_no=(0, 0, 1))
+            for v in bm.verts:
+                v.select = any(abs(v.co.z - z) < 1e-5 for z in select_z)
+        return build
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    obj = new_object("CursorPivot", loop_cube([0.0], [0.0]))
+    bpy.ops.mesh.select_mode(type='VERT')
+    ts.transform_pivot_point = 'CURSOR'
+    bpy.context.scene.cursor.location = (2.6, 0.0, 0.0)
+    s.mode, s.enabled = 'EDGE', True
+    frame_view((75, 0, 0), 11.0, (1.0, 0, 0))
+    yield 1.0
+    capture("gui_15a_cursor_pivot_before")
+    cur = screen_of(bpy.context.scene.cursor.location)
+    yield from key_drag('R', cur, (-230, 0), [(-230 * math.cos(math.radians(a)), -230 * math.sin(math.radians(a)))
+                                             for a in range(2, 21, 2)])
+    sel = sel_world(obj)
+    on_rails = all(abs(abs(p.x) - 1) < 1e-4 and abs(abs(p.y) - 1) < 1e-4 for p in sel.values())
+    mean_z = sum(p.z for p in sel.values()) / len(sel)
+    zs = [p.z for p in sel.values()]
+    check(on_rails and abs(mean_z) > 0.3,
+          f"pivot 3D cursor, R drag: loop swings about the cursor along the edges "
+          f"(mean z {mean_z:+.2f}, span {max(zs) - min(zs):.2f})")
+    capture("gui_15_cursor_pivot_rotate")
+    confirm()
+    yield 0.8
+
+    # ---- 12. Pivot = Individual Origins: each loop about its own centre ---
+    obj = new_object("IndividualPivot", loop_cube([-0.6, 0.0, 0.6], [-0.6, 0.6]))
+    ts.transform_pivot_point = 'INDIVIDUAL_ORIGINS'
+    bpy.context.scene.cursor.location = (0, 0, 0)
+    frame_view((75, 0, 0), 9.0)
+    yield 1.0
+    capture("gui_16a_individual_before")
+    c = screen_of(Vector((0, 0, 0)))
+    yield from key_drag('R', c, (200, 0), arc(200, 15))
+    sel = sel_world(obj)
+    lower = [p for p in sel.values() if p.z < 0]
+    upper = [p for p in sel.values() if p.z > 0]
+    on_rails = all(abs(abs(p.x) - 1) < 1e-4 and abs(abs(p.y) - 1) < 1e-4 for p in sel.values())
+    ml = sum(p.z for p in lower) / max(len(lower), 1)
+    mu = sum(p.z for p in upper) / max(len(upper), 1)
+    span = max(p.z for p in upper) - min(p.z for p in upper)
+    check(on_rails and len(lower) == len(upper) == 4 and abs(ml + 0.6) < 1e-3 and abs(mu - 0.6) < 1e-3
+          and span > 0.25,
+          f"pivot individual origins, R drag: each loop tilts about its own centre "
+          f"(centres z {ml:+.3f} / {mu:+.3f}, tilt span {span:.2f})")
+    capture("gui_16_individual_rotate")
+    confirm()
+    yield 0.8
+    ts.transform_pivot_point = 'MEDIAN_POINT'
+
 
 def steps():
     """Generator of (delay, label); each yield lets Blender process + redraw."""

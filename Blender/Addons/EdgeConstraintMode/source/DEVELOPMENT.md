@@ -61,7 +61,11 @@ Facts this relies on (see `Blender/Knowledge/bpy-api-gotchas.md`):
 
 - `Window.modal_operators` exists in 4.2+. Without it (e.g. 4.0), the
   tracker falls back to a heuristic: selected verts moved but no new
-  operator was registered.
+  operator was registered. The heuristic also treats a selection change
+  that no registered operator caused (a script editing the selection
+  inside Edit mode) as a drag. That's harmless for users, whose selection
+  clicks are operators, but test scripts must select before entering Edit
+  mode.
 - **Operators called from Python never enter `wm.operators`**, so other
   add-ons' scripted transforms are never constrained (by design). It also
   means headless tests must fake the "drag frame" (see `live_native()` in
@@ -135,10 +139,19 @@ What each layer covers:
   stand in for a modal drag frame. It covers rotate, move, scale, Face,
   toggle off, a transformed object, and the scripted operator. It also
   renders `edge_constraint_{move,rotate,scale}.png`.
+- Pivot points need no add-on code. Blender's transform computes the free
+  result around the pivot, and we project it. `blender_checks.py` section 7
+  checks exact positions for 3D cursor (rotate + asymmetric scale), Active
+  Element, Individual Origins (two islands), Bounding Box Center, and the
+  F3 operator with a cursor pivot. **Trap:** without a VIEW_3D context, a
+  background `bpy.ops.transform.*` ignores the pivot setting and acts as if
+  the pivot were the median. `in_view3d()` runs the ops inside the startup
+  layout's 3D View.
 - `gui_drive.py` presses real keys in a real UI. Last run on Blender 4.0.2
   from apt, the only GUI build reachable from the dev container; 4.0
-  exercises the heuristic fallback. 16 checks: R-key shear (live and
-  confirmed), Ctrl+Z / Ctrl+Shift+Z keep the constrained result,
+  exercises the heuristic fallback. 18 checks: R-key shear (live and
+  confirmed), R about a 3D cursor beside the cube, Individual Origins with
+  two loops, Ctrl+Z / Ctrl+Shift+Z keep the constrained result,
   Move-gizmo free drag, S on a frustum, toggle off, cylinder, UV sphere,
   terrain (Face), icosphere (Normal), and extrude staying free. The
   screenshots become the README's `live_*.png` pairs. Simulation traps are

@@ -20,6 +20,10 @@
   available as **Constrained Transform** (F3) for scripting.
 - **Not constrained, by design:** scripted transforms from other add-ons,
   extrude / duplicate macros, edge and vertex slide.
+- Verified with every **Transform Pivot Point** (Median, Bounding Box,
+  3D Cursor, Individual Origins, Active Element), with exact expected
+  positions in Blender 5.0, plus real-UI drags around the 3D cursor and
+  with Individual Origins.
 - Tests: tracker state-machine tests, Blender 5.0 headless checks through
   the live handler, and a real-UI simulated-input driver (16 checks).
 

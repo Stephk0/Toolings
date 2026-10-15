@@ -125,6 +125,24 @@ def bbox_is_unit(obj):
 # Checks
 # ---------------------------------------------------------------------------
 
+def in_view3d(op):
+    """Wrap op to run inside the startup layout's 3D View.
+
+    Without a VIEW_3D context, background transform ops IGNORE the Transform
+    Pivot Point setting (cursor / active / individual origins all act as
+    median) - the real UI always has one.
+    """
+    def run():
+        win = bpy.context.window_manager.windows[0]
+        area = next((a for a in win.screen.areas if a.type == 'VIEW_3D'), None)
+        if area is None:
+            return op()
+        region = next(r for r in area.regions if r.type == 'WINDOW')
+        with bpy.context.temp_override(window=win, area=area, region=region):
+            return op()
+    return run
+
+
 def live_native(obj, op):
     """Run a NATIVE transform op the way an interactive drag frame sees it.
 
@@ -135,6 +153,7 @@ def live_native(obj, op):
     depsgraph update lets the live handler snap it back.
     """
     from EdgeConstraintMode.blender import live
+    op = in_view3d(op)
     bmesh.update_edit_mesh(obj.data)
     bpy.context.view_layer.update()            # idle snapshot
     real = live.transform_running
@@ -216,7 +235,98 @@ def run_checks():
     leave_edit()
     check(is_cube(obj), "live rotate on transformed object: cube intact (local)")
 
-    # 7. Scripted path: the Constrained Transform operator (no live hook).
+    # 7. Pivot points: Blender's own transform computes the free result
+    #    around whatever pivot is set; the constraint must follow it.
+    ts = bpy.context.scene.tool_settings
+    th = math.radians(25)
+
+    def rot_y_z(x, z, c, ang):
+        """z of (x, ., z) rotated by ang about the Y axis through c."""
+        return c[2] + (-(x - c[0]) * math.sin(ang) + (z - c[2]) * math.cos(ang))
+
+    def loop_z_ok(obj, idx, c, ang, z0, tag):
+        for i in idx:
+            co = obj.data.vertices[i].co
+            want = max(-1.0, min(1.0, rot_y_z(co.x, z0, c, ang)))
+            check(abs(co.z - want) < 1e-4 and on_cube(co),
+                  f"{tag}: vert {i} z {co.z:.4f} == {want:.4f}")
+
+    # 7a. 3D cursor
+    ts.transform_pivot_point = 'CURSOR'
+    bpy.context.scene.cursor.location = (0.4, 0.0, 0.3)
+    obj, (loop,) = make_cube("PivotCursor", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot 3D cursor, rotate: cube intact")
+    loop_z_ok(obj, loop, (0.4, 0.0, 0.3), th, 0.0, "pivot 3D cursor, rotate")
+
+    # 7b. 3D cursor, scale X 1.5 about x=1: loops at -0.5/+0.5 -> -1 (clamped at
+    #     the cube edge) / 0.25 (slides inward along the edge between the loops).
+    bpy.context.scene.cursor.location = (1.0, 0.0, 0.0)
+    obj, loops = make_cube("PivotCursorScale", (0, 0, 0), cuts_axis=0, cut_values=(-0.5, 0.5))
+    enter_edit(obj, set(loops[0]) | set(loops[1]))
+    live_native(obj, lambda: bpy.ops.transform.resize(value=(1.5, 1.0, 1.0)))
+    leave_edit()
+    check(is_cube(obj), "pivot 3D cursor, scale: cube intact")
+    check(all(abs(obj.data.vertices[i].co.x + 1.0) < 1e-4 for i in loops[0]),
+          "pivot 3D cursor, scale: far loop stops at the cube edge (x=-1)")
+    check(all(abs(obj.data.vertices[i].co.x - 0.25) < 1e-4 for i in loops[1]),
+          "pivot 3D cursor, scale: near loop at x=0.25")
+
+    # 7c. Active element: rotate about the active vertex (1, *, 0).
+    ts.transform_pivot_point = 'ACTIVE_ELEMENT'
+    obj, (loop,) = make_cube("PivotActive", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    act = next(i for i in loop if bm.verts[i].co.x > 0.5 and bm.verts[i].co.y > 0.5)
+    bm.select_history.add(bm.verts[act])
+    bmesh.update_edit_mesh(obj.data)
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot active element, rotate: cube intact")
+    loop_z_ok(obj, loop, (1.0, 1.0, 0.0), th, 0.0, "pivot active element, rotate")
+
+    # 7d. Individual origins: two separate loops each rotate about their own
+    #     centre (a middle, unselected loop keeps them apart as islands).
+    ts.transform_pivot_point = 'INDIVIDUAL_ORIGINS'
+    th2 = math.radians(20)
+    obj, loops = make_cube("PivotIndividual", (0, 0, 0), cut_values=(-0.6, 0.0, 0.6))
+    enter_edit(obj, set(loops[0]) | set(loops[2]))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th2, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot individual origins, rotate: cube intact")
+    loop_z_ok(obj, loops[0], (0.0, 0.0, -0.6), th2, -0.6, "pivot individual origins, lower loop")
+    loop_z_ok(obj, loops[2], (0.0, 0.0, 0.6), th2, 0.6, "pivot individual origins, upper loop")
+    check(all(abs(obj.data.vertices[i].co.z) < 1e-6 for i in loops[1]),
+          "pivot individual origins: unselected middle loop untouched")
+
+    # 7e. Bounding box centre: loop at z=0 + the top corner vertex ->
+    #     bounds centre (0, 0, 0.5) differs from the median (0.2, 0.2, 0.2).
+    ts.transform_pivot_point = 'BOUNDING_BOX_CENTER'
+    obj, (loop,) = make_cube("PivotBounds", (0, 0, 0))
+    top = next(v.index for v in obj.data.vertices
+               if v.co.x > 0.9 and v.co.y > 0.9 and v.co.z > 0.9)
+    enter_edit(obj, set(loop) | {top})
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot bounding box, rotate: cube intact")
+    loop_z_ok(obj, loop, (0.0, 0.0, 0.5), th, 0.0, "pivot bounding box, rotate")
+
+    # 7f. The F3 Constrained Transform operator honours the pivot too.
+    ts.transform_pivot_point = 'CURSOR'
+    bpy.context.scene.cursor.location = (0.4, 0.0, 0.3)
+    obj, (loop,) = make_cube("PivotOperator", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=th, axis=(0, 1, 0),
+                                           use_scene_constraint=False, constraint='EDGE')
+    leave_edit()
+    loop_z_ok(obj, loop, (0.4, 0.0, 0.3), th, 0.0, "operator, pivot 3D cursor")
+    ts.transform_pivot_point = 'MEDIAN_POINT'
+    bpy.context.scene.cursor.location = (0, 0, 0)
+
+    # 8. Scripted path: the Constrained Transform operator (no live hook).
     obj, (loop,) = make_cube("OpCube", (0, 0, 0))
     enter_edit(obj, set(loop))
     bpy.ops.mesh.edge_constraint_transform(transform_type='ROTATE', angle=math.radians(30),
