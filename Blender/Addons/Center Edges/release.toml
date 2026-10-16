@@ -1,0 +1,11 @@
+# Release spec for Center Edges, read by Blender/Addons/_release/release.py.
+# Inferred from CenterEdges_v1.5.1.zip on 2026-10-08; edit freely.
+zip_stem = "CenterEdges"
+wrapper = "CenterEdges"  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = []  # globs relative to source_dir
+exclude = ["*.md"]
+
+[files]  # published path = source path relative to the tool folder
+"README.md" = "README.md"
+"__init__.py" = "source/center_loops_addon.py"

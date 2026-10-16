@@ -1161,6 +1161,7 @@ def tidy_and_route(ng):
     dissolve reroutes -> layered tidy (frames as bands) -> localize group inputs
     -> place output rightmost -> orthogonal reroute routing -> declutter.
     No file I/O and no geometry check -- callers own those. Returns a stats dict."""
+    multi_order = multi_input_order(ng)
     dissolve_reroutes(ng)
     tidy_layout(ng)
     n_gi = localize_group_inputs(ng)
@@ -1176,9 +1177,55 @@ def tidy_and_route(ng):
     if n_sep:
         declutter_reroutes(ng)                            # shifted nodes may cover a gap bend
     n_lane = separate_wire_lanes(ng)                      # R12/R13: re-measure AS DRAWN and fix
+    n_mio = restore_multi_input_order(ng, multi_order)    # relinking reorders Join inputs
     return {"local_gis": n_gi, "node_entries": n_ne, "hv": n_hv, "fan": n_fb,
             "around": n_ia, "framed_reroutes": n_fr, "frame_shifts": n_sep,
-            "lane_shifts": n_lane}
+            "lane_shifts": n_lane, "multi_input_reorders": n_mio}
+
+
+def _link_source(link):
+    """(node name, socket identifier) feeding a link, traced back through reroutes."""
+    node, sock = link.from_node, link.from_socket
+    while node.bl_idname == "NodeReroute" and node.inputs[0].links:
+        up = node.inputs[0].links[0]
+        node, sock = up.from_node, up.from_socket
+    return (node.name, sock.identifier)
+
+
+def multi_input_order(ng):
+    """Snapshot the source order of every multi-input socket (Join Geometry & co.).
+    Removing and re-adding a link puts it at the other end of the stack, so any
+    pass that reroutes a link into a multi-input socket silently reorders it -- the
+    shape stays the same but element order (indices) changes."""
+    snap = {}
+    for n in ng.nodes:
+        for s in n.inputs:
+            if s.is_multi_input and len(s.links) > 1:
+                snap[(n.name, s.identifier)] = [_link_source(l) for l in s.links]
+    return snap
+
+
+def restore_multi_input_order(ng, snap):
+    """Re-stack multi-input links into the order `multi_input_order` recorded, keeping
+    whatever reroute each link now comes from. Returns the number of sockets fixed."""
+    fixed = 0
+    for (nname, sid), want in snap.items():
+        node = ng.nodes.get(nname)
+        if node is None: continue
+        sock = next((s for s in node.inputs if s.identifier == sid), None)
+        if sock is None: continue
+        links = list(sock.links)
+        have = [_link_source(l) for l in links]
+        if have == want or sorted(have) != sorted(want): continue
+        pool = defaultdict(list)
+        for k, l in zip(have, links): pool[k].append(l.from_socket)
+        feeds = [pool[k].pop(0) for k in want]
+        for order in (feeds, feeds[::-1]):          # stacking direction is not documented
+            for l in list(sock.links): ng.links.remove(l)
+            for fs in order: ng.links.new(fs, sock)
+            if [_link_source(l) for l in sock.links] == want: break
+        fixed += 1
+    return fixed
 
 
 def _real_sources(sock):
@@ -1197,6 +1244,76 @@ def logical_links(ng):
     return {(src, n.name, s.identifier)
             for n in ng.nodes if n.bl_idname not in ("NodeReroute", "NodeFrame")
             for s in n.inputs for src in _real_sources(s)}
+
+def shader_rows_layout(ng, skip_frame="Unused", col_gap=90, row_gap=40, band_gap=110, label_pad=60):
+    """Framed shader graphs: one horizontal ROW per function frame, stacked in the
+    order of the BSDF/output input each frame feeds (Base Color on top, Normal at the
+    bottom), columns shared by all rows (longest-path depth), shader + output on the
+    right. The cascade layout of `tidy_layout` staircases frames diagonally, which
+    suits long geonode chains but not many short chains converging on one BSDF."""
+    for f in ng.nodes:
+        if f.bl_idname == "NodeFrame": f.location = (0.0, 0.0)
+    nodes = [n for n in ng.nodes if n.bl_idname != "NodeFrame"
+             and not (n.parent and n.parent.name == skip_frame)]
+    names = {n.name for n in nodes}
+    preds = {n.name: set() for n in nodes}; succ = {n.name: set() for n in nodes}
+    for l in ng.links:
+        a, b = l.from_node.name, l.to_node.name
+        if a in names and b in names:
+            preds[b].add(a); succ[a].add(b)
+    depth = {}
+    def d(nm, s=()):
+        if nm in depth: return depth[nm]
+        if nm in s: return 0
+        depth[nm] = v = max((d(p, s + (nm,)) + 1 for p in preds[nm]), default=0)
+        return v
+    for nm in names: d(nm)
+    # which input of the final shader(s) each node ends up in: rank = socket index
+    _, out = io_nodes(ng)
+    sinks = {l.from_node.name for l in ng.links if l.to_node == out}
+    rank = {}
+    for sk in sinks:
+        node = ng.nodes[sk]
+        for i, s in enumerate(node.inputs):
+            stack = [l.from_node.name for l in s.links if l.from_node.name in names]
+            while stack:
+                nm = stack.pop()
+                if rank.get(nm, 1e9) <= i: continue
+                rank[nm] = i
+                stack += list(preds[nm])
+    bynode = {n.name: n for n in nodes}
+    colw = defaultdict(lambda: 150.0)
+    for n in nodes: colw[depth[n.name]] = max(colw[depth[n.name]], n.width or 150)
+    colx, x = {}, 0.0
+    for c in range(max(depth.values(), default=0) + 1):
+        colx[c] = x; x += colw[c] + col_gap
+    bands = defaultdict(list)
+    for n in nodes:
+        bands[fname_of(n)].append(n)
+    free = bands.pop(None, [])
+    def bkey(b):
+        ns = bands[b]
+        return (min(rank.get(n.name, 1e9) for n in ns), sum(depth[n.name] for n in ns) / len(ns))
+    top = 0.0
+    for b in sorted(bands, key=bkey):
+        ns = bands[b]; bycol = defaultdict(list)
+        for n in ns: bycol[depth[n.name]].append(n)
+        low = top
+        for c, cn in bycol.items():
+            cn.sort(key=lambda n: (rank.get(n.name, 1e9), n.name))
+            yy = top - label_pad
+            for n in cn:
+                n.location = (colx[depth[n.name]], yy); yy -= est_h(n) + row_gap
+            low = min(low, yy)
+        top = low - band_gap
+    # unframed nodes (shader, output, strays): right-hand column(s), from the top
+    bycol = defaultdict(list)
+    for n in free: bycol[depth[n.name]].append(n)
+    for c, cn in bycol.items():
+        yy = 0.0
+        for n in sorted(cn, key=lambda n: (rank.get(n.name, 1e9), n.name)):
+            n.location = (colx[c], yy); yy -= est_h(n) + row_gap
+
 
 def tidy_shader(ng, park_unused=True, frame_name="Unused"):
     """Layout pass for material / world / light trees.
@@ -1227,7 +1344,10 @@ def tidy_shader(ng, park_unused=True, frame_name="Unused"):
                 cross.append((l.from_node.name, l.from_socket.identifier,
                               l.to_node.name, l.to_socket.identifier, l.is_muted))
                 ng.links.remove(l)
-    tidy_layout(ng)
+    if any(f.bl_idname == "NodeFrame" and f.name != frame_name for f in ng.nodes):
+        shader_rows_layout(ng, skip_frame=frame_name)
+    else:
+        tidy_layout(ng)
     place_output_rightmost(ng)
     if cross or (park_unused and dead):
         kids = [n for n in ng.nodes if n.parent and n.parent.name == frame_name]

@@ -168,6 +168,22 @@ RECIPES = {
         params={"Radius": 0.055, "Subdivisions": 2},
         expect="verts_up",
     ),
+    # Every edge feeds Mesh to Curve; each face is inset and its cyclic loop
+    # gets a chain of tapered cubes deformed along it. On Suzanne's 500 faces
+    # that is an unreadable heap, so a coarse icosphere carries 20 clean loops.
+    # The spawned objects are tinted (as GN_SetMaterial) so they read against
+    # the clay base, and keep_base draws the surface they were spawned from.
+    "GN_SpawnObjectsAlong": dict(
+        short="Spawn Along",
+        catalog="Scatter",
+        base="icosphere",
+        base_args={"subdiv": 1, "r": 1.0},
+        keep_base=True,
+        helpers=[dict(name="mat", kind="material", colour=(0.85, 0.34, 0.24, 1.0))],
+        params={"Edge Group": True, "Zipper Lin Offset": 0.2, "Material": "@mat",
+                "Scale": (1.5, 1.5, 1.5)},
+        expect="verts_up",
+    ),
     # ---- batch 3 -------------------------------------------------------------
     "GN_Inflate": dict(
         short="Inflate",
@@ -395,7 +411,7 @@ RECIPES = {
 
     "GN_TileableMeshNoise": dict(
         short="Tile Noise",
-        catalog="Generate",
+        catalog="Deform",
         base="grid",
         base_args={"x": 2, "y": 2, "size": 2.0},
         prep=[],
@@ -676,6 +692,36 @@ RECIPES = {
         expect="attribute:grown",
     ),
 
+    # ---- extracted from the character example, 2026-09-25 -------------------
+    # Builds a tube along the surface's open border, so the subject needs one:
+    # the crown is cut off, and Keep Geometry leaves the head under the rim.
+    "GN_CurveFromSurface": dict(
+        short="Curve Surf",
+        catalog="Generate",
+        prep=[("subsurf", 1), "shade_smooth",
+              ("mark_open_boundary", "z", 0.35)],
+        params={"Keep Geometry": True, "Auto Border from Surface": True,
+                "Profile Shape": "Circle", "Curve Cross Resolution": 6,
+                "Base Profile Radius": 0.035, "Curve Radius": 1.0},
+        expect="verts_up",
+    ),
+
+    # "Distribution Object" is the name of BOTH a Menu and an Object socket, so
+    # the menu has to be addressed as "#1". Its Cube mode means no helper.
+    "GN_DistributeObjectOnSurface": dict(
+        short="Distribute",
+        catalog="Scatter",
+        prep=["shade_smooth"],
+        # Scale is a multiplier on an already-small base cube: at 0.2 the
+        # instances are invisible specks, so it needs whole numbers.
+        params={"Distribution Object#1": "Cube",
+                "Distribution Mode": "Vertices",
+                "Self Surface": True, "Keep Surface": True,
+                "Subdiv Level": 0, "Grow Iterations": 0,
+                "Scale": (2.2, 2.2, 2.2)},
+        expect="verts_up",
+    ),
+
     # ---- ST3E/Shading: shader node groups ------------------------------------
     # Not modifiers - Suzanne wears a material instancing the group, set up
     # like each file's own demo material (group Color -> Principled Base
@@ -802,6 +848,19 @@ RECIPES = {
         file="GN_Solidify2.blend",
         prep=["shade_smooth", ("mark_open_boundary", "z", 0.3)],
         params={"Thickness": 0.12, "Offset": 0.5},
+        expect="topology",
+    ),
+
+    # Same open crown as GN_Solidify2; the rim carries loops and a Push bulge and is
+    # tinted through the Rim output, so the rim shaping is what reads.
+    "GN_SolidifyPlus": dict(
+        short="Solidify+",
+        catalog="Generate",
+        prep=["shade_smooth", ("mark_open_boundary", "z", 0.3)],
+        params={"Thickness": 0.12, "Offset": 0.0, "Rim Loops": 2, "Push": 0.02},
+        outputs={"Rim": "rim"},
+        promote={"rim": "rim_f"},
+        material=("mask", "rim_f"),
         expect="topology",
     ),
 

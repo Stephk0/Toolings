@@ -1,0 +1,7 @@
+# Release spec for SyncedModifiers, read by Blender/Addons/_release/release.py.
+# Inferred from SyncedModifiers_v2.5.0.zip on 2026-10-08; edit freely.
+zip_stem = "SyncedModifiers"
+wrapper = "SyncedModifiers"  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["CHANGELOG_v2.4.1.md", "GEOMETRY_NODES_IMPLEMENTATION_PLAN.md", "INSTALLATION.md", "*.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["CLAUDE.md", "DEVELOPMENT.md"]

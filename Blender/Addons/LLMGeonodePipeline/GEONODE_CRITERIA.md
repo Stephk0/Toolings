@@ -7,6 +7,37 @@ folder's `layout_audit.py` (rules R1–R13) and `run_pipeline.py` (gates saves o
 geometry-unchanged + blocking rules). Live interactive flow: skill
 `geonode-layout-mcp`.
 
+## The circuit-diagram model
+
+Read a geonode graph the way you read a circuit schematic. A good schematic shows at a
+glance which way the signal flows, which parts belong together, and where each wire goes,
+because it follows a handful of drawing conventions. Every rule below is one of them.
+
+| Schematic convention | In a geonode graph |
+|---|---|
+| Signal flows left to right; inputs on the left edge, outputs on the right | Group Input left, Group Output right, every link +x (R3). Feedback is drawn deliberately, underneath |
+| The **main signal path** is one straight line across the sheet | The geometry chain (Group Input → … → Group Output) is a horizontal **spine**; functions hang off it above and below |
+| **Sub-circuits** are boxed and named, with their ports on the box edge | Function frames (R8), named like code; wires enter a frame on the left and leave on the right |
+| **Supply rails and net labels**: VCC/GND are never wired across the sheet, a label at each part says where they connect | Parameters come from a small local Group Input at each consumer, labelled by its panel — never a 20-wire fan from one Group Input |
+| **Buses**: signals travelling together are drawn as one bundle at even pitch and broken out at the destination | Parallel lanes from the same source block to the same destination block run side by side at `LANE_STEP`, in socket order so they don't cross, and split only where they arrive |
+| Wires never pass through a component or run along its outline | No lane through a node body or on its border (R2, R13) |
+| Two wires never share a line; crossings are right angles and rare | No collinear lanes (R12); orthogonal runs only; minimise crossings |
+| A wire ends square on its pin | Reroute stubs leave and enter sockets horizontally (P1, the Polish pass) |
+| Parts sit on a grid with room between them | No overlaps (R1), ≥70px row clearance (R5), sizes from the DRAWN node, not an estimate |
+
+The three stages map onto how a schematic is made:
+
+1. **Setup = schematic capture.** Decide the blocks (frames), the main path (spine),
+   and the ports (interface panels, local Group Inputs). The engine can't invent
+   this — a graph without frames tidies into a readable blob at best. A sheet that is
+   too big to read (hundreds of nodes) is split into **sub-sheets**: large frames become
+   `GNG_*` helper groups (`group_frames.py`), and each is laid out on its own.
+2. **Tidy = placement and routing.** `run_pipeline.py`: place blocks along the spine
+   in signal order, route the wires orthogonally, bundle what travels together.
+3. **Polish = design-rule check.** `polish_layout.py` re-checks the result against
+   what Blender actually draws and fixes the last-millimetre defects (pins, overlaps
+   the estimate missed). Like a DRC, it reports what it can't fix.
+
 ## Graph organization — "comment your geonodes like code"
 
 1. **Function isolation (R8).** Every node lives inside a **labeled frame** that
@@ -88,16 +119,22 @@ geometry-unchanged + blocking rules). Live interactive flow: skill
 
 - **Panels (R10).** Organize modifier inputs with `ng.interface.new_panel(name)`
   + `interface.move_to_parent(socket, panel, index)`. Convention:
-  `Geometry` + `Selection` stay top-level → **base-params panel named after the
+  `Geometry` top-level → **`Selection` panel** (every selection input, see the gate
+  below; selections always live in their own panel) → **base-params panel named after the
   effect** → optional `Affect Axes` (default_closed) → `Center` (pivot tools) →
   `Preview` (default_closed). Even a small tool gets one named base panel.
   NB: top-level interface items report an implicit ROOT panel with an empty
   name — "in a panel" means a NAMED panel.
 - **A `Selection` gate always ships with its invert.** Any tool that exposes a boolean
   selection input also exposes **`Invert Selection`** directly beneath it, in the same
-  panel. Implementation is one `FunctionNodeBooleanMath` set to **XOR** between the
-  Group Input and every consumer of the selection, in its own frame labeled
-  `Selection Gate  (Selection XOR Invert Selection)`. XOR is the whole trick: off is an
+  `Selection` panel, followed by **`Grow / Shrink Selection`** (int, default 0) and the
+  material selection **`Select by Material ID`** (bool, default OFF — `Selection` itself
+  defaults ON), **`Selection Material ID`** and **`Material ID Mode`** (Add / Subtract /
+  Intersect / Material Minus Selection). Implementation is the
+  shared **`GNG_SelectionGate`** group node (built by `Blender/Geonodes/_build/gng_selection_gate.py`)
+  between the Group Input and every consumer of the selection, in its own frame labeled
+  `Selection Gate  (GNG_SelectionGate)` — never a per-tool XOR, so new selection features
+  land in one place. Inside, the invert is an XOR. XOR is the whole trick: off is an
   exact passthrough, on is the complement — so adding it to an existing tool cannot
   change a single vertex (verify with the A/B/C/D truth table: `(Sel 1, Inv 0)` must
   equal `(Sel 0, Inv 1)`, and `(Sel 0, Inv 0)` must equal `(Sel 1, Inv 1)`). Drive the
@@ -146,6 +183,11 @@ Details: memory `feedback_gn_deformer_center_gizmo_symmetry`.
 4. **Audit + verify**: `layout_audit` R1–R13 on EVERY tree the tool owns, AND
    evaluated-geometry-unchanged.
    Never save when a blocking rule fails or geometry changed.
+5. **Polish (optional, once the graph is otherwise done)**: `polish_layout.py` re-checks
+   the graph against the socket positions Blender actually draws and straightens every
+   reroute stub into its socket (P1 — a wire leaves and enters a socket horizontally,
+   never at a slight angle). The tidy engine can't: it estimates socket heights headless.
+   GUI Blender only; see the pipeline README.
 
 ## Publishing
 

@@ -1,0 +1,7 @@
+# Release spec for LibraryRelink, read by Blender/Addons/_release/release.py.
+# Inferred from LibraryRelink_v1.0.0.zip on 2026-10-08; edit freely.
+zip_stem = "LibraryRelink"
+wrapper = ""  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["blender/**", "core/**", "__init__.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["tests/**", "*.md"]

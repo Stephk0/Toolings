@@ -40,8 +40,9 @@ trust `source/__init__.py` / `blender_manifest.toml`.
 | New addon, or refactor a monolithic one | skill `wmh-tool-architecture` (reference implementation: Compositor Render Sets v2.0.0) |
 | Any Geometry Nodes work (create / tidy / alter) | skill `geonode-layout-mcp` — always first. Criteria: `Blender/Addons/LLMGeonodePipeline/GEONODE_CRITERIA.md`. Folder rules: `Blender/Geonodes/CLAUDE.md` |
 | Blender API traps, export rules, headless runs, shading | `Blender/Knowledge/README.md` (index of topic pages) — check it before debugging a silent failure |
-| Geonode icons | `Blender/Geonodes/_icons/ICONS.md` + `GOTCHAS.md` |
+| Geonode icons / thumbnails / previews | skill `geonode-icons` (`_icons/icon.py` probe → build → ship), then `Blender/Geonodes/_icons/ICONS.md` + `GOTCHAS.md` |
 | Publishing the asset library | skill `publish-library` / `publish-library-config` |
+| Releasing an addon (bump, zip, archive, doc versions) | `Blender/Addons/_release/README.md` — `release.py release <Tool> <part>` |
 | Unity / C# | `Unity/CLAUDE.md` |
 | Resuming earlier work | skill `continue-last` (Serena `continuation-brief-*` memories) |
 | Developer doc map | `DEVELOPMENT.md` |

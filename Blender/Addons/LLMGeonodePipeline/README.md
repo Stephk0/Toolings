@@ -47,6 +47,35 @@ blender --background --factory-startup --python layout_audit.py -- GN_NormalTran
 # exits non-zero if any blocking rule fails (CI-gateable)
 ```
 
+### Huge graphs — split them first (`group_frames.py`)
+A graph with thousands of nodes is hard to read and slow to tidy. `group_frames.py` turns
+each large labeled frame into its own helper group (`GNG_<Tool>_<Frame>`); the main graph
+keeps one group node per function, in the same frame, and each helper is tidied and
+polished on its own afterwards. The result is checked to be identical after every frame; a
+frame that can't be grouped safely is left as it is. Needs a Blender window:
+```bash
+blender --factory-startup Geonodes/GN_X.blend --python group_frames.py -- GN_X --save
+```
+Used on GN_Mosaic (3050 → 508 nodes in the main graph, 8 helpers) and
+GN_TileableMeshNoise (1957 → 120, 4 helpers).
+
+### Optional second pass — Polish (`polish_layout.py`)
+After a graph has been tidied and passes the audit, Polish checks it again **as Blender
+draws it** and straightens the last hop of each wire: a reroute that enters or leaves a
+socket at a slight angle is moved onto the socket's exact height, or gets a small
+right-angle step. It needs a real window (not `--background`), so it opens Blender,
+does the work and closes again:
+```bash
+blender --factory-startup Geonodes/GN_X.blend --python polish_layout.py -- GN_X --check   # report only
+blender --factory-startup Geonodes/GN_X.blend --python polish_layout.py -- GN_X --save    # fix + save
+```
+It covers every group the tool owns (for a file with no tree named after it: every tree a
+modifier in the file uses) and saves only if the geometry is unchanged and no blocking
+rule got worse. Blocking failures that were already there are reported, not fixed — run
+`run_pipeline.py` for those. Wires it can't straighten without crowding a node are listed in the
+report and left as they are. Not part of the default pipeline — run it when a graph is
+otherwise done.
+
 ### Interactive / AI-judged layout — the MCP
 1. Install `distribution/LLMGeonodePipeline_v1.2.0.zip`
    (`Preferences ▸ Add-ons ▸ Install from Disk…`), enable it, and **Start** the

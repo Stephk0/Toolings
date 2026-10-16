@@ -1,0 +1,7 @@
+# Release spec for ModifierList_Stephko, read by Blender/Addons/_release/release.py.
+# Inferred from ModifierList_Stephko_v1.9.89.zip on 2026-10-08; edit freely.
+zip_stem = "ModifierList_Stephko"
+wrapper = ""  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["icons/**", "modules/**", "LICENSE", "*.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["dev_tools/**", "docs/**", "tests/**", ".gitignore", "*.md", "icons.svg"]

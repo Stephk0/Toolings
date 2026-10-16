@@ -63,10 +63,17 @@ def gallery(entries):
 def main():
     with open(MANIFEST, encoding="utf-8") as f:
         entries = json.load(f)
+    # A recipe that failed its effect check has no "png" at all - that is the
+    # gate working, not a broken manifest, so those entries are skipped rather
+    # than fatal. Only a claimed-but-absent PNG is an error.
+    skipped = [e["group"] for e in entries if not e.get("png")]
+    entries = [e for e in entries if e.get("png")]
     missing = [e["group"] for e in entries
                if not os.path.exists(os.path.join(HERE, "out", os.path.basename(e["png"])))]
     if missing:
         raise SystemExit(f"manifest lists icons with no PNG: {missing}")
+    if skipped:
+        print("no icon (failed the effect check): " + ", ".join(skipped))
 
     with open(README, encoding="utf-8") as f:
         text = f.read()

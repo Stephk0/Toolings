@@ -274,8 +274,18 @@ def main():
             results.append({"group": group, "effect_ok": False,
                             "effect": traceback.format_exc(limit=4)})
 
-    with open(os.path.join(OUT, "manifest.json"), "w", encoding="utf8") as fh:
-        json.dump(results, fh, indent=2)
+    # Merge into the existing manifest: a partial build (`-- GN_X`) must not
+    # drop every other icon, or gallery.py shrinks the README to that one.
+    # Entries whose recipe is gone are dropped - that is a retired modifier.
+    manifest = os.path.join(OUT, "manifest.json")
+    merged = {}
+    if os.path.exists(manifest):
+        with open(manifest, encoding="utf8") as fh:
+            merged = {r["group"]: r for r in json.load(fh)
+                      if r.get("group") in recipes.RECIPES}
+    merged.update((r["group"], r) for r in results)
+    with open(manifest, "w", encoding="utf8") as fh:
+        json.dump([merged[k] for k in sorted(merged)], fh, indent=2)
 
     print("\n=== ICON BUILD ===")
     for r in results:

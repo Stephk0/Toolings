@@ -7,6 +7,7 @@ Node spacing, frames and wire lanes. Enforced by the `geonode-layout-mcp` skill.
 - [Node spacing and frames](#feedback_gn_node_layout_spacing)
 - [Wire lane legibility](#feedback_gn_wire_lane_legibility)
 - [The pipeline tidies every group, helpers included](#feedback_geonode_pipeline_tidies_every_group)
+- [Reading drawn socket positions (no RNA for them)](#socket_runtime_location)
 
 <a id="feedback_gn_node_layout_spacing"></a>
 
@@ -43,6 +44,7 @@ Steps (in order):
 **HARD gotchas (each caused a wrong result before fixing):**
 - **Frame identity: compare `node.parent` by NAME, never `is`/`is not`** — bpy wrappers fail identity even for the same frame, so `a.parent is b.parent` INVERTS cross-frame vs intra-frame detection (this single bug produced the nonsense 38/12/0 reroute counts and rerouted the wrong links). Dict keys/`==` on wrappers DO work; only `is` is broken.
 - **NEVER reroute into a MULTI-INPUT socket** (`socket.is_multi_input`, e.g. Join Geometry). Re-adding the link appends it to the END of the merge order → output VERTEX ORDER reshuffles (set identical, `positions[i]` shift — breaks index/UV/shape-key). I tried order-preserving via `socket.links` but that order is UNRELIABLE → still reordered. Just skip multi-input dests; those few links stay direct.
+  **Update 2026-10-15:** the fan router (`route_branches`) and `dissolve_reroutes` still re-created links into a Join Geometry (GN_SolidifyPlus: same shape, vertex order changed, `run_pipeline` refused the save). `tidy_and_route` now snapshots every multi-input socket's sources (traced through reroutes) first and re-stacks them at the end (`multi_input_order` / `restore_multi_input_order`, tries both stacking directions). The ordered geometry gate in `run_pipeline` remains the real guard — it passed on GN_SolidifyPlus after the fix.
 - **Mutating `ng.links` invalidates the OTHER cached link wrappers mid-loop** → stale `l.from_socket`. FIX: collect `(from_node, from_socket.identifier, to_node, to_socket.identifier)` first, then mutate, re-fetching sockets by identifier (`next(s for s in node.inputs if s.identifier==ident)`; `node.inputs[x]` subscripts by NAME). Node/socket wrappers survive link edits; link wrappers don't.
 - **Verification trap:** take the baseline snapshot BEFORE any mutation (I once sampled it after `dissolve`, which had silently severed the geometry spine → the broken state matched itself → "eval-identical" passed falsely and I saved a broken file). Restore from git if you corrupt a saved .blend.
 
@@ -192,3 +194,26 @@ the `geonode-layout-mcp` skill. See [Geonode techniques](techniques.md#project_g
   GN_SimpleTransform, GN_Solidify2, GN_SplitByAttribute, GN_CollectionInstancer,
   GN_DisplaceByImage, GN_EdgeDestruct*, GN_VariousTest, GN_AttributeFunctions_4.5,
   GN_treeGenerator_03). `process_file` hard-requires `node_groups[fname]`.
+
+<a id="socket_runtime_location"></a>
+
+## Reading drawn socket positions (no RNA for them)
+
+*`NodeSocket` has no location property; read `bNodeSocket.runtime->location` via ctypes, only after the editor drew the tree*
+
+Verified 2026-09-26 on Blender 5.0 (`LLMGeonodePipeline/polish_layout.py`). Headless
+socket-height estimates were off by up to 88px (vector sliders, dropdowns, panels), which
+is why tidied graphs showed short diagonal stubs into sockets.
+
+- Offset of `runtime` in `bNodeSocket`: parse the SDNA block of an uncompressed copy of the
+  current file (`save_as_mainfile(copy=True, compress=False)`); it was 520 on 5.0.
+- Offset of `location` inside the runtime: calibrate on reroutes — a reroute's socket sits
+  exactly at the reroute's location. It was 24 bytes on 5.0.
+- The value is in view space: **node space × `preferences.system.ui_scale`**. The same
+  applies to `region.view2d.view_to_region` — pass node coordinates × `ui_scale`.
+- Positions exist only after a draw: pin the tree in a node editor
+  (`space.pin = True; space.node_tree = ng`) and run `wm.redraw_timer(type='DRAW_WIN_SWAP')`.
+  Not available in `--background`.
+- `bpy.ops.node.view_selected` did nothing from a timer-driven script; `view2d.zoom_border`
+  + `view2d.pan` on region coordinates worked for screenshots.
+

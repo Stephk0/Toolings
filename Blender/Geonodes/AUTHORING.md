@@ -27,19 +27,70 @@ modifier-marked, which is why they only appear in the Asset Browser.
 Every modifier also ships a demo object with the modifier attached, has tooltipped sockets and
 framed, labelled nodes, and is eval-verified (identity at neutral parameters, no NaN).
 
-## Selection and Invert Selection
+## Selection gate (`GNG_SelectionGate`)
 
-Every modifier that gates on a selection carries an **Invert Selection** toggle directly beneath
-`Selection`, in the same panel. The gate is `Selection XOR Invert Selection`: off, it is an exact
-passthrough (byte-identical output). Inverting a `Selection` left at its `True` default
-deselects everything, which is the correct no-op.
+Every modifier that gates on a selection routes it through the shared **`GNG_SelectionGate`**
+helper group (currently v3) and has a **`Selection` panel** right after `Geometry`, in this
+order:
+
+- **Selection** (bool, default **on**).
+- **Invert Selection** (bool, default off).
+- **Grow / Shrink Selection** (int, default 0) — +N grows by N rings, −N shrinks by N rings
+  (shrink = grow the complement), counted in the domain the consumer evaluates on.
+- **Select by Material ID** (bool, default **off**), **Selection Material ID** (int, slot index)
+  and **Material ID Mode** (menu): *Add* (Selection OR material), *Subtract* (Selection minus
+  material), *Intersect*, *Material Minus Selection*. Material faces are found on the FACE domain
+  and spread to the consumer's domain — a vertex counts when any adjacent face matches.
+
+Order inside the gate: combine with material → invert → grow / shrink. The group is a pure
+field (no Geometry socket), sitting in the frame `Selection Gate  (GNG_SelectionGate)`. At
+defaults it is an exact passthrough (byte-identical output). Grow runs one `Blur Attribute`
+step + `> 0` per repeat iteration, so it is exact for any ring count.
+
+**Menu items keep identifiers 0..3.** A modifier stores a menu override as the item
+identifier, and a new input on an existing modifier is backfilled with 0. The builder renames
+the Menu Switch's two default items instead of clearing them (clearing starts at 2), so a
+backfilled 0 is `Add`. v2 got this wrong and v3 fixed it.
+
+Building and extending it:
+
+- The group is built from code by `_build/gng_selection_gate.py` (`ensure()` builds or
+  upgrades it in the open file; `VERSION` is stored on the group as `st3e_version`). Every
+  tool file holds its own local copy — the same distribution as `GNG_ObjectDirection`.
+- New features go into that module: add sockets **after** the existing ones (identifiers are
+  matched by name, so existing links and modifier overrides survive), bump `VERSION`, and
+  run `_build/upgrade_gng_selection_gate.py` (rebuilds the group in every file, saves only
+  when evaluation is unchanged). New gate inputs also need a matching modifier socket — the
+  rollout pattern is `_build/patch_gn_selection_gate_v2.py` (declare, file into the
+  `Selection` panel, wire, gate on identical evaluation and no worse layout).
+- New modifiers: add a `GNG_SelectionGate` node fed by every input of the `Selection` panel
+  above, and plug its output into every consumer of the selection.
+- `_build/verify_gng_selection_gate.py` checks the group on point, face and curve domains.
+
+Special cases (rollout: `_build/patch_gn_selection_gate_special.py`):
+
+- `GN_ExtrudeFace` — its own grow and material select were renamed `Legacy Selection Expand /
+  Contract`, `Legacy Select by Material Index` and `Legacy Selection Material Index` (a rename
+  keeps the socket identifier, so older files keep their values). They still work.
+- `GN_Delete` keeps its `Selection Mode` menu (Selection Group / Material ID picks the
+  *source*); the gate's Select by Material ID adds to or subtracts from that source.
+- `GN_SetAttribute` / `GN_Delete` — their invert was `Switch(sel, NOT sel)`; replaced by the gate.
+  `GN_Delete` feeds the gate the Selection Group / Material ID menu result.
+  `GN_SetAttribute`'s `Expand / Shrink` stays: it grows the *combined* criteria result, later.
+- `GN_DistributeObjectOnSurface` keeps `Grow Iterations` beside the gate: its `GN_GrowSelection`
+  field is evaluated by `Mesh to Points` on the subdivided surface, so it grows after subdiv.
+- `GN_NormalTransfer` is not on the gate: its mask is a float weight (attribute or open-boundary
+  mask) used as a Mix factor, inverted as `1 − mask`. The gate is boolean and would binarize it.
+  It waits for a soft (float) path in the gate.
+- `GN_InsetFaces` and `GN_GrowSelection` have no Invert yet.
 
 Modifiers with the pair: `GN_Inflate`, `GN_Twist`, `GN_Taper`, `GN_Stretch`, `GN_Bend`,
 `GN_Wave`, `GN_Cast`, `GN_Smooth`, `GN_Displace`, `GN_RandomizePosition`,
 `GN_RandomizeMeshElements`, `GN_ShearGeometry`, `GN_FlattenByBoundary`,
 `GN_SimpleTransformMesh`, `GN_Triangulate`, `GN_PointsToSpheres`, `GN_Scatter`, `GN_Mosaic`,
 `GN_FlipFaces`, `GN_SetMaterial`, `GN_Weld`, `GN_ExtrudeFace`, `GN_MirrorGroup`,
-`GN_AmbientOcclusion`, `GN_VertexDataComposer`, `GN_AttributeTransfer`, `GN_QuadCap` — plus
+`GN_AmbientOcclusion`, `GN_VertexDataComposer`, `GN_AttributeTransfer`, `GN_QuadCap`,
+`GN_SolidifyPlus` — plus
 `GN_Delete`, `GN_SetAttribute` and `GN_NormalTransfer` (`Invert Mask`), which already had one.
 
 Nine gained the whole gate (a `Selection` defaulting to on, plus its invert) where they
@@ -62,11 +113,13 @@ render diff instead. Read [`_icons/ICONS.md`](_icons/ICONS.md) (the contract) an
 
 For a new modifier:
 
-1. Add a recipe to `_icons/recipes.py`.
-2. Run `build_icons.py`, then `embed_icons.py` for it.
-3. Run `python _icons/readme_tables.py` to refresh the icon column in the README tables.
-4. Run `python _icons/gallery.py` to rewrite the gallery between the
-   `<!-- icon-gallery:start/end -->` markers in the README. Never edit that block by hand.
+1. `python _icons/icon.py probe GN_X` — the real sockets and menu item names.
+2. Add a recipe to `_icons/recipes.py`.
+3. `python _icons/icon.py build GN_X`, and look at the PNG.
+4. `python _icons/icon.py ship GN_X` — embeds, cold-verifies, and rewrites the README gallery
+   and icon column (never edit the `<!-- icon-gallery:start/end -->` block by hand).
+
+The `geonode-icons` skill runs this whole flow on request.
 
 `_icons/coverage.py` lists which modifiers still need an icon.
 

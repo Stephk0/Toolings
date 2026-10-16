@@ -15,13 +15,14 @@ find — read that before changing anything visual.
 
 ```
 _icons/
+  icon.py          THE entry point: coverage | probe | build | ship | frames (plain Python)
+  probe.py         dumps a group's real sockets, menu item names, first-input check
   recipes.py       one entry per modifier — what to build, how to prep it, what to expect
   stage.py         studio scene, base meshes, prep steps, effect checker, framing, label
   build_icons.py   STAGE A — render out/<GROUP>.png (never touches the source .blend)
   embed_icons.py   STAGE B — write those PNGs into each .blend as the asset preview
   make_frames.py   regenerates frames/*.png (one per catalog)
   coverage.py      which modifiers still have no recipe / no preview
-  gallery.py       writes the icon gallery block into ../README.md
   readme_tables.py fills the Icon column of ../README.md's reference tables
   recatalog_groups.py  puts the GNG_* helpers on the ST3E/Group catalog
   verify_embed.py  cold-reads every closed .blend and checks the preview landed
@@ -34,7 +35,22 @@ _icons/
 
 ## Running it
 
-Blender 5.0 headless. `--factory-startup` keeps user addons out — some crash
+From a request, the `geonode-icons` skill drives this. By hand, one CLI does it
+all and launches Blender itself (`$ST3E_BLENDER` overrides the path):
+
+```powershell
+cd D:\Stephko_Tooling\Toolings\Blender\Geonodes\_icons
+python icon.py coverage            # what is still missing
+python icon.py probe GN_Twist      # real interface before writing/re-running a recipe
+python icon.py build GN_Twist      # stage A, then LOOK at out/GN_Twist.png
+python icon.py ship  GN_Twist      # stage B: embed, cold verify, README gallery + tables
+python icon.py frames              # after a make_frames.py edit
+```
+
+A partial build merges into `out/manifest.json` rather than replacing it, so the
+README gallery keeps every other icon.
+
+The underlying scripts, all Blender 5.0 headless. `--factory-startup` keeps user addons out — some crash
 GPU draw handlers in `--background`.
 
 ```powershell
@@ -285,15 +301,11 @@ Still one render call. The label layer is off unless a recipe has a `short`.
 
 ## Roster status
 
-`coverage.py` prints it live. At the last run (2026-09-22): **67 done, 0 to do** —
-53 modifiers (Deform 19, Generate 17, Modify 13, Scatter 4), 12 helper-group
-emblems on `ST3E/Group`, and 2 shader groups on `ST3E/Shading`. The six skipped
+`coverage.py` prints it live. At the last run (2026-10-15): **69 done, 1 to do**
+(`GN_SpawnObjectsAlong`) — Deform 19, Generate 18, Modify 13, Scatter 5, 12
+helper-group emblems on `ST3E/Group`, and 2 shader groups on `ST3E/Shading`. The six skipped
 groups are legacy/scratch copies on no catalog, plus `Ambient Occlusion` in
 `ash_char_base_SSS.blend` on a foreign catalog.
-
-Known drift: `GN_TileableMeshNoise`'s recipe says `catalog="Generate"`, but the
-2026-09-22 catalog sweep moved the asset to `ST3E/Deform`. Its icon still has the
-Generate tint until the two are reconciled and it is rebuilt.
 
 ## ST3E/Group — the helper groups
 

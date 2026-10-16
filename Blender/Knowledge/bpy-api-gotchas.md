@@ -11,6 +11,7 @@ Python-API traps that fail silently: stale wrappers, lazy data, modal lifecycle.
 - [Duplicate names get .001 — free the name first](#feedback_blender_unique_names)
 - [Blender 5 links its essentials brushes into every .blend](#feedback_blender_bundled_essentials_false_deps)
 - [Constraining native transforms: post-process in depsgraph_update_post](#finding_native_transform_postprocess)
+- [links.new can return None for a socket taken off a removed link](#links_new_stale_socket)
 
 <a id="feedback_blender_bmesh_invalidated_by_undo_push"></a>
 
@@ -302,4 +303,21 @@ locks, numeric input, snapping and pivots.
 state machine in `core/live.py`. Snapshot the selection while idle, freeze
 it when a transform starts, and project every update from that frozen
 snapshot. Never project from the previous frame.
+
+<a id="links_new_stale_socket"></a>
+
+## links.new can return None for a socket taken off a removed link
+
+*Re-resolve sockets from their node after `ng.links.remove(link)`; don't reuse `link.to_socket`*
+
+Found 2026-09-26 in `polish_layout._jog` (Blender 5.0). Pattern: `ts = link.to_socket;
+ng.links.remove(link); ng.links.new(new_reroute.outputs[0], ts)` returned **None** — no
+error, no link — when `ts` was a reroute input. `ng.links.new(new_reroute.outputs[0],
+node.inputs[0])` on the same socket, fetched fresh from the node, worked. Most calls with the
+stale wrapper did work, which is what makes it dangerous: the graph silently lost one
+connection (caught only because the pass compared `logical_links` before/after).
+
+**How to apply:** keep links as `(from node name, from socket identifier, to node name,
+to socket identifier)` keys, look sockets up from `ng.nodes[...]` after any removal, and
+check the return value of `links.new` — `None` means no link was made.
 

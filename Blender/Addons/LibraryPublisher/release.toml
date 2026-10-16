@@ -1,0 +1,7 @@
+# Release spec for LibraryPublisher, read by Blender/Addons/_release/release.py.
+# Inferred from LibraryPublisher_v1.3.0.zip on 2026-10-08; edit freely.
+zip_stem = "LibraryPublisher"
+wrapper = ""  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["blender/**", "checks/**", "core/**", "*.py", "blender_manifest.toml"]  # globs relative to source_dir
+exclude = ["tests/**", "*.md"]
