@@ -119,16 +119,22 @@ The three stages map onto how a schematic is made:
 
 - **Panels (R10).** Organize modifier inputs with `ng.interface.new_panel(name)`
   + `interface.move_to_parent(socket, panel, index)`. Convention:
-  `Geometry` + `Selection` stay top-level → **base-params panel named after the
+  `Geometry` top-level → **`Selection` panel** (every selection input, see the gate
+  below; selections always live in their own panel) → **base-params panel named after the
   effect** → optional `Affect Axes` (default_closed) → `Center` (pivot tools) →
   `Preview` (default_closed). Even a small tool gets one named base panel.
   NB: top-level interface items report an implicit ROOT panel with an empty
   name — "in a panel" means a NAMED panel.
 - **A `Selection` gate always ships with its invert.** Any tool that exposes a boolean
   selection input also exposes **`Invert Selection`** directly beneath it, in the same
-  panel. Implementation is one `FunctionNodeBooleanMath` set to **XOR** between the
-  Group Input and every consumer of the selection, in its own frame labeled
-  `Selection Gate  (Selection XOR Invert Selection)`. XOR is the whole trick: off is an
+  `Selection` panel, followed by **`Grow / Shrink Selection`** (int, default 0) and the
+  material selection **`Select by Material ID`** (bool, default OFF — `Selection` itself
+  defaults ON), **`Selection Material ID`** and **`Material ID Mode`** (Add / Subtract /
+  Intersect / Material Minus Selection). Implementation is the
+  shared **`GNG_SelectionGate`** group node (built by `Blender/Geonodes/_build/gng_selection_gate.py`)
+  between the Group Input and every consumer of the selection, in its own frame labeled
+  `Selection Gate  (GNG_SelectionGate)` — never a per-tool XOR, so new selection features
+  land in one place. Inside, the invert is an XOR. XOR is the whole trick: off is an
   exact passthrough, on is the complement — so adding it to an existing tool cannot
   change a single vertex (verify with the A/B/C/D truth table: `(Sel 1, Inv 0)` must
   equal `(Sel 0, Inv 1)`, and `(Sel 0, Inv 0)` must equal `(Sel 1, Inv 1)`). Drive the

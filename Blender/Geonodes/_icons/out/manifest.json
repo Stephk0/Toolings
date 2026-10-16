@@ -624,15 +624,28 @@
     "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_Solidify2.png"
   },
   {
+    "group": "GN_SolidifyPlus",
+    "catalog": "Generate",
+    "file": "GN_SolidifyPlus.blend",
+    "expect": "topology",
+    "effect_ok": true,
+    "effect": "verts 389->986, polys 346->1004, hash changed",
+    "cage": false,
+    "ghost_wire": false,
+    "ortho_scale": 3.587,
+    "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_SolidifyPlus.png"
+  },
+  {
     "group": "GN_SpawnObjectsAlong",
     "catalog": "Scatter",
     "file": "GN_SpawnObjectsAlong.blend",
     "expect": "verts_up",
-    "effect_ok": false,
-    "effect": "verts 507->0, polys 500->0, hash changed",
+    "effect_ok": true,
+    "effect": "verts 12->1440, polys 20->1080, hash changed",
     "cage": false,
     "ghost_wire": false,
-    "ortho_scale": 3.7459
+    "ortho_scale": 3.545,
+    "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_SpawnObjectsAlong.png"
   },
   {
     "group": "GN_SplitEdgeByAttribute",
@@ -684,7 +697,7 @@
   },
   {
     "group": "GN_TileableMeshNoise",
-    "catalog": "Generate",
+    "catalog": "Deform",
     "file": "GN_TileableMeshNoise.blend",
     "expect": "topology",
     "effect_ok": true,

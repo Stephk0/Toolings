@@ -2,6 +2,12 @@
 
 ## Unreleased — 2026-09-26
 
+- **Fix: tidy no longer reorders Join Geometry inputs.** The fan router and
+  `dissolve_reroutes` re-created links into multi-input sockets, which restacks them:
+  same shape, different element order, so `run_pipeline`'s ordered geometry gate refused
+  the save (GN_SolidifyPlus). `tidy_and_route` now records each multi-input socket's
+  sources (through reroutes) up front and restores that order at the end
+  (`multi_input_order` / `restore_multi_input_order`; stat `multi_input_reorders`).
 - **Shader trees.** `tidy_layout` / `place_output_rightmost` no longer require Group
   Input/Output nodes: material, world and light trees use their active output node
   (`io_nodes`). New `tidy_shader(tree)` lays out a shader graph with the layered pass and
@@ -37,6 +43,10 @@
   with no tree named after them fall back to every local modifier tree.
 - **Fix:** R10 flagged `Invert Selection` as a loose input, although the criteria require it
   directly beneath `Selection`. It is now allowed top-level with `Geometry` and `Selection`.
+- R10 (2026-10-15): only `Geometry` may stay top-level. Selections now live in their own
+  `Selection` panel (Selection, Invert, Grow / Shrink, Select by Material ID, ...) fed into the
+  shared `GNG_SelectionGate`, which the criteria require instead of a per-tool XOR; a
+  top-level `Selection` is reported as a loose input.
 
 ## v1.3.0 — 2026-08-19
 

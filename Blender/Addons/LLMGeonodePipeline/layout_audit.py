@@ -16,7 +16,7 @@ Rules checked
   R7 no_frame_overlap : frames never partially overlap (nesting is fine)   (FAIL if >0)
   R8 nodes_framed     : every function node lives inside a labeled frame   (WARN)
   R9 unique_socket_names: no two interface sockets share a display name    (WARN -- miswire hazard)
-  R10 sockets_in_panels : params organized in interface panels             (WARN; Geometry/Selection/Invert Selection may stay top-level)
+  R10 sockets_in_panels : params organized in interface panels             (WARN; only Geometry may stay top-level; selections go in a Selection panel)
   R11 no_needless_reroutes: short unobstructed links stay DIRECT wires     (WARN)
   R12 no_collinear_wires: no two wires drawn on top of each other           (FAIL if >0)
   R13 wires_clear_of_nodes: no lane painted along a node's border           (FAIL if >0)
@@ -65,8 +65,9 @@ ADVISORY = ("R3_left_to_right", "R4_frames_labeled", "R5_row_clearance", "R6_ent
 ENTRY_Y_TOL = 10.0   # two reroutes feeding one node within this Y are "piled on a row" (R6)
 NEEDLESS_DX = 300.0  # a rerouted link shorter than this with a clear straight path is "needless" (R11)
 NEEDLESS_DY = 240.0  # ...and a rise smaller than this (keep in sync with tidy_layout ADJ_DX/ADJ_DY)
-TOP_LEVEL_OK = ("Geometry", "Selection", "Invert Selection")  # inputs allowed OUTSIDE panels (R10);
-# Invert Selection ships directly beneath Selection (GEONODE_CRITERIA.md)
+TOP_LEVEL_OK = ("Geometry",)
+# the only input allowed OUTSIDE panels (R10): selections live in their own `Selection`
+# panel (GEONODE_CRITERIA.md)
 
 # R12/R13 thresholds -- keep in sync with tidy_layout.LANE_MIN / NODE_CLEAR.
 COLLINEAR_DX = 12.0   # two parallel runs closer than this are one line to the eye

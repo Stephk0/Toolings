@@ -109,7 +109,7 @@ grouped into:
   Weld, Delete, GrowSelection, ExtrudeFace, MirrorGroup, SplitEdgeByAttribute, SetAttribute,
   AttributeTransfer, NormalTransfer, AmbientOcclusion, VertexDataComposer
 
-Every asset has an **Asset Browser icon** (67 in total, including 12 helper groups and 2 shader
+Every asset has an **Asset Browser icon** (69 in total, including 12 helper groups and 2 shader
 groups), rendered and embedded by the headless pipeline in
 [`Blender/Geonodes/_icons/`](Blender/Geonodes/_icons/ICONS.md); the library README shows them
 as a gallery.

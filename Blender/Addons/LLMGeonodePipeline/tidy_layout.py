@@ -1161,6 +1161,7 @@ def tidy_and_route(ng):
     dissolve reroutes -> layered tidy (frames as bands) -> localize group inputs
     -> place output rightmost -> orthogonal reroute routing -> declutter.
     No file I/O and no geometry check -- callers own those. Returns a stats dict."""
+    multi_order = multi_input_order(ng)
     dissolve_reroutes(ng)
     tidy_layout(ng)
     n_gi = localize_group_inputs(ng)
@@ -1176,9 +1177,55 @@ def tidy_and_route(ng):
     if n_sep:
         declutter_reroutes(ng)                            # shifted nodes may cover a gap bend
     n_lane = separate_wire_lanes(ng)                      # R12/R13: re-measure AS DRAWN and fix
+    n_mio = restore_multi_input_order(ng, multi_order)    # relinking reorders Join inputs
     return {"local_gis": n_gi, "node_entries": n_ne, "hv": n_hv, "fan": n_fb,
             "around": n_ia, "framed_reroutes": n_fr, "frame_shifts": n_sep,
-            "lane_shifts": n_lane}
+            "lane_shifts": n_lane, "multi_input_reorders": n_mio}
+
+
+def _link_source(link):
+    """(node name, socket identifier) feeding a link, traced back through reroutes."""
+    node, sock = link.from_node, link.from_socket
+    while node.bl_idname == "NodeReroute" and node.inputs[0].links:
+        up = node.inputs[0].links[0]
+        node, sock = up.from_node, up.from_socket
+    return (node.name, sock.identifier)
+
+
+def multi_input_order(ng):
+    """Snapshot the source order of every multi-input socket (Join Geometry & co.).
+    Removing and re-adding a link puts it at the other end of the stack, so any
+    pass that reroutes a link into a multi-input socket silently reorders it -- the
+    shape stays the same but element order (indices) changes."""
+    snap = {}
+    for n in ng.nodes:
+        for s in n.inputs:
+            if s.is_multi_input and len(s.links) > 1:
+                snap[(n.name, s.identifier)] = [_link_source(l) for l in s.links]
+    return snap
+
+
+def restore_multi_input_order(ng, snap):
+    """Re-stack multi-input links into the order `multi_input_order` recorded, keeping
+    whatever reroute each link now comes from. Returns the number of sockets fixed."""
+    fixed = 0
+    for (nname, sid), want in snap.items():
+        node = ng.nodes.get(nname)
+        if node is None: continue
+        sock = next((s for s in node.inputs if s.identifier == sid), None)
+        if sock is None: continue
+        links = list(sock.links)
+        have = [_link_source(l) for l in links]
+        if have == want or sorted(have) != sorted(want): continue
+        pool = defaultdict(list)
+        for k, l in zip(have, links): pool[k].append(l.from_socket)
+        feeds = [pool[k].pop(0) for k in want]
+        for order in (feeds, feeds[::-1]):          # stacking direction is not documented
+            for l in list(sock.links): ng.links.remove(l)
+            for fs in order: ng.links.new(fs, sock)
+            if [_link_source(l) for l in sock.links] == want: break
+        fixed += 1
+    return fixed
 
 
 def _real_sources(sock):

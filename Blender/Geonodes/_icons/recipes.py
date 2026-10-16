@@ -168,6 +168,22 @@ RECIPES = {
         params={"Radius": 0.055, "Subdivisions": 2},
         expect="verts_up",
     ),
+    # Every edge feeds Mesh to Curve; each face is inset and its cyclic loop
+    # gets a chain of tapered cubes deformed along it. On Suzanne's 500 faces
+    # that is an unreadable heap, so a coarse icosphere carries 20 clean loops.
+    # The spawned objects are tinted (as GN_SetMaterial) so they read against
+    # the clay base, and keep_base draws the surface they were spawned from.
+    "GN_SpawnObjectsAlong": dict(
+        short="Spawn Along",
+        catalog="Scatter",
+        base="icosphere",
+        base_args={"subdiv": 1, "r": 1.0},
+        keep_base=True,
+        helpers=[dict(name="mat", kind="material", colour=(0.85, 0.34, 0.24, 1.0))],
+        params={"Edge Group": True, "Zipper Lin Offset": 0.2, "Material": "@mat",
+                "Scale": (1.5, 1.5, 1.5)},
+        expect="verts_up",
+    ),
     # ---- batch 3 -------------------------------------------------------------
     "GN_Inflate": dict(
         short="Inflate",
@@ -395,7 +411,7 @@ RECIPES = {
 
     "GN_TileableMeshNoise": dict(
         short="Tile Noise",
-        catalog="Generate",
+        catalog="Deform",
         base="grid",
         base_args={"x": 2, "y": 2, "size": 2.0},
         prep=[],
@@ -832,6 +848,19 @@ RECIPES = {
         file="GN_Solidify2.blend",
         prep=["shade_smooth", ("mark_open_boundary", "z", 0.3)],
         params={"Thickness": 0.12, "Offset": 0.5},
+        expect="topology",
+    ),
+
+    # Same open crown as GN_Solidify2; the rim carries loops and a Push bulge and is
+    # tinted through the Rim output, so the rim shaping is what reads.
+    "GN_SolidifyPlus": dict(
+        short="Solidify+",
+        catalog="Generate",
+        prep=["shade_smooth", ("mark_open_boundary", "z", 0.3)],
+        params={"Thickness": 0.12, "Offset": 0.0, "Rim Loops": 2, "Push": 0.02},
+        outputs={"Rim": "rim"},
+        promote={"rim": "rim_f"},
+        material=("mask", "rim_f"),
         expect="topology",
     ),
 

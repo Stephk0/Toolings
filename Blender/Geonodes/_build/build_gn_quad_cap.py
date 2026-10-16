@@ -282,6 +282,8 @@ def named(dtype, name, parent):
 A_VID, A_NEXT, A_RIM = "__qc_vid", "__qc_next", "__qc_rim"
 
 # ============================================================================= 1. SELECTION GATE
+# Superseded in the shipped file: patch_gn_use_selection_gate_group.py swapped this XOR for
+# GNG_SelectionGate and added Grow / Shrink Selection. Re-running this builder drops both.
 g = gi(F_sel, "Selection", "Invert Selection")
 sel = bmath('XOR', (g, "Selection"), (g, "Invert Selection"), F_sel)
 
