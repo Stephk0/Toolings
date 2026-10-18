@@ -1,5 +1,25 @@
 # Changelog — Edge Constraint Mode
 
+## 2.2.0 — 2026-10-18
+
+- **Fixed (Edge):** a sliding vertex no longer passes through existing,
+  unselected loops. A second loop cut between the first loop and the cube's
+  end used to slide straight through the first loop to the end. It now stops
+  at the end of its own edge, like 3ds Max.
+- **Fixed (Edge):** with edges selected in Edge or Face select mode, an
+  unselected edge that joins two selected ones (the rung between two
+  selected edges) is now a rail. Scaling or rotating two parallel edges
+  slides them along the edges between them. Before, those rungs were
+  treated as part of the selection, so the verts stuck or slid off along
+  the wrong edge into the neighbouring face.
+- **Fixed (Edge):** scaling two selected loops toward each other slides
+  them along the edges between them. Before, the corner verts slid sideways
+  along their own loop and the cube's walls caved in.
+- **New:** **Stop at Vertices** setting (Edge, on by default). Turn it off for
+  the old behaviour, where a vertex keeps sliding over the next edges up to
+  **Reach**. Reach and Stop at Selected now apply to Edge only while it is
+  off.
+
 ## 2.1.0 — 2026-10-15
 
 - **New: Live mode.** The constraint is now an on/off toggle that constrains

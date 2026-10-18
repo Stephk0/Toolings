@@ -1,6 +1,6 @@
 # Edge Constraint Mode
 
-**Version:** 2.1.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
+**Version:** 2.2.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
 
 3ds Max-style **sub-object constraints** for Blender's Mesh Edit mode. Switch
 the constraint on in the header, pick **Edge**, **Face** or **Normal**, and
@@ -43,7 +43,7 @@ the drag (left: before, right: during).
 
 ## Install
 
-1. Download `distribution/EdgeConstraintMode_v2.1.0.zip`.
+1. Download `distribution/EdgeConstraintMode_v2.2.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**, pick the zip, enable it.
 
 ## Use
@@ -97,12 +97,15 @@ centre.
 
 Click the arrow next to the type dropdown.
 
+- **Stop at Vertices** (Edge, on by default) stops a sliding vertex at the
+  end of its own edge, as in 3ds Max. A loop you move never slides through
+  another loop. Turn it off for long slides across dense meshes.
 - **Reach** sets how far a vertex can travel in one transform: the number
-  of edges (Edge) or rings of faces (Face) it can cross. The default is 4.
-  Raise it for long slides across dense meshes.
-- **Stop at Selected** (Edge) makes a sliding vertex stop when it reaches
-  another selected vertex, so two parallel loops can't slide through each
-  other.
+  of rings of faces (Face) it can cross, or of edges (Edge, with Stop at
+  Vertices off). The default is 4.
+- **Stop at Selected** (Edge, with Stop at Vertices off) makes a sliding
+  vertex stop when it reaches another selected vertex, so two parallel
+  selected loops can't slide through each other.
 - **Constrain Blender Transforms** is on by default. Switch it off to leave
   Blender's tools alone and only constrain the **Constrained Transform**
   command (F3).
