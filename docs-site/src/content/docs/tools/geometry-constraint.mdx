@@ -1,0 +1,119 @@
+---
+title: Geometry Constraint
+description: A 3ds Max-style constraint toggle (Edge / Face / Normal) that keeps every Blender Move, Rotate and Scale on the mesh.
+tool:
+  name: GeometryConstraint
+  version: 3.0.0
+  status: active
+  category: Modeling
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/GeometryConstraint/distribution/GeometryConstraint_v3.0.0.zip
+  sourcePath: Blender/Addons/GeometryConstraint/source/
+  detailLevel: detailed
+---
+
+import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+import ToolMeta from '../../../components/ToolMeta.astro';
+import rotateImg from '../../../assets/tools/geometry-constraint/geometry_constraint_rotate.png';
+import moveImg from '../../../assets/tools/geometry-constraint/geometry_constraint_move.png';
+import scaleImg from '../../../assets/tools/geometry-constraint/geometry_constraint_scale.png';
+import gizmoImg from '../../../assets/tools/geometry-constraint/live_cube_move_gizmo.png';
+import terrainImg from '../../../assets/tools/geometry-constraint/live_terrain_face_G.png';
+import headerImg from '../../../assets/tools/geometry-constraint/header_toggle.png';
+import demoGif from '../../../assets/tools/geometry-constraint/geometry_constraint_demo.gif';
+
+<ToolMeta
+  name="Geometry Constraint"
+  version="3.0.0"
+  status="active"
+  category="Modeling"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/GeometryConstraint/distribution/GeometryConstraint_v3.0.0.zip"
+  sourcePath="Blender/Addons/GeometryConstraint/source/"
+/>
+
+## At a glance
+
+<img src={demoGif.src} alt="Geometry Constraint demo: Edge, Face and Normal constraints on Move, Rotate and Scale" class="tool-screenshot tool-screenshot--wide" />
+
+<Aside type="note" title="Formerly Edge Constraint Mode">
+Renamed in 3.0, since it constrains to edges, faces and normals. Uninstall Edge Constraint Mode before installing. Versions before 2.2 didn't work reliably.
+</Aside>
+
+The 3ds Max Editable Poly **Constraints** for Blender, as a toggle. Switch it on in the Edit-mode header, pick **Edge**, **Face** or **Normal**, and every transform is kept on the mesh. That covers `G` / `R` / `S` in any keymap, the toolbar gizmos, Mesh ▸ Transform and F9. Rotate a cube's loop cut with Edge on: the loop shears across the cube and the cube stays a cube.
+
+<img src={headerImg.src} alt="Edit-mode header with the constraint toggle and the Face type dropdown after the UV menu" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Header · on/off toggle + Edge / Face / Normal, right after the UV menu</span>
+
+<img src={rotateImg.src} alt="Rotating a cube's loop: Blender native breaks the cube, Edge constraint shears the loop and keeps the cube" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Rotate 30° · left: Blender native · right: Edge constraint (blue = start, orange = result)</span>
+
+<img src={moveImg.src} alt="Moving a loop diagonally: Edge constraint keeps only the motion along the edges" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Move · only the part of the drag along the edges is applied</span>
+
+<img src={scaleImg.src} alt="Uniformly scaling two loops: Edge constraint slides them apart along the cube" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Scale 1.6 · the loops slide apart along their edges</span>
+
+<img src={gizmoImg.src} alt="Real viewport: dragging Blender's Move gizmo freely, the loop only slides up the cube's edges" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Real viewport · Blender's own Move gizmo, free drag: the loop only slides up the edges</span>
+
+<img src={terrainImg.src} alt="Real viewport: Face constraint, a patch slides over a bumpy terrain" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Real viewport · Face constraint: the patch slides over the bumps and never leaves the surface</span>
+
+## Install
+
+<Steps>
+1. Download `GeometryConstraint_v3.0.0.zip`.
+2. **Edit → Preferences → Add-ons → Install from Disk**.
+3. Enable it. The constraint toggle and the **Edge / Face / Normal** dropdown appear in the 3D View header in Edit Mode, right after the UV menu.
+</Steps>
+
+## Day-to-day vs Advanced
+
+<Tabs>
+<TabItem label="Day-to-day">
+
+1. Enter Edit Mode, switch the constraint **on** and pick **Edge**, **Face** or **Normal**.
+2. Transform as usual: keys, gizmos, menus, typed values, axis locks. The constraint follows live while you drag.
+3. Switch it **off** for plain Blender transforms. Right-click the toggle → **Assign Shortcut** to bind it (Max uses `Shift+X`).
+
+</TabItem>
+<TabItem label="Advanced">
+
+### How it works
+
+1. Blender's own transform computes where each selected vertex *would* go.
+2. **Edge:** the motion picks the connected edge (leading out of the selection) it is most aligned with, and the vertex moves by the part of the motion along that edge. It can carry on onto the next edge if the path stays roughly straight, but it stops at sharp corners.
+3. **Face:** the vertex goes to the closest point on the original surface.
+4. **Normal:** the motion is projected onto the vertex normal.
+
+Pivot follows Blender's Transform Pivot Point setting. In Edge mode, **Stop at Vertices** (on by default) stops a vertex at the end of its own edge, so a loop never slides through another loop. Turn it off and **Reach** limits how many edges a vertex can cross, and **Stop at Selected** stops it at another selected vertex. In Face mode, **Reach** is the number of face rings.
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+<Aside type="note" title="What is left unconstrained">
+Transforms run by other add-ons' Python scripts, extrude / duplicate macros, and edge or vertex slide (G G).
+</Aside>
+
+<Aside type="tip" title="A vertex doesn't move">
+The drag is at right angles to every edge the vertex could slide along, so there's nothing to keep. Drag along an edge, or lock an axis that runs along the edges.
+</Aside>
+
+## Changelog
+
+- **v3.0.0**: renamed from Edge Constraint Mode to Geometry Constraint (new extension id; uninstall the old add-on first). No behaviour change.
+- **v2.2.0**: first working release. Loops stop at existing loops (Stop at Vertices); two selected edges or loops scale and rotate along the edges between them.
+- **v2.1.0** (non-functional): Live mode. The toggle now constrains Blender's own transforms (any keymap, gizmos, menus, F9); undo keeps the result. Fixes for round loops (Edge) and moved patches (Face).
+- **v2.0.0** (non-functional): None / Edge / Face / Normal constraints, Max-style rotate and scale (loop shear keeps a cube a cube), axis locks, numeric input, snapping, pivot modes, redo.
+- **v1.1.2** (non-functional): restores built-in gizmos hidden by 1.1.0 / 1.1.1.
+- **v1.1.0** (non-functional): persistent toggle and solver.
+- **v1.0.x** (non-functional): initial releases.
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/GeometryConstraint"
+  description="Open the addon source directory."
+/>

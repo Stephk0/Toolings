@@ -19,6 +19,17 @@ rest of the tools.
 
 ---
 
+## ✨ New: Geometry Constraint
+
+![Geometry Constraint: Edge, Face and Normal constraints keep Blender's Move, Rotate and Scale on the mesh](Blender/Addons/GeometryConstraint/assets/demo/geometry_constraint_demo.gif)
+
+3ds Max Editable Poly constraints for Blender: switch it on in the Edit-mode header, pick
+**Edge**, **Face** or **Normal**, and every native transform (keys, gizmos, menus, F9) stays
+on the mesh. [Docs](Blender/Addons/GeometryConstraint/README.md) ·
+[zip](Blender/Addons/GeometryConstraint/distribution/)
+
+---
+
 ## 🔷 Blender Addons
 
 | Tool | What it does | Get it |
@@ -31,7 +42,7 @@ rest of the tools.
 | **Smart Collapse** | 3ds Max-style collapse — merge at center | [docs](Blender/Addons/Smart%20Collapse/README.md) · [zip](Blender/Addons/Smart%20Collapse/distribution/) |
 | **Smart Set Orientation** | Transform orientation from selection, Maya working-pivot style | [docs](Blender/Addons/Smart%20Set%20Orientation/README.md) · [zip](Blender/Addons/Smart%20Set%20Orientation/distribution/) |
 | **Center Edges / Loops** | Center edge loops or selections along their average position | [docs](Blender/Addons/Center%20Edges/README.md) · [zip](Blender/Addons/Center%20Edges/distribution/) |
-| **Edge Constraint Mode** | 3ds Max-style edge constraint — verts slide along topology while transforming | [docs](Blender/Addons/EdgeConstraintMode/README.md) · [zip](Blender/Addons/EdgeConstraintMode/distribution/) |
+| **Geometry Constraint** | 3ds Max-style Edge / Face / Normal constraint toggle — every Move, Rotate and Scale stays on the mesh | [docs](Blender/Addons/GeometryConstraint/README.md) · [zip](Blender/Addons/GeometryConstraint/distribution/) |
 | **Synced Modifiers** | Keep modifiers in sync across objects, including Geometry Nodes inputs | [docs](Blender/Addons/SyncedModifiers/README.md) · [zip](Blender/Addons/SyncedModifiers/distribution/) |
 | **Modifier List (Stephko fork)** | Enhanced modifier-stack UI: list view, popup, sidebar | [docs](Blender/Addons/ModifierList_Stephko/README.md) · [zip](Blender/Addons/ModifierList_Stephko/distribution/) |
 | **Toggle Modifier Display** | Toggle modifier visibility in edit mode (D / Shift+D), 3ds Max "show end result" style | [docs](Blender/Addons/Toggle%20Modifier%20Display/README.md) · [zip](Blender/Addons/Toggle%20Modifier%20Display/distribution/) |

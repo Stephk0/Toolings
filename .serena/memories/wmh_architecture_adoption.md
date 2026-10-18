@@ -72,7 +72,7 @@ this script per tool for fast dev iteration. One template, parameterized by addo
   node-tree-swap detection on refresh, separate-undo trap, 500-target cap.
 - viewport_pie_menu: extensible Shift+W pie (1 tool + 7 free slots) — launcher to consolidate
   our scattered modal ops (Smart Crease/Collapse/Set Orientation, Center Edges, Toggle Modifier
-  Display, EdgeConstraintMode).
+  Display, GeometryConstraint).
 - rig_rebuild + greyboxing: mature Blender→Unity export pipelines — reference for the planned
   Unity track and MassExporter game-asset focus.
 - ascii_fbx_import: imports ASCII FBX (stock Blender is binary-only); relevant to legacy 3DS Max

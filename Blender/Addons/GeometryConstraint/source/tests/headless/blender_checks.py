@@ -1,0 +1,472 @@
+"""Headless integration checks + comparison renders, run inside Blender 5.0.
+
+    blender --background --factory-startup --python blender_checks.py -- <addon_parent_dir> [render_dir]
+    # or with the PyPI `bpy` module:
+    python blender_checks.py <addon_parent_dir> [render_dir]
+
+<addon_parent_dir> must contain the addon package as `GeometryConstraint/`
+(a copy or symlink of source/). Exits non-zero on any failed check. Not
+collected by pytest (core tests stay bpy-free).
+"""
+
+import math
+import os
+import sys
+
+import bpy  # noqa: I001  (bpy first: the PyPI module provides bmesh/mathutils)
+import bmesh
+from mathutils import Vector
+
+argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
+ADDON_PARENT = os.path.abspath(argv[0])
+RENDER_DIR = os.path.abspath(argv[1]) if len(argv) > 1 else None
+sys.path.insert(0, ADDON_PARENT)
+
+import GeometryConstraint  # noqa: E402
+
+FAILS = []
+
+
+def check(cond, msg):
+    print(("PASS " if cond else "FAIL ") + msg)
+    if not cond:
+        FAILS.append(msg)
+
+
+_registered = False
+
+
+def reset():
+    global _registered
+    if _registered:
+        GeometryConstraint.unregister()
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    GeometryConstraint.register()
+    _registered = True
+
+
+def make_cube(name, loc, cuts_axis=2, cut_values=(0.0,)):
+    """Cube (-1..1) with loop cuts perpendicular to cuts_axis; returns obj
+    and the vertex indices of each cut loop."""
+    me = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.location = loc
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=2.0)
+    for val in sorted(cut_values, reverse=True):
+        # Slice with bisect so the cut is a real edge loop.
+        co = [0.0, 0.0, 0.0]
+        co[cuts_axis] = val
+        no = [0.0, 0.0, 0.0]
+        no[cuts_axis] = 1.0
+        bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+                               plane_co=co, plane_no=no)
+    bm.to_mesh(me)
+    bm.free()
+    obj["ec_planes"] = {
+        str(v.index): [(i, 1.0 if v.co[i] > 0 else -1.0)
+                       for i in range(3) if abs(abs(v.co[i]) - 1.0) < 1e-5]
+        for v in me.vertices}
+    loops = [[v.index for v in me.vertices if abs(v.co[cuts_axis] - val) < 1e-5]
+             for val in cut_values]
+    return obj, loops
+
+
+def enter_edit(obj, sel):
+    for o in bpy.context.scene.objects:
+        o.select_set(False)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    for v in obj.data.vertices:
+        v.select = v.index in sel
+    for e in obj.data.edges:
+        e.select = all(i in sel for i in e.vertices)
+    for f in obj.data.polygons:
+        f.select = all(i in sel for i in f.vertices)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_mode(type='VERT')
+
+
+def leave_edit():
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+def local_cos(obj):
+    return [v.co.copy() for v in obj.data.vertices]
+
+
+def on_cube(p, tol=1e-4):
+    return all(abs(c) <= 1 + tol for c in p) and any(abs(abs(c) - 1) <= tol for c in p)
+
+
+def is_cube(obj, tol=1e-4):
+    """Still the same cube: every vertex is still on every cube side-plane it
+    started on (a loop vert on a vertical cube edge must stay on both planes,
+    otherwise the side faces fold), and nothing left the -1..1 box."""
+    for v in obj.data.vertices:
+        start = obj.get("ec_planes", {}).get(str(v.index))
+        if not on_cube(v.co, tol):
+            return False
+        if start:
+            for axis, sign in start:
+                if abs(v.co[int(axis)] - sign) > tol:
+                    return False
+    return True
+
+
+def bbox_is_unit(obj):
+    xs = [v.co for v in obj.data.vertices]
+    return all(abs(max(c[i] for c in xs) - 1) < 1e-4 and abs(min(c[i] for c in xs) + 1) < 1e-4
+               for i in range(3))
+
+
+# ---------------------------------------------------------------------------
+# Checks
+# ---------------------------------------------------------------------------
+
+def in_view3d(op):
+    """Wrap op to run inside the startup layout's 3D View.
+
+    Without a VIEW_3D context, background transform ops IGNORE the Transform
+    Pivot Point setting (cursor / active / individual origins all act as
+    median) - the real UI always has one.
+    """
+    def run():
+        win = bpy.context.window_manager.windows[0]
+        area = next((a for a in win.screen.areas if a.type == 'VIEW_3D'), None)
+        if area is None:
+            return op()
+        region = next(r for r in area.regions if r.type == 'WINDOW')
+        with bpy.context.temp_override(window=win, area=area, region=region):
+            return op()
+    return run
+
+
+def live_native(obj, op):
+    """Run a NATIVE transform op the way an interactive drag frame sees it.
+
+    Python-called operators never enter Blender's operator history, and
+    background mode has no modal transform, so the handler is told a
+    transform is running (exactly what Window.modal_operators reports during
+    a real G/R/S or gizmo drag), the op writes its free result, and the
+    depsgraph update lets the live handler snap it back.
+    """
+    from GeometryConstraint.blender import live
+    op = in_view3d(op)
+    bmesh.update_edit_mesh(obj.data)
+    bpy.context.view_layer.update()            # idle snapshot
+    real = live.transform_running
+    live.transform_running = lambda wm: True
+    try:
+        op()
+        bpy.context.view_layer.update()        # drag frame -> projected
+    finally:
+        live.transform_running = real
+    bmesh.update_edit_mesh(obj.data)
+    bpy.context.view_layer.update()            # "released"
+
+
+def run_checks():
+    reset()
+    s = bpy.context.scene.geometry_constraint
+    s.mode, s.enabled = 'EDGE', True
+
+    # 1. Acceptance: Blender's own rotate on a cube loop -> still a cube (shear).
+    obj, (loop,) = make_cube("RotCube", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "live rotate: every vertex still on its cube planes")
+    zs = sorted(obj.data.vertices[i].co.z for i in loop)
+    check(zs[-1] - zs[0] > 0.5, f"live rotate: loop was sheared (z span {zs[-1] - zs[0]:.3f})")
+    for i in loop:
+        co = obj.data.vertices[i].co
+        check(abs(co.z - (-co.x) * math.sin(math.radians(30))) < 1e-4,
+              f"live rotate: vert {i} z == -x*sin(30)  ({co.z:.4f})")
+
+    # 2. Toggle off: the same native rotate breaks the cube (contrast + proof
+    #    the handler stays out of the way).
+    s.enabled = False
+    obj, (loop,) = make_cube("NativeCube", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y'))
+    leave_edit()
+    check(not is_cube(obj), "toggle off: native rotate is untouched (cube breaks)")
+    s.enabled = True
+
+    # 3. Native move diagonally -> only the rail component survives.
+    obj, (loop,) = make_cube("MoveCube", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    live_native(obj, lambda: bpy.ops.transform.translate(value=(0.6, 0.3, 0.5)))
+    leave_edit()
+    check(is_cube(obj) and bbox_is_unit(obj), "live move: cube intact")
+    check(all(abs(obj.data.vertices[i].co.z - 0.5) < 1e-4 for i in loop), "live move: loop at z=0.5")
+
+    # 4. Native uniform scale of two X loops -> they slide apart along X only.
+    obj, loops = make_cube("ScaleCube", (0, 0, 0), cuts_axis=0, cut_values=(-0.5, 0.5))
+    sel = set(loops[0]) | set(loops[1])
+    enter_edit(obj, sel)
+    live_native(obj, lambda: bpy.ops.transform.resize(value=(1.6, 1.6, 1.6)))
+    leave_edit()
+    check(is_cube(obj) and bbox_is_unit(obj), "live scale: cube intact")
+    check(all(abs(abs(obj.data.vertices[i].co.x) - 0.8) < 1e-4 for i in sel), "live scale: loops at x=+-0.8")
+
+    # 5. Face: native rotate about Z keeps verts on the surface.
+    obj, (loop,) = make_cube("FaceCube", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    s.mode = 'FACE'
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(25), orient_axis='Z'))
+    leave_edit()
+    # Face mode lets corner verts leave the cube edge onto one face (as in Max),
+    # so only require every vertex to stay on the surface.
+    check(all(on_cube(v.co) for v in obj.data.vertices) and bbox_is_unit(obj),
+          "live face rotate: every vertex stays on the cube surface")
+    check(any(abs(obj.data.vertices[i].co.x) < 0.999 for i in loop),
+          "live face rotate: loop verts actually slid over the faces")
+    s.mode = 'EDGE'
+
+    # 6. Rotated, non-uniformly scaled object: projection happens in world space.
+    obj, (loop,) = make_cube("XformCube", (3, 0, 0))
+    obj.scale = (2.0, 1.0, 0.5)
+    obj.rotation_euler = (0.3, 0.2, 0.1)
+    enter_edit(obj, set(loop))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(20), orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "live rotate on transformed object: cube intact (local)")
+
+    # 7. Pivot points: Blender's own transform computes the free result
+    #    around whatever pivot is set; the constraint must follow it.
+    ts = bpy.context.scene.tool_settings
+    th = math.radians(25)
+
+    def rot_y_z(x, z, c, ang):
+        """z of (x, ., z) rotated by ang about the Y axis through c."""
+        return c[2] + (-(x - c[0]) * math.sin(ang) + (z - c[2]) * math.cos(ang))
+
+    def loop_z_ok(obj, idx, c, ang, z0, tag):
+        for i in idx:
+            co = obj.data.vertices[i].co
+            want = max(-1.0, min(1.0, rot_y_z(co.x, z0, c, ang)))
+            check(abs(co.z - want) < 1e-4 and on_cube(co),
+                  f"{tag}: vert {i} z {co.z:.4f} == {want:.4f}")
+
+    # 7a. 3D cursor
+    ts.transform_pivot_point = 'CURSOR'
+    bpy.context.scene.cursor.location = (0.4, 0.0, 0.3)
+    obj, (loop,) = make_cube("PivotCursor", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot 3D cursor, rotate: cube intact")
+    loop_z_ok(obj, loop, (0.4, 0.0, 0.3), th, 0.0, "pivot 3D cursor, rotate")
+
+    # 7b. 3D cursor, scale X 1.5 about x=1: loops at -0.5/+0.5 -> -1 (clamped at
+    #     the cube edge) / 0.25 (slides inward along the edge between the loops).
+    bpy.context.scene.cursor.location = (1.0, 0.0, 0.0)
+    obj, loops = make_cube("PivotCursorScale", (0, 0, 0), cuts_axis=0, cut_values=(-0.5, 0.5))
+    enter_edit(obj, set(loops[0]) | set(loops[1]))
+    live_native(obj, lambda: bpy.ops.transform.resize(value=(1.5, 1.0, 1.0)))
+    leave_edit()
+    check(is_cube(obj), "pivot 3D cursor, scale: cube intact")
+    check(all(abs(obj.data.vertices[i].co.x + 1.0) < 1e-4 for i in loops[0]),
+          "pivot 3D cursor, scale: far loop stops at the cube edge (x=-1)")
+    check(all(abs(obj.data.vertices[i].co.x - 0.25) < 1e-4 for i in loops[1]),
+          "pivot 3D cursor, scale: near loop at x=0.25")
+
+    # 7c. Active element: rotate about the active vertex (1, *, 0).
+    ts.transform_pivot_point = 'ACTIVE_ELEMENT'
+    obj, (loop,) = make_cube("PivotActive", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    act = next(i for i in loop if bm.verts[i].co.x > 0.5 and bm.verts[i].co.y > 0.5)
+    bm.select_history.add(bm.verts[act])
+    bmesh.update_edit_mesh(obj.data)
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot active element, rotate: cube intact")
+    loop_z_ok(obj, loop, (1.0, 1.0, 0.0), th, 0.0, "pivot active element, rotate")
+
+    # 7d. Individual origins: two separate loops each rotate about their own
+    #     centre (a middle, unselected loop keeps them apart as islands).
+    ts.transform_pivot_point = 'INDIVIDUAL_ORIGINS'
+    th2 = math.radians(20)
+    obj, loops = make_cube("PivotIndividual", (0, 0, 0), cut_values=(-0.6, 0.0, 0.6))
+    enter_edit(obj, set(loops[0]) | set(loops[2]))
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th2, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot individual origins, rotate: cube intact")
+    loop_z_ok(obj, loops[0], (0.0, 0.0, -0.6), th2, -0.6, "pivot individual origins, lower loop")
+    loop_z_ok(obj, loops[2], (0.0, 0.0, 0.6), th2, 0.6, "pivot individual origins, upper loop")
+    check(all(abs(obj.data.vertices[i].co.z) < 1e-6 for i in loops[1]),
+          "pivot individual origins: unselected middle loop untouched")
+
+    # 7e. Bounding box centre: loop at z=0 + the top corner vertex ->
+    #     bounds centre (0, 0, 0.5) differs from the median (0.2, 0.2, 0.2).
+    ts.transform_pivot_point = 'BOUNDING_BOX_CENTER'
+    obj, (loop,) = make_cube("PivotBounds", (0, 0, 0))
+    top = next(v.index for v in obj.data.vertices
+               if v.co.x > 0.9 and v.co.y > 0.9 and v.co.z > 0.9)
+    enter_edit(obj, set(loop) | {top})
+    live_native(obj, lambda: bpy.ops.transform.rotate(value=th, orient_axis='Y'))
+    leave_edit()
+    check(is_cube(obj), "pivot bounding box, rotate: cube intact")
+    loop_z_ok(obj, loop, (0.0, 0.0, 0.5), th, 0.0, "pivot bounding box, rotate")
+
+    # 7f. The F3 Constrained Transform operator honours the pivot too.
+    ts.transform_pivot_point = 'CURSOR'
+    bpy.context.scene.cursor.location = (0.4, 0.0, 0.3)
+    obj, (loop,) = make_cube("PivotOperator", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    bpy.ops.mesh.geometry_constraint_transform(transform_type='ROTATE', angle=th, axis=(0, 1, 0),
+                                           use_scene_constraint=False, constraint='EDGE')
+    leave_edit()
+    loop_z_ok(obj, loop, (0.4, 0.0, 0.3), th, 0.0, "operator, pivot 3D cursor")
+    ts.transform_pivot_point = 'MEDIAN_POINT'
+    bpy.context.scene.cursor.location = (0, 0, 0)
+
+    # 8. Scripted path: the Constrained Transform operator (no live hook).
+    obj, (loop,) = make_cube("OpCube", (0, 0, 0))
+    enter_edit(obj, set(loop))
+    bpy.ops.mesh.geometry_constraint_transform(transform_type='ROTATE', angle=math.radians(30),
+                                           axis=(0, 1, 0), use_scene_constraint=False,
+                                           constraint='EDGE')
+    leave_edit()
+    check(is_cube(obj), "operator rotate: cube intact")
+
+    print("Checks done:", "OK" if not FAILS else f"{len(FAILS)} FAILED")
+
+
+# ---------------------------------------------------------------------------
+# Renders: native Blender (left) vs Edge constraint (right)
+# ---------------------------------------------------------------------------
+
+COL_MESH = (0.80, 0.80, 0.82, 1.0)
+COL_WIRE = (0.08, 0.08, 0.09, 1.0)
+COL_SEL = (1.00, 0.45, 0.05, 1.0)
+COL_GHOST = (0.15, 0.55, 1.00, 1.0)
+
+
+def wire_copy(src_obj, name, color, thickness, vert_filter=None):
+    """Wireframe visual of src; vert_filter = list of vertex-index sets, an edge
+    is drawn when both its verts are in one of them (None = all edges)."""
+    me = bpy.data.meshes.new(name)
+    verts = [v.co.copy() for v in src_obj.data.vertices]
+    edges = [tuple(e.vertices) for e in src_obj.data.edges
+             if vert_filter is None
+             or any(all(i in group for i in e.vertices) for group in vert_filter)]
+    me.from_pydata(verts, edges, [])
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.matrix_basis = src_obj.matrix_basis.copy()   # matrix_world is stale until a depsgraph update
+    # Skin-free tube: convert edges to thin cylinders via a Skin? Use Wireframe
+    # on a temporary face-less mesh is not possible, so use curve bevel.
+    bpy.context.view_layer.objects.active = ob
+    for o in bpy.context.scene.objects:
+        o.select_set(o == ob)
+    bpy.ops.object.convert(target='CURVE')
+    ob = bpy.context.view_layer.objects.active
+    ob.data.bevel_depth = thickness
+    ob.data.bevel_resolution = 2
+    ob.color = color
+    return ob
+
+
+def label(text, loc, size=0.35):
+    cu = bpy.data.curves.new("lbl", 'FONT')
+    cu.body = text
+    cu.align_x = 'CENTER'
+    cu.size = size
+    ob = bpy.data.objects.new("lbl", cu)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.location = loc
+    ob.rotation_euler = (math.radians(90), 0, 0)
+    ob.color = (0.85, 0.85, 0.85, 1)
+    return ob
+
+
+def setup_render(title):
+    sc = bpy.context.scene
+    sc.render.engine = 'BLENDER_WORKBENCH'
+    sc.render.resolution_x = 1400
+    sc.render.resolution_y = 760
+    sc.display.shading.light = 'STUDIO'
+    sc.display.shading.color_type = 'OBJECT'
+    sc.display.shading.show_cavity = False
+    sc.display.shading.show_object_outline = False
+    sc.render.film_transparent = False
+    world = bpy.data.worlds.new("w")
+    sc.world = world
+    sc.display.shading.background_type = 'VIEWPORT' if hasattr(sc.display.shading, "background_type") else None
+    cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
+    sc.collection.objects.link(cam)
+    cam.location = (0.0, -13.5, 4.6)
+    cam.rotation_euler = (math.radians(73), 0, 0)
+    cam.data.lens = 38
+    sc.camera = cam
+    label(title, (0, 0, 2.75), 0.32)
+
+
+def finish_render(path):
+    bpy.context.scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+    print("Rendered", path)
+
+
+def demo(kind, path):
+    reset()
+    s = bpy.context.scene.geometry_constraint
+    titles = {
+        'move': "Move (0.6, 0.3, 0.5) of the loop",
+        'rotate': "Rotate 30 deg about Y of the loop",
+        'scale': "Uniform scale 1.6 of two loops",
+    }
+    setup_render(titles[kind])
+    for side, x in (('native', -2.7), ('edge', 2.7)):
+        if kind == 'scale':
+            obj, loops = make_cube(f"{kind}_{side}", (x, 0, 0), cuts_axis=0, cut_values=(-0.5, 0.5))
+            groups = [set(loops[0]), set(loops[1])]
+        else:
+            obj, (loop,) = make_cube(f"{kind}_{side}", (x, 0, 0))
+            groups = [set(loop)]
+        sel = set().union(*groups)
+        obj.rotation_euler = (0, 0, math.radians(-28))
+        wire_copy(obj, "ghost", COL_GHOST, 0.012, groups)
+        enter_edit(obj, sel)
+        if side == 'native':
+            if kind == 'move':
+                bpy.ops.transform.translate(value=(0.6, 0.3, 0.5))
+            elif kind == 'rotate':
+                bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y')
+            else:
+                bpy.ops.transform.resize(value=(1.6, 1.6, 1.6))
+        else:
+            s.mode, s.enabled = 'EDGE', True
+            if kind == 'move':
+                live_native(obj, lambda: bpy.ops.transform.translate(value=(0.6, 0.3, 0.5)))
+            elif kind == 'rotate':
+                live_native(obj, lambda: bpy.ops.transform.rotate(value=math.radians(30), orient_axis='Y'))
+            else:
+                live_native(obj, lambda: bpy.ops.transform.resize(value=(1.6, 1.6, 1.6)))
+            s.enabled = False
+        leave_edit()
+        ok = is_cube(obj) and bbox_is_unit(obj)
+        obj.color = COL_MESH
+        wire_copy(obj, "wire", COL_WIRE, 0.012)
+        wire_copy(obj, "sel", COL_SEL, 0.03, groups)
+        name = "Blender native" if side == 'native' else "Geometry Constraint"
+        verdict = "still a cube" if ok else "cube broken"
+        label(f"{name}: {verdict}", (x, -2.2, -1.75), 0.28)
+    finish_render(path)
+
+
+if __name__ == "__main__":
+    run_checks()
+    if RENDER_DIR:
+        os.makedirs(RENDER_DIR, exist_ok=True)
+        for kind in ('move', 'rotate', 'scale'):
+            demo(kind, os.path.join(RENDER_DIR, f"geometry_constraint_{kind}.png"))
+    if FAILS:
+        print("FAILED:", *FAILS, sep="\n  ")
+        sys.exit(1)
