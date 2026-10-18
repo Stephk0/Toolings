@@ -8,8 +8,10 @@ Model (mirrors 3ds Max Editable Poly "Constraints"):
   geometry, measured on the ORIGINAL mesh:
 
   EDGE   - the closest point on the vertex's "rail" network: the edges that
-           leave the vertex towards unselected geometry, continued edge by
-           edge for ``reach`` steps so a vertex can slide past a corner.
+           leave the vertex towards unselected geometry. By default a vertex
+           stops at the far end of its edge (``stop_at_vertices``), so it
+           never slides through an existing loop; with that off it continues
+           edge by edge for ``reach`` steps.
   FACE   - the closest point on the surface of the polygons around the
            vertex (again grown ``reach`` rings), so it slides over the
            surface instead of leaving it.
@@ -52,12 +54,18 @@ INTO_SELECTION = 0.25
 class MeshData:
     """Plain-data mesh snapshot: positions, edges, faces, selection."""
 
-    def __init__(self, positions, edges, faces, selected, normals=None):
+    def __init__(self, positions, edges, faces, selected, normals=None, selected_edges=None):
         self.positions = [tuple(p) for p in positions]
         self.edges = [tuple(e) for e in edges]
         self.faces = [tuple(f) for f in faces]
         self.selected = set(selected)
         self._normals = normals
+        # The mesh's own edge selection, as (a, b) pairs. In Edge / Face select
+        # mode an edge can join two selected verts without being selected
+        # itself (the rung between two selected edges); it is then a rail.
+        # None: an edge counts as selected when both its verts are.
+        self.selected_edges = (None if selected_edges is None
+                               else {_edge_key(a, b) for a, b in selected_edges})
 
         n = len(self.positions)
         self.vert_edges = [[] for _ in range(n)]
@@ -79,6 +87,8 @@ class MeshData:
 
     def edge_fully_selected(self, ei):
         a, b = self.edges[ei]
+        if self.selected_edges is not None:
+            return _edge_key(a, b) in self.selected_edges
         return a in self.selected and b in self.selected
 
     def face_fully_selected(self, fi):
@@ -135,15 +145,16 @@ class EdgeRails:
     past the edge's far vertex the leftover keeps going along the next edge -
     but only one that roughly continues the path (within ``turn_limit``), so
     a loop slides along a bent column of edges but stops at a cube corner
-    instead of wrapping onto the cap.
+    instead of wrapping onto the cap. With ``stop_at_vertices`` (the default)
+    the walk ends at the first vertex it reaches, like Max.
     """
 
     def __init__(self, mesh, v, *, reach=DEFAULT_REACH, stop_at_selected=True,
-                 turn_limit_cos=TURN_LIMIT_COS):
+                 stop_at_vertices=True, turn_limit_cos=TURN_LIMIT_COS):
         self.mesh = mesh
         self.v = v
         self.origin = mesh.positions[v]
-        self.reach = reach
+        self.reach = 1 if stop_at_vertices else reach
         self.stop_at_selected = stop_at_selected
         self.turn_limit_cos = turn_limit_cos
 
@@ -175,13 +186,20 @@ class EdgeRails:
             scores = [MIN_RAIL_SCORE * rlen] * 2
             any_leaving = False
             max_leaving = -float("inf")
-            for w, t, ln, leaves in self._edges_from(u, came_from):
-                if prev_dir is not None and vec.dot(t, prev_dir) < self.turn_limit_cos:
-                    continue
+            candidates = [c for c in self._edges_from(u, came_from)
+                          if prev_dir is None or vec.dot(c[1], prev_dir) >= self.turn_limit_cos]
+            leaving_dirs = [t for _w, t, _ln, leaves in candidates if leaves]
+            for w, t, ln, leaves in candidates:
                 s = vec.dot(remaining, t)
                 if leaves:
                     any_leaving = True
                     max_leaving = max(max_leaving, s)
+                elif leaving_dirs and not any(vec.dot(t, ld) < -self.turn_limit_cos
+                                              for ld in leaving_dirs):
+                    # An in-selection edge is a rail only where it continues a
+                    # leaving one through the vertex (the rung between two
+                    # selected loops), never sideways along the loop itself.
+                    continue
                 k = 0 if leaves else 1
                 if s > scores[k]:
                     scores[k], tiers[k] = s, (w, t, ln, s)
@@ -238,8 +256,10 @@ class NormalLine:
 # Builders
 # ---------------------------------------------------------------------------
 
-def edge_rails_for(mesh, v, *, reach=DEFAULT_REACH, stop_at_selected=True):
-    return EdgeRails(mesh, v, reach=reach, stop_at_selected=stop_at_selected)
+def edge_rails_for(mesh, v, *, reach=DEFAULT_REACH, stop_at_selected=True,
+                   stop_at_vertices=True):
+    return EdgeRails(mesh, v, reach=reach, stop_at_selected=stop_at_selected,
+                     stop_at_vertices=stop_at_vertices)
 
 
 def _triangulate(positions, face):
@@ -279,13 +299,15 @@ def face_patch_for(mesh, v, *, reach=DEFAULT_REACH, stop_at_selected=True):
     return FacePatch(mesh.positions[v], tris)
 
 
-def build_constraints(mesh, mode, *, reach=DEFAULT_REACH, stop_at_selected=True):
+def build_constraints(mesh, mode, *, reach=DEFAULT_REACH, stop_at_selected=True,
+                      stop_at_vertices=True):
     """Return {vert_index: constraint} for every selected vertex."""
     out = {}
     for v in mesh.selected:
         if mode == MODE_EDGE:
             out[v] = edge_rails_for(mesh, v, reach=reach,
-                                    stop_at_selected=stop_at_selected)
+                                    stop_at_selected=stop_at_selected,
+                                    stop_at_vertices=stop_at_vertices)
         elif mode == MODE_FACE:
             out[v] = face_patch_for(mesh, v, reach=reach,
                                     stop_at_selected=stop_at_selected)

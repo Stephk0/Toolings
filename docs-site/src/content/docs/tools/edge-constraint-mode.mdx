@@ -3,11 +3,11 @@ title: Edge Constraint Mode
 description: A 3ds Max-style constraint toggle (Edge / Face / Normal) that keeps every Blender Move, Rotate and Scale on the mesh.
 tool:
   name: EdgeConstraintMode
-  version: 2.1.0
+  version: 2.2.0
   status: active
   category: Modeling
   blenderVersion: 4.5+
-  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v2.1.0.zip
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v2.2.0.zip
   sourcePath: Blender/Addons/EdgeConstraintMode/source/
   detailLevel: detailed
 ---
@@ -27,7 +27,7 @@ import headerImg from '../../../assets/tools/edge-constraint-mode/header_toggle.
   status="active"
   category="Modeling"
   blenderVersion="4.5+"
-  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v2.1.0.zip"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/EdgeConstraintMode/distribution/EdgeConstraintMode_v2.2.0.zip"
   sourcePath="Blender/Addons/EdgeConstraintMode/source/"
 />
 
@@ -56,7 +56,7 @@ The 3ds Max Editable Poly **Constraints** for Blender, as a toggle. Switch it on
 ## Install
 
 <Steps>
-1. Download `EdgeConstraintMode_v2.1.0.zip`.
+1. Download `EdgeConstraintMode_v2.2.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**.
 3. Enable it. The constraint toggle and the **Edge / Face / Normal** dropdown appear in the 3D View header in Edit Mode, right after the UV menu.
 </Steps>
@@ -80,7 +80,7 @@ The 3ds Max Editable Poly **Constraints** for Blender, as a toggle. Switch it on
 3. **Face:** the vertex goes to the closest point on the original surface.
 4. **Normal:** the motion is projected onto the vertex normal.
 
-Pivot follows Blender's Transform Pivot Point setting. **Reach** limits how many edges or face rings a vertex can cross, and **Stop at Selected** stops it at another selected vertex.
+Pivot follows Blender's Transform Pivot Point setting. In Edge mode, **Stop at Vertices** (on by default) stops a vertex at the end of its own edge, so a loop never slides through another loop. Turn it off and **Reach** limits how many edges a vertex can cross, and **Stop at Selected** stops it at another selected vertex. In Face mode, **Reach** is the number of face rings.
 
 </TabItem>
 </Tabs>

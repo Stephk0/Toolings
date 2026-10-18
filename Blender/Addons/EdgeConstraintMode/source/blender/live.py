@@ -77,7 +77,8 @@ def _read(obj, bm):
 
 
 def _constraints_for(base, obj, bm, settings):
-    ck = (settings.mode, settings.reach, settings.stop_at_selected, obj.name)
+    ck = (settings.mode, settings.reach, settings.stop_at_selected,
+          settings.stop_at_vertices, obj.name)
     cons = base.cache.get(ck)
     if cons is not None:
         return cons
@@ -88,13 +89,17 @@ def _constraints_for(base, obj, bm, settings):
         positions[i] = p                      # selected verts at their pre-transform spot
     normals = [tuple((normal_mat @ v.normal).normalized()) for v in bm.verts]
     edges = [(e.verts[0].index, e.verts[1].index) for e in bm.edges if not e.hide]
+    sel_edges = [(e.verts[0].index, e.verts[1].index) for e in bm.edges
+                 if e.select and not e.hide]
     faces = [tuple(v.index for v in f.verts) for f in bm.faces if not f.hide]
-    mesh = C.MeshData(positions, edges, faces, base.positions.keys(), normals)
+    mesh = C.MeshData(positions, edges, faces, base.positions.keys(), normals,
+                      selected_edges=sel_edges)
     if settings.mode == C.MODE_NORMAL:
         # Normals of the moved mesh are wrong; use the pre-transform ones.
         mesh._normals = None
     cons = C.build_constraints(mesh, settings.mode, reach=settings.reach,
-                               stop_at_selected=settings.stop_at_selected)
+                               stop_at_selected=settings.stop_at_selected,
+                               stop_at_vertices=settings.stop_at_vertices)
     base.cache.clear()
     base.cache[ck] = cons
     return cons

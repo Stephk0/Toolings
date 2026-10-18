@@ -60,6 +60,16 @@ class EdgeConstraintModeSettings(PropertyGroup):
         default=True,
         update=_changed,
     )
+    stop_at_vertices: BoolProperty(
+        name="Stop at Vertices",
+        description=(
+            "Edge: a sliding vertex stops at the end of its edge, so it never slides through "
+            "an existing loop (3ds Max behavior). Turn off to keep sliding along the next "
+            "edges, up to Reach"
+        ),
+        default=True,
+        update=_changed,
+    )
     stop_at_selected: BoolProperty(
         name="Stop at Selected",
         description="A sliding vertex stops when it reaches another selected vertex (keeps parallel loops from crossing)",

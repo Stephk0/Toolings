@@ -139,12 +139,85 @@ def test_move_stops_at_selected_neighbour_loop():
         assert out[v][2] == pytest.approx(0.5)
 
 
-def test_slide_continues_past_vertex_on_straight_rail():
-    # A straight 4-vertex polyline; slide vertex 1 by 1.5 -> lands on edge 2-3.
+def test_move_stops_at_unselected_loop():
+    # Only the upper loop (z=0.5) is selected; moving it down must stop on the
+    # existing, unselected loop at z=-0.5 instead of sliding through to z=-1.
+    positions, edges, faces, rings = cube_with_cuts([-0.5, 0.5])
+    sel = set(rings[2])
+    mesh = C.MeshData(positions, edges, faces, sel)
+    cons = C.build_constraints(mesh, C.MODE_EDGE)
+    pts = {v: positions[v] for v in sel}
+    out = C.solve(cons, T.translate(pts, (0, 0, -3)))
+    for v in sel:
+        assert out[v][2] == pytest.approx(-0.5)
+
+
+def test_scaling_two_selected_loops_slides_them_along_the_rungs():
+    # Vertex mode, loops at z=+-0.6 scaled 0.25 about the centre: the motion
+    # points mostly sideways along the loops, but the verts may only slide
+    # along the vertical rung between the loops - the cube stays a cube.
+    positions, edges, faces, rings = cube_with_cuts([-0.6, 0.6])
+    sel = set(rings[1]) | set(rings[2])
+    mesh = C.MeshData(positions, edges, faces, sel)
+    pts = {v: positions[v] for v in sel}
+    piv = T.pivot_point(list(pts.values()), T.PIVOT_MEDIAN)
+    out = C.solve(C.build_constraints(mesh, C.MODE_EDGE), T.scale(pts, piv, (0.25,) * 3))
+    for v in sel:
+        x, y, z = positions[v]
+        assert approx_pt(out[v], (x, y, z * 0.25)), (v, out[v])
+
+
+def _two_front_edges():
+    # Loops at z=-0.5 / z=0.5; select only their edges on the x=+1 face (edge
+    # select mode), NOT the vertical cube edges joining them.
+    positions, edges, faces, rings = cube_with_cuts([-0.5, 0.5])
+    lo, hi = (rings[1][0], rings[1][3]), (rings[2][0], rings[2][3])
+    sel = set(lo) | set(hi)
+    sel_edges = {lo, hi}
+    mesh = C.MeshData(positions, edges, faces, sel, selected_edges=sel_edges)
+    return positions, mesh, sel
+
+
+def test_scaling_two_selected_edges_slides_them_along_the_joining_edges():
+    positions, mesh, sel = _two_front_edges()
+    pts = {v: positions[v] for v in sel}
+    piv = T.pivot_point(list(pts.values()), T.PIVOT_MEDIAN)
+    out = C.solve(C.build_constraints(mesh, C.MODE_EDGE), T.scale(pts, piv, (0.3, 0.3, 0.3)))
+    for v in sel:
+        x, y, z = positions[v]
+        assert approx_pt(out[v], (x, y, z * 0.3)), (v, out[v])
+
+
+def test_rotating_two_selected_edges_keeps_them_on_the_cube_edges():
+    positions, mesh, sel = _two_front_edges()
+    pts = {v: positions[v] for v in sel}
+    piv = T.pivot_point(list(pts.values()), T.PIVOT_MEDIAN)
+    out = C.solve(C.build_constraints(mesh, C.MODE_EDGE),
+                  T.rotate(pts, piv, (1, 0, 0), math.radians(30)))
+    moved = False
+    for v in sel:
+        x, y, _z = positions[v]
+        assert out[v][0] == pytest.approx(x) and out[v][1] == pytest.approx(y), (v, out[v])
+        assert -1.0 - 1e-6 <= out[v][2] <= 1.0 + 1e-6
+        moved |= abs(out[v][2] - positions[v][2]) > 0.05
+    assert moved
+
+
+def test_slide_stops_at_next_vertex_by_default():
     positions = [(0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0)]
     edges = [(0, 1), (1, 2), (2, 3)]
     mesh = C.MeshData(positions, edges, [], {1})
     cons = C.build_constraints(mesh, C.MODE_EDGE)
+    out = C.solve(cons, {1: (2.5, 0.3, 0)})
+    assert approx_pt(out[1], (2, 0, 0))
+
+
+def test_slide_continues_past_vertex_on_straight_rail():
+    # Stop at Vertices off: slide vertex 1 by 1.5 -> lands on edge 2-3.
+    positions = [(0, 0, 0), (1, 0, 0), (2, 0, 0), (3, 0, 0)]
+    edges = [(0, 1), (1, 2), (2, 3)]
+    mesh = C.MeshData(positions, edges, [], {1})
+    cons = C.build_constraints(mesh, C.MODE_EDGE, stop_at_vertices=False)
     out = C.solve(cons, {1: (2.5, 0.3, 0)})
     assert approx_pt(out[1], (2.5, 0, 0))
 

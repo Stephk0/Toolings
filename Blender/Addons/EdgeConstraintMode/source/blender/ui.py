@@ -17,10 +17,16 @@ class VIEW3D_PT_edge_constraint(Panel):
         layout = self.layout
         layout.prop(s, "enabled", text="Constraint On")
         layout.prop(s, "mode", expand=True)
+        is_edge = s.mode == C.MODE_EDGE
         col = layout.column()
-        col.active = s.mode in {C.MODE_EDGE, C.MODE_FACE}
+        col.active = is_edge
+        col.prop(s, "stop_at_vertices")
+        col = layout.column()
+        col.active = s.mode == C.MODE_FACE or (is_edge and not s.stop_at_vertices)
         col.prop(s, "reach")
-        col.prop(s, "stop_at_selected")
+        sub = col.column()
+        sub.active = is_edge and not s.stop_at_vertices
+        sub.prop(s, "stop_at_selected")
         layout.separator()
         layout.prop(s, "live")
         layout.prop(s, "debug")
