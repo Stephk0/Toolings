@@ -271,7 +271,7 @@ dependencies or asset ownership needs both filters from the start. See
 
 *There is no API to hook Blender's transform system, but snapping the selected verts in a `depsgraph_update_post` handler is reliable for every keymap, gizmo and menu, and the undo step keeps the result.*
 
-Found building Edge Constraint Mode v2.1 (`Blender/Addons/EdgeConstraintMode/`).
+Found building Edge Constraint Mode v2.1, now Geometry Constraint (`Blender/Addons/GeometryConstraint/`).
 Measured in a real UI with simulated input on Blender 4.0.2, and headless on 5.0.
 
 - During a modal transform, each mouse move recomputes the selected verts
@@ -299,7 +299,7 @@ Measured in a real UI with simulated input on Blender 4.0.2, and headless on 5.0
 gizmos, Industry Compatible keymaps and menus, and has to re-implement axis
 locks, numeric input, snapping and pivots.
 
-**How to apply:** see `EdgeConstraintMode/source/blender/live.py` and the
+**How to apply:** see `GeometryConstraint/source/blender/live.py` and the
 state machine in `core/live.py`. Snapshot the selection while idle, freeze
 it when a transform starts, and project every update from that frozen
 snapshot. Never project from the previous frame.

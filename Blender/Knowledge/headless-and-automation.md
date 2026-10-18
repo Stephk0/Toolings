@@ -164,7 +164,7 @@ Recipes for automating Blender UI screenshots through `mcp__blender__execute_ble
 *Blender's full UI runs under Xvfb, and `Window.event_simulate` can press real keys and drag real gizmos, but four traps make simulated input silently do nothing.*
 
 Measured on Blender 4.0.2 (apt) under Xvfb with Mesa llvmpipe, 2026-10-15.
-Recipe: `EdgeConstraintMode/source/tests/headless/gui_drive.py`.
+Recipe: `GeometryConstraint/source/tests/headless/gui_drive.py`.
 
 ```bash
 Xvfb :99 -screen 0 1600x1000x24 &

@@ -1,0 +1,11 @@
+schema_version = "1.0.0"
+
+id = "geometry_constraint"
+version = "3.0.0"
+name = "Geometry Constraint"
+tagline = "3ds Max-style Edge / Face / Normal constraint toggle for every transform"
+maintainer = "Stephan Viranyi"
+type = "add-on"
+blender_version_min = "4.5.0"
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["Mesh", "Modeling"]
