@@ -551,6 +551,75 @@ def steps():
           "Toggle off: S is Blender's plain scale again (no slide)")
     yield 0.2
     yield from more_objects(s)
+    yield from hotkeys(s)
+
+
+def hotkeys(s):
+    """Keys bound to the add-on's (unassigned) hotkey entries drive the toggles,
+    and the right-click menu draws its entries."""
+    wm = bpy.context.window_manager
+    km = wm.keyconfigs.user.keymaps["3D View"]
+    binds = {   # label -> (operator, key, shift)
+        "toggle": ("view3d.geometry_constraint_toggle", 'F5', False),
+        "edge": ("view3d.geometry_constraint_edge", 'F6', False),
+        "face": ("view3d.geometry_constraint_face", 'F7', False),
+        "normal": ("view3d.geometry_constraint_normal", 'F8', False),
+        "full": ("view3d.geometry_constraint_cycle_full", 'F5', True),
+        "surface": ("view3d.geometry_constraint_cycle_surface", 'F6', True),
+    }
+    for label, (idname, k, shift) in binds.items():
+        kmi = next((i for i in km.keymap_items if i.idname == idname), None)
+        check(kmi is not None and kmi.type == 'NONE', f"hotkey entry '{label}' exists, unassigned")
+        if kmi is not None:
+            kmi.type, kmi.shift = k, shift
+    obj = make_loop_cube()
+    bpy.ops.object.mode_set(mode='EDIT')
+    frame_view()
+    _a, region, _r = view3d()
+    mouse(region.x + region.width // 2, region.y + region.height // 2)
+    s.enabled = False
+    yield 0.6
+
+    def state():
+        return s.mode if s.enabled else 'NONE'
+
+    def press(label):
+        _i, k, shift = binds[label]
+        key(k, shift=shift)
+
+    seq = [("edge", 'EDGE'), ("edge", 'NONE'), ("face", 'FACE'), ("normal", 'NORMAL'),
+           ("toggle", 'NONE'), ("toggle", 'NORMAL'),
+           ("full", 'NONE'), ("full", 'EDGE'), ("full", 'FACE'), ("full", 'NORMAL'),
+           ("surface", 'NONE'), ("surface", 'EDGE'), ("surface", 'FACE'), ("surface", 'NONE')]
+    got = []
+    for label, _want in seq:
+        press(label)
+        yield 0.3
+        got.append(state())
+    check(got == [w for _l, w in seq], f"hotkeys step the constraint as expected: {got}")
+
+    bpy.ops.object.mode_set(mode='OBJECT')
+    yield 0.3
+    before = state()
+    press("edge")
+    yield 0.3
+    check(state() == before, "hotkeys do nothing outside Mesh Edit mode")
+    bpy.ops.object.mode_set(mode='EDIT')
+    yield 0.3
+
+    from GeometryConstraint.blender import ui
+    menu = bpy.types.VIEW3D_MT_edit_mesh_context_menu
+    check(ui.draw_context_menu in getattr(menu.draw, "_draw_funcs", []),
+          "right-click menu has the Geometry Constraint entries")
+    with bpy.context.temp_override(window=win()):
+        bpy.ops.wm.call_menu(name="VIEW3D_MT_edit_mesh_context_menu")
+    yield 0.6
+    capture("gui_20_context_menu")
+    key('ESC')
+    yield 0.3
+    for kmi in km.keymap_items:
+        if kmi.idname.startswith("view3d.geometry_constraint_"):
+            kmi.type, kmi.shift = 'NONE', False
 
 
 _gen = None

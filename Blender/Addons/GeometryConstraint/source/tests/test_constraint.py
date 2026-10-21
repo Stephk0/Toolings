@@ -449,3 +449,18 @@ def test_scaled_edge_does_not_collapse_along_itself():
     pts = {v: pos[v] for v in (a, b)}
     out = C.solve(cons, T.scale(pts, (0, 1.5, 0), (0.5, 0.5, 0.5)))
     assert approx_pt(out[a], pos[a]) and approx_pt(out[b], pos[b])
+
+
+@pytest.mark.parametrize("order, steps", [
+    (C.CYCLE_FULL, [C.MODE_EDGE, C.MODE_FACE, C.MODE_NORMAL, C.MODE_NONE, C.MODE_EDGE]),
+    (C.CYCLE_SURFACE, [C.MODE_EDGE, C.MODE_FACE, C.MODE_NONE, C.MODE_EDGE]),
+])
+def test_hotkey_cycles(order, steps):
+    state = C.MODE_NONE
+    for want in steps:
+        state = C.next_in_cycle(state, order)
+        assert state == want
+
+
+def test_surface_cycle_turns_normal_off():
+    assert C.next_in_cycle(C.MODE_NORMAL, C.CYCLE_SURFACE) == C.MODE_NONE

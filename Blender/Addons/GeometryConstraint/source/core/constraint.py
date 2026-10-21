@@ -36,6 +36,18 @@ MODE_FACE = 'FACE'
 MODE_NORMAL = 'NORMAL'
 MODES = (MODE_NONE, MODE_EDGE, MODE_FACE, MODE_NORMAL)
 
+# Hotkey cycles: each press steps to the next state, NONE meaning off.
+CYCLE_FULL = (MODE_NONE, MODE_EDGE, MODE_FACE, MODE_NORMAL)
+CYCLE_SURFACE = (MODE_NONE, MODE_EDGE, MODE_FACE)   # along the surface: no Normal
+
+
+def next_in_cycle(current, order):
+    """The state after ``current`` in ``order`` (wrapping). A state the
+    cycle doesn't contain (Normal in the surface cycle) steps to off."""
+    if current not in order:
+        return order[0]
+    return order[(order.index(current) + 1) % len(order)]
+
 DEFAULT_REACH = 4
 # Walking past a vertex only continues onto an edge within ~60 deg of the
 # previous one.

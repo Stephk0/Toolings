@@ -3,6 +3,17 @@
 Called **Edge Constraint Mode** up to 2.2.0. Releases before 2.2.0 did not
 work reliably and are kept in `distribution/archive/` for reference only.
 
+## 3.2.0 — 2026-10-21
+
+- **New: hotkeys.** Toggle Edge / Face / Normal Constraint (switch to that
+  type, or off if it's on), and two cycles: Off > Edge > Face > Normal, and
+  Off > Edge > Face (along the surface). Unassigned by default; set keys in
+  the add-on's Preferences, in Keymap > 3D View, or with right-click >
+  Assign Shortcut. They only act in Mesh Edit mode.
+- **New: right-click menu.** The Edit-mode context menu has a Geometry
+  Constraint on/off entry and a submenu with every hotkey's button.
+- The on/off toggle operator now only runs in Mesh Edit mode.
+
 ## 3.1.0 — 2026-10-20
 
 - **Fixed:** shading broke while rotating or scaling with the constraint on,

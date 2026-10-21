@@ -51,7 +51,7 @@ from menus or panels.
 | Tool | Key | What it does | Get it |
 |------|-----|--------------|--------|
 | **Edit Mode Overlay** | — | Extra edit-mode viewport feedback and text overlay | [docs](Blender/Addons/Edit%20Mode%20Overlay/README.md) · [zip](Blender/Addons/Edit%20Mode%20Overlay/distribution/) |
-| **Geometry Constraint** | header toggle | 3ds Max-style Edge / Face / Normal constraint toggle — every Move, Rotate and Scale stays on the mesh | [docs](Blender/Addons/GeometryConstraint/README.md) · [zip](Blender/Addons/GeometryConstraint/distribution/) |
+| **Geometry Constraint** | header toggle · right-click menu · hotkeys | 3ds Max-style Edge / Face / Normal constraint toggle — every Move, Rotate and Scale stays on the mesh | [docs](Blender/Addons/GeometryConstraint/README.md) · [zip](Blender/Addons/GeometryConstraint/distribution/) |
 | **Smart Isolate** | Numpad / | 3ds Max Smart Isolate — nests deeper on a sub-selection, can keep cameras and lights | [docs](Blender/Addons/Smart%20Isolate/README.md) · [zip](Blender/Addons/Smart%20Isolate/distribution/) |
 | **Smart Set Orientation** | Ctrl+D | Transform orientation from selection, Maya working-pivot style | [docs](Blender/Addons/Smart%20Set%20Orientation/README.md) · [zip](Blender/Addons/Smart%20Set%20Orientation/distribution/) |
 | **Smart Wireframe View** | Shift+Alt+Z | Cycles overlays off / overlays / overlays + wireframe | [docs](Blender/Addons/Smart%20Wireframe%20View/README.md) · [zip](Blender/Addons/Smart%20Wireframe%20View/distribution/) |

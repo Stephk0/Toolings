@@ -1,10 +1,12 @@
-"""Viewport header toggle + settings popover."""
+"""Viewport header toggle, settings popover and right-click menu entries."""
 
 import bpy
-from bpy.types import Panel
+from bpy.types import Menu, Panel
 
 from ..core import constraint as C
-from .properties import TYPE_ICONS
+from .properties import TYPE_ICONS, TYPE_ITEMS
+
+TYPE_LABELS = {i[0]: i[1] for i in TYPE_ITEMS}
 
 
 class VIEW3D_PT_geometry_constraint(Panel):
@@ -49,16 +51,48 @@ def draw_header(self, context):
     row.popover(panel="VIEW3D_PT_geometry_constraint", text="")
 
 
-classes = (VIEW3D_PT_geometry_constraint,)
+class VIEW3D_MT_geometry_constraint(Menu):
+    """Every constraint hotkey as a button: right-click one > Assign Shortcut."""
+    bl_label = "Geometry Constraint"
+
+    def draw(self, context):
+        s = context.scene.geometry_constraint
+        layout = self.layout
+        for mode, label, _desc, icon, _n in TYPE_ITEMS:
+            on = s.enabled and s.mode == mode
+            layout.operator(f"view3d.geometry_constraint_{mode.lower()}",
+                            text=label, icon=icon, depress=on)
+        layout.separator()
+        layout.operator("view3d.geometry_constraint_cycle_full",
+                        text="Cycle: Off > Edge > Face > Normal")
+        layout.operator("view3d.geometry_constraint_cycle_surface",
+                        text="Cycle: Off > Edge > Face")
+
+
+def draw_context_menu(self, context):
+    # Operator buttons (not the property), so right-click > Assign Shortcut
+    # binds the same toggle the hotkey list shows.
+    s = context.scene.geometry_constraint
+    layout = self.layout
+    layout.separator()
+    label = f"Geometry Constraint ({TYPE_LABELS[s.mode]})"
+    layout.operator("view3d.geometry_constraint_toggle", text=label,
+                    icon='CHECKBOX_HLT' if s.enabled else 'CHECKBOX_DEHLT')
+    layout.menu("VIEW3D_MT_geometry_constraint", icon=TYPE_ICONS.get(s.mode, 'SNAP_EDGE'))
+
+
+classes = (VIEW3D_PT_geometry_constraint, VIEW3D_MT_geometry_constraint)
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
     bpy.types.VIEW3D_MT_editor_menus.append(draw_header)
+    bpy.types.VIEW3D_MT_edit_mesh_context_menu.append(draw_context_menu)
 
 
 def unregister():
+    bpy.types.VIEW3D_MT_edit_mesh_context_menu.remove(draw_context_menu)
     bpy.types.VIEW3D_MT_editor_menus.remove(draw_header)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

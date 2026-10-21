@@ -8,3 +8,4 @@ that name (extension id `edge_constraint_mode`).
 | `EdgeConstraintMode_v1.0.0` – `v2.1.0` | **Non-functional.** Don't install; kept for history. |
 | `EdgeConstraintMode_v2.2.0` | First working release. Superseded by Geometry Constraint 3.0.0 (same behaviour). |
 | `GeometryConstraint_v3.0.0` | Superseded by 3.1.0. |
+| `GeometryConstraint_v3.1.0` | Superseded by 3.2.0. |

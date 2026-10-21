@@ -7,7 +7,7 @@ with the constraint off, and yellow marks the edges the selection can slide
 along (the Show Constraint overlay). Full-quality video:
 [geometry_constraint_demo.mp4](assets/demo/geometry_constraint_demo.mp4).*
 
-**Version:** 3.1.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
+**Version:** 3.2.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
 
 > Formerly **Edge Constraint Mode**. It was renamed in 3.0 because it constrains to
 > edges, faces and normals. If you have Edge Constraint Mode installed, uninstall it
@@ -54,7 +54,7 @@ the drag (left: before, right: during).
 
 ## Install
 
-1. Download `distribution/GeometryConstraint_v3.1.0.zip`.
+1. Download `distribution/GeometryConstraint_v3.2.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**, pick the zip, enable it.
 
 ## Use
@@ -71,8 +71,31 @@ the drag (left: before, right: during).
    locks. The constraint follows along live while you drag.
 4. Switch it **off** to get unconstrained transforms back.
 
-To give the toggle a hotkey (3ds Max uses **Shift+X**), right-click the
-toggle and pick **Assign Shortcut**.
+You can also switch it from the **right-click menu** in Edit mode:
+**Geometry Constraint** turns it on or off, and the **Geometry Constraint ▸**
+submenu picks Edge, Face or Normal or steps through them.
+
+### Hotkeys
+
+Six hotkeys, all unassigned out of the box so they never clash with your
+keymap:
+
+| Hotkey | What it does |
+|---|---|
+| Toggle Transform Constraint | On / off, keeping the current type (3ds Max uses **Shift+X**) |
+| Toggle Edge / Face / Normal Constraint | Switches to that type, or off if it's already on |
+| Cycle Constraint: Off > Edge > Face > Normal | Each press steps to the next type, then off |
+| Cycle Constraint: Off > Edge > Face | The same for the two that keep the selection on the surface |
+
+To give one a key, do either of these:
+
+- **Right-click** the header toggle, or an entry in the right-click menu or
+  its submenu, and pick **Assign Shortcut**, as with any Blender button.
+- **Edit → Preferences → Add-ons → Geometry Constraint**: click the key field
+  next to the hotkey and press the key. They're also under **Keymap → 3D View**.
+
+The hotkeys only work in Mesh Edit mode, so the same key keeps its usual job
+everywhere else.
 
 ### Pivot points
 
