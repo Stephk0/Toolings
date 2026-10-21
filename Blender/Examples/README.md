@@ -59,7 +59,7 @@ all of them:
 
 ### Linked node groups
 
-The ST3E modifiers are linked from `../Geonodes/`. A few groups are still linked from
-third-party libraries that only exist on the author's machine (Higgsas `Mesh Ambient
-Occlusion` / `Taper`, Bradley's `G_Curve Deformer`); those modifiers show as
-missing elsewhere.
+The ST3E modifiers are linked from `../Geonodes/`. One third-party library is still
+linked and only exists on the author's machine: Bradley's Geo Nodes Presets
+(`G_Curve Deformer`, used inside `GN_SpawnObjectsAlong` on the zippers, and the polar
+coordinate groups in the `M_Eye_Proc` material). Those show as missing elsewhere.
