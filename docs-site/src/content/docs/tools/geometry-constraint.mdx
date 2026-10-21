@@ -3,11 +3,11 @@ title: Geometry Constraint
 description: A 3ds Max-style constraint toggle (Edge / Face / Normal) that keeps every Blender Move, Rotate and Scale on the mesh.
 tool:
   name: GeometryConstraint
-  version: 3.0.0
+  version: 3.1.0
   status: active
   category: Modeling
   blenderVersion: 4.5+
-  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/GeometryConstraint/distribution/GeometryConstraint_v3.0.0.zip
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/GeometryConstraint/distribution/GeometryConstraint_v3.1.0.zip
   sourcePath: Blender/Addons/GeometryConstraint/source/
   detailLevel: detailed
 ---
@@ -24,11 +24,11 @@ import demoGif from '../../../assets/tools/geometry-constraint/geometry_constrai
 
 <ToolMeta
   name="Geometry Constraint"
-  version="3.0.0"
+  version="3.1.0"
   status="active"
   category="Modeling"
   blenderVersion="4.5+"
-  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/GeometryConstraint/distribution/GeometryConstraint_v3.0.0.zip"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/GeometryConstraint/distribution/GeometryConstraint_v3.1.0.zip"
   sourcePath="Blender/Addons/GeometryConstraint/source/"
 />
 
@@ -63,7 +63,7 @@ The 3ds Max Editable Poly **Constraints** for Blender, as a toggle. Switch it on
 ## Install
 
 <Steps>
-1. Download `GeometryConstraint_v3.0.0.zip`.
+1. Download `GeometryConstraint_v3.1.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**.
 3. Enable it. The constraint toggle and the **Edge / Face / Normal** dropdown appear in the 3D View header in Edit Mode, right after the UV menu.
 </Steps>
@@ -87,7 +87,7 @@ The 3ds Max Editable Poly **Constraints** for Blender, as a toggle. Switch it on
 3. **Face:** the vertex goes to the closest point on the original surface.
 4. **Normal:** the motion is projected onto the vertex normal.
 
-Pivot follows Blender's Transform Pivot Point setting. In Edge mode, **Stop at Vertices** (on by default) stops a vertex at the end of its own edge, so a loop never slides through another loop. Turn it off and **Reach** limits how many edges a vertex can cross, and **Stop at Selected** stops it at another selected vertex. In Face mode, **Reach** is the number of face rings.
+Pivot follows Blender's Transform Pivot Point setting. In Edge mode, **Even Slide** (on by default) moves a connected selection as one piece, every vertex the same distance along its own edge, like Edge Slide. **Show Constraint** draws the rails, surface or normals while you drag. In Edge mode, **Stop at Vertices** (on by default) stops a vertex at the end of its own edge, so a loop never slides through another loop. Turn it off and **Reach** limits how many edges a vertex can cross, and **Stop at Selected** stops it at another selected vertex. In Face mode, **Reach** is the number of face rings.
 
 </TabItem>
 </Tabs>
@@ -104,6 +104,7 @@ The drag is at right angles to every edge the vertex could slide along, so there
 
 ## Changelog
 
+- **v3.1.0**: fixes broken shading after rotate / scale and stale geometry on back-to-back drags. New Even Slide (moves keep the selection's size, like Edge Slide) and Show Constraint overlay.
 - **v3.0.0**: renamed from Edge Constraint Mode to Geometry Constraint (new extension id; uninstall the old add-on first). No behaviour change.
 - **v2.2.0**: first working release. Loops stop at existing loops (Stop at Vertices); two selected edges or loops scale and rotate along the edges between them.
 - **v2.1.0** (non-functional): Live mode. The toggle now constrains Blender's own transforms (any keymap, gizmos, menus, F9); undo keeps the result. Fixes for round loops (Edge) and moved patches (Face).

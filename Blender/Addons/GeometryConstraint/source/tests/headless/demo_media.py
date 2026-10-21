@@ -10,7 +10,8 @@ Three steps (Blender's Python has no PIL, and there's no ffmpeg needed):
 blender_checks.py). Each frame runs a NATIVE transform op at a fraction of its
 final value through the live handler, the same way a drag frame does. Orange
 is the constrained selection, the thin red ghost is what plain Blender would
-do with the constraint off. `preview` renders one frame per segment.
+do with the constraint off, yellow (Edge) the edges the selection can slide
+along, as the Show Constraint overlay draws them. `preview` renders one frame per segment.
 
 Outputs in <out_dir>: captioned/ (1080p PNG frames), stills/ (clean and
 captioned 1080p PNG at each segment's full transform) and a 960 px GIF.
@@ -64,6 +65,10 @@ def assemble(frames_dir, out_dir):
         d.text((s(40), y), "constrained", font=f_small, fill=(200, 200, 200))
         d.rectangle((s(140), y + s(9), s(152), y + s(11)), fill=(230, 60, 60))
         d.text((s(158), y), "Blender without constraint", font=f_small, fill=(200, 200, 200))
+        if entry.get("rails"):
+            x = s(158) + d.textlength("Blender without constraint", font=f_small) + s(18)
+            d.rectangle((x, y + s(8), x + s(12), y + s(12)), fill=(255, 205, 40))
+            d.text((x + s(18), y), "edges it can slide along", font=f_small, fill=(200, 200, 200))
         tag = "Geometry Constraint"
         w = d.textlength(tag, font=f_small)
         d.text((im.width - w - s(22), y), tag, font=f_small, fill=(130, 130, 130))
@@ -132,6 +137,7 @@ def render_frames(addon_parent, frames_dir, preview=False):
     sys.path.insert(0, os.path.abspath(addon_parent))
     import GeometryConstraint
     from GeometryConstraint.blender import live
+    from GeometryConstraint.core import constraint as C
 
     os.makedirs(frames_dir, exist_ok=True)
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -225,6 +231,19 @@ def render_frames(addon_parent, frames_dir, preview=False):
             v.co.x += 0.45 * v.co.z
         return bm
 
+    def fan():
+        # A wall of quads whose columns splay at different angles: per vertex,
+        # each end of a row would slide a different distance.
+        bm = bmesh.new()
+        rows = []
+        for z in (-1.0, 0.0, 1.0):
+            rows.append([bm.verts.new(((i - 1.5) * (0.7 + 0.45 * z) + (0.3 * z if i == 0 else 0.0), 0.0, z))
+                         for i in range(4)])
+        for r in range(2):
+            for i in range(3):
+                bm.faces.new((rows[r][i], rows[r][i + 1], rows[r + 1][i + 1], rows[r + 1][i]))
+        return bm
+
     def frustum():
         bm = cube([0.0])
         for v in bm.verts:
@@ -264,6 +283,11 @@ def render_frames(addon_parent, frames_dir, preview=False):
     def front_edges(co):
         return abs(co.y + 1) < 1e-4 and abs(abs(co.z) - 0.5) < 1e-4
 
+    def front_left_edge(co):
+        # the middle segment of the skewed box's front-left slanted edge
+        return (abs(co.x - (-1 + 0.45 * co.z)) < 1e-4 and abs(co.y + 1) < 1e-4
+                and abs(abs(co.z) - 0.5) < 1e-4)
+
     def patch(co):
         return abs(co.x) < 0.5 and abs(co.y) < 0.5
 
@@ -297,6 +321,11 @@ def render_frames(addon_parent, frames_dir, preview=False):
          lambda: cube([0.0]), ring(0.0), False, 'EDGE', rot('Y', 35), 'MEDIAN_POINT', None),
         ("Edge · Move (G)", "The loop slides along the vertical edges and stops at the corners",
          lambda: cube([0.0]), ring(0.0), False, 'EDGE', move(0.5, 0.0, 1.2), 'MEDIAN_POINT', None),
+        ("Edge · Even Slide (G)", "Every vertex of the row slides the same distance along its own edge",
+         fan, lambda co: abs(co.z) < 1e-4, False, 'EDGE', move(0.0, 0.0, 0.85), 'MEDIAN_POINT', 'front'),
+        ("Edge · Move along the edge (G)", "Like Vertex Slide, a selected edge slides along its own line",
+         lambda: skewed([-0.5, 0.5]), front_left_edge, True, 'EDGE', move(0.2, 0.0, 0.45),
+         'MEDIAN_POINT', None),
         ("Edge · Scale Z (S Z)", "Two loops on a skewed box slide toward each other along its slanted edges",
          lambda: skewed([-0.6, 0.6]), lambda co: abs(abs(co.z) - 0.6) < 1e-4, False, 'EDGE',
          scale(0.2, 'Z'), 'MEDIAN_POINT', None),
@@ -380,17 +409,32 @@ def render_frames(addon_parent, frames_dir, preview=False):
             trees["wire"] = tube_tree("wire", 0.008)
             trees["sel"] = tube_tree("sel", 0.022, point_radius=0.04)
             trees["ghost"] = tube_tree("ghost", 0.009, point_radius=0.022)
+            trees["rails"] = tube_tree("rails", 0.016)
+        rails = None
+        if mode == 'EDGE':
+            # The Show Constraint overlay is a viewport draw handler, which
+            # doesn't render: draw the same rails as yellow tubes.
+            mesh_data = C.MeshData([tuple(c) for c in orig], edges, faces, sel_v,
+                                   selected_edges=[edges[ei] for ei in sel_e])
+            segs = {seg for c in C.build_constraints(mesh_data, C.MODE_EDGE).values()
+                    for seg in c.candidate_edges()}
+            rails = bpy.data.meshes.new(f"rails{si}")
+            rails.from_pydata([p for seg in segs for p in seg],
+                              [(2 * k, 2 * k + 1) for k in range(len(segs))], [])
         display("solid", disp, (0.42, 0.42, 0.45, 1))
         display("wire", disp, (0.03, 0.03, 0.03, 1), trees["wire"])
         sel_ob = display("sel", sub_mesh("sel"), (1.0, 0.42, 0.05, 1), trees["sel"])
         ghost_ob = display("ghost", sub_mesh("ghost"), (0.85, 0.12, 0.12, 1), trees["ghost"])
+        if rails is not None:
+            display("rails", rails, (1.0, 0.8, 0.15, 1), trees["rails"])
 
         # camera: three-quarter view framing the shape
         lo = Vector([min(c[i] for c in orig) for i in range(3)])
         hi = Vector([max(c[i] for c in orig) for i in range(3)])
         centre = (lo + hi) / 2
         radius = (hi - lo).length / 2
-        d = Vector((1.0, -1.35, 1.6 if view == 'high' else 0.75)).normalized()
+        d = (Vector((0.25, -1.6, 0.3)) if view == 'front' else
+             Vector((1.0, -1.35, 1.6 if view == 'high' else 0.75))).normalized()
         cam.location = centre + d * radius * (3.9 if view == 'high' else 4.6)
         cam.rotation_euler = (centre - cam.location).to_track_quat('-Z', 'Y').to_euler()
 
@@ -463,7 +507,7 @@ def render_frames(addon_parent, frames_dir, preview=False):
             scene.render.filepath = os.path.join(frames_dir, name)
             bpy.ops.render.render(write_still=True)
             meta.append({"file": name, "title": title, "subtitle": sub, "segment": si,
-                         "slug": slug, "still": ti == still_at})
+                         "slug": slug, "still": ti == still_at, "rails": rails is not None})
             frame_no += 1
         restore()
         bpy.ops.object.mode_set(mode='OBJECT')

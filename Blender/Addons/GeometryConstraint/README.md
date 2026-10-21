@@ -2,7 +2,12 @@
 
 ![Geometry Constraint demo: Edge, Face and Normal constraints on Move, Rotate and Scale](assets/demo/geometry_constraint_demo.gif)
 
-**Version:** 3.0.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
+*Orange is the constrained result, the thin red outline is what Blender does
+with the constraint off, and yellow marks the edges the selection can slide
+along (the Show Constraint overlay). Full-quality video:
+[geometry_constraint_demo.mp4](assets/demo/geometry_constraint_demo.mp4).*
+
+**Version:** 3.1.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
 
 > Formerly **Edge Constraint Mode**. It was renamed in 3.0 because it constrains to
 > edges, faces and normals. If you have Edge Constraint Mode installed, uninstall it
@@ -49,7 +54,7 @@ the drag (left: before, right: during).
 
 ## Install
 
-1. Download `distribution/GeometryConstraint_v3.0.0.zip`.
+1. Download `distribution/GeometryConstraint_v3.1.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**, pick the zip, enable it.
 
 ## Use
@@ -89,10 +94,13 @@ centre.
 - **Edge.** Each vertex slides along one of its edges, and the direction you
   drag picks the edge. Motion across the edge is ignored. Edges that lead
   out of the selection are the rails, so a selected loop slides along the
-  edges that cross it and never along itself. A vertex can carry on past
+  edges that cross it, not along the loop itself. A vertex can carry on past
   the end of an edge if the path stays roughly straight (down a cylinder or
   along a sphere's meridian), but it stops at a sharp corner such as the
-  edge of a cube.
+  edge of a cube. When you **move**, a connected selection slides as one
+  piece, like Edge Slide (see **Even Slide** below). A selected edge (or the
+  ends of an open chain of edges) can also be moved along its own length,
+  like Vertex Slide: the trailing end slides along the selected edge itself.
 - **Face.** Each vertex slides over the original surface and never leaves
   it. It can cross onto neighbouring faces, and off a hard edge onto the
   face next to it.
@@ -103,6 +111,10 @@ centre.
 
 Click the arrow next to the type dropdown.
 
+- **Even Slide** (Edge, on by default): when you move, every vertex of a
+  connected selection slides the same distance, each along its own edge,
+  like Edge Slide in Even mode. The selection keeps its size instead of one
+  end racing ahead. Rotate and scale are unaffected.
 - **Stop at Vertices** (Edge, on by default) stops a sliding vertex at the
   end of its own edge, as in 3ds Max. A loop you move never slides through
   another loop. Turn it off for long slides across dense meshes.
@@ -112,6 +124,10 @@ Click the arrow next to the type dropdown.
 - **Stop at Selected** (Edge, with Stop at Vertices off) makes a sliding
   vertex stop when it reaches another selected vertex, so two parallel
   selected loops can't slide through each other.
+- **Show Constraint** (on by default) draws what the selection is held to
+  while you transform, like Edge Slide's guide lines: the edges each vertex
+  can slide along (bright for the ones in use), the surface for Face, the
+  normal lines for Normal.
 - **Constrain Blender Transforms** is on by default. Switch it off to leave
   Blender's tools alone and only constrain the **Constrained Transform**
   command (F3).

@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "geometry_constraint"
-version = "3.0.0"
+version = "3.1.0"
 name = "Geometry Constraint"
 tagline = "3ds Max-style Edge / Face / Normal constraint toggle for every transform"
 maintainer = "Stephan Viranyi"

@@ -70,6 +70,25 @@ class GeometryConstraintSettings(PropertyGroup):
         default=True,
         update=_changed,
     )
+    even_slide: BoolProperty(
+        name="Even Slide",
+        description=(
+            "Edge: when moving, each connected part of the selection slides one shared "
+            "distance, every vertex along its own edge, like Edge Slide's Even mode, so "
+            "it keeps its size. Turn off to let each vertex take its own share of the drag"
+        ),
+        default=True,
+        update=_changed,
+    )
+    show_constraint: BoolProperty(
+        name="Show Constraint",
+        description=(
+            "While transforming, draw the edges, faces or normals the selection is held "
+            "to, like Edge Slide's guide lines"
+        ),
+        default=True,
+        update=_changed,
+    )
     stop_at_selected: BoolProperty(
         name="Stop at Selected",
         description="A sliding vertex stops when it reaches another selected vertex (keeps parallel loops from crossing)",

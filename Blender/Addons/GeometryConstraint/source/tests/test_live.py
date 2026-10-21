@@ -98,3 +98,16 @@ def test_second_drag_uses_post_first_drag_state():
     step(tr, P_SNAP, op=2, is_t=True, running=False)                       # idle
     b = step(tr, {8: (1.2, 1.0, 0.6)}, op=2, is_t=True, running=True, write={8: (1, 1, 0.6)})
     assert b.positions == P_SNAP
+
+
+def test_second_drag_without_an_update_after_confirm():
+    """Confirm fired no depsgraph update: the next drag's first update is
+    already running, with a newer registered op. Project from our last write,
+    not from the first drag's start."""
+    tr = LiveTracker()
+    step(tr, P0, op=1, is_t=False, running=False)
+    step(tr, P_FREE, op=1, is_t=False, running=True, write=P_SNAP)
+    b = step(tr, {8: (1.2, 1.0, 0.6)}, op=2, is_t=True, running=True, write={8: (1, 1, 0.6)})
+    assert b.positions == P_SNAP
+    # ...and F9 on the first drag still projects from its start
+    assert tr.redo_op == 2 and tr.redo_base.positions == P0

@@ -20,6 +20,7 @@ class VIEW3D_PT_geometry_constraint(Panel):
         is_edge = s.mode == C.MODE_EDGE
         col = layout.column()
         col.active = is_edge
+        col.prop(s, "even_slide")
         col.prop(s, "stop_at_vertices")
         col = layout.column()
         col.active = s.mode == C.MODE_FACE or (is_edge and not s.stop_at_vertices)
@@ -28,6 +29,7 @@ class VIEW3D_PT_geometry_constraint(Panel):
         sub.active = is_edge and not s.stop_at_vertices
         sub.prop(s, "stop_at_selected")
         layout.separator()
+        layout.prop(s, "show_constraint")
         layout.prop(s, "live")
         layout.prop(s, "debug")
 

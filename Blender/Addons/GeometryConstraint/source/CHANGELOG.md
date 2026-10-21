@@ -3,6 +3,30 @@
 Called **Edge Constraint Mode** up to 2.2.0. Releases before 2.2.0 did not
 work reliably and are kept in `distribution/archive/` for reference only.
 
+## 3.1.0 — 2026-10-20
+
+- **Fixed:** shading broke while rotating or scaling with the constraint on,
+  and stayed broken after confirming until the next edit. Normals are now
+  recalculated after every snap.
+- **Fixed:** a drag started right after another one could be projected
+  from the first drag's starting positions, so the constraint seemed to use
+  stale geometry. Blender doesn't always send an update after a confirm;
+  the next drag now starts from the last result.
+- **New: Even Slide** (Edge, on by default). Moving a selection slides every
+  vertex of each connected piece the same distance along its own edge, like
+  Edge Slide's Even mode, so an edge or loop keeps its size. A vertex whose
+  edges are all off the drag direction now slides with the rest instead of
+  staying behind. The whole piece stops at the shortest edge with Stop at
+  Vertices.
+- **Fixed:** a selected edge couldn't be moved along its own length; its own
+  edge wasn't a rail. When you move, the ends of a selected edge or open
+  chain now also slide along that edge, like Vertex Slide. Rotate and scale
+  still keep to the edges leading out of the selection, so the edge doesn't
+  collapse.
+- **New: Show Constraint** (on by default): while transforming, the viewport
+  draws the edges each vertex can slide along (bright for the ones in use),
+  the Face surface, or the Normal lines.
+
 ## 3.0.0 — 2026-10-18
 
 - **Renamed** from Edge Constraint Mode to **Geometry Constraint**: it

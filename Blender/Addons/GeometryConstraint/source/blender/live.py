@@ -17,6 +17,7 @@ from mathutils import Vector
 
 from ..core import constraint as C
 from ..core.live import LiveTracker, same_positions
+from . import overlay
 
 # Native operators whose result gets constrained.
 TRANSFORM_OPS = {
@@ -79,9 +80,9 @@ def _read(obj, bm):
 def _constraints_for(base, obj, bm, settings):
     ck = (settings.mode, settings.reach, settings.stop_at_selected,
           settings.stop_at_vertices, obj.name)
-    cons = base.cache.get(ck)
-    if cons is not None:
-        return cons
+    hit = base.cache.get(ck)
+    if hit is not None:
+        return hit
     world = obj.matrix_world
     normal_mat = world.to_3x3().inverted_safe().transposed()
     positions = [tuple(world @ v.co) for v in bm.verts]
@@ -100,20 +101,40 @@ def _constraints_for(base, obj, bm, settings):
     cons = C.build_constraints(mesh, settings.mode, reach=settings.reach,
                                stop_at_selected=settings.stop_at_selected,
                                stop_at_vertices=settings.stop_at_vertices)
+    shapes = overlay.static_shapes(cons, settings.mode, 0.25 * max(obj.dimensions))
     base.cache.clear()
-    base.cache[ck] = cons
-    return cons
+    base.cache[ck] = (cons, shapes)
+    return cons, shapes
 
 
-def _apply(obj, bm, base, positions, settings):
-    cons = _constraints_for(base, obj, bm, settings)
-    result = C.solve(cons, positions)
+def update_normals(bm, indices):
+    """Recompute the normals around moved verts.
+
+    The transform updates normals for its own (free) positions before this
+    handler runs; without this the viewport shades our snapped result with
+    those stale normals until the next edit.
+    """
+    bm.verts.ensure_lookup_table()
+    faces = {f for i in indices for f in bm.verts[i].link_faces}
+    for f in faces:
+        f.normal_update()
+    for v in {v for f in faces for v in f.verts}:
+        v.normal_update()
+
+
+def _apply(obj, bm, base, positions, settings, show_overlay):
+    cons, shapes = _constraints_for(base, obj, bm, settings)
+    result = C.solve(cons, positions,
+                     even=settings.mode == C.MODE_EDGE and settings.even_slide)
+    if show_overlay:
+        overlay.show(obj.name, shapes, cons)
     if same_positions(result, positions):
         return positions
     inv = obj.matrix_world.inverted_safe()
     bm.verts.ensure_lookup_table()
     for i, p in result.items():
         bm.verts[i].co = inv @ Vector(p)
+    update_normals(bm, result.keys())
     bmesh.update_edit_mesh(obj.data, loop_triangles=True, destructive=False)
     return result
 
@@ -143,8 +164,11 @@ def on_depsgraph_update(scene, _depsgraph=None):
             tr = _trackers.setdefault(obj.name, LiveTracker())
             base = tr.decide(key, positions, last_op=op_id, last_is_transform=is_t,
                              transform_running=running)
+            show_overlay = settings.show_constraint and bool(running or tr.in_session)
             if base is not None and positions:
-                positions = _apply(obj, bm, base, positions, settings)
+                positions = _apply(obj, bm, base, positions, settings, show_overlay)
+            if not show_overlay or base is None:
+                overlay.hide(obj.name)
                 if settings.debug:
                     print(f"[GeometryConstraint] live {settings.mode} on {obj.name}: "
                           f"{len(positions)} verts, {(time.perf_counter() - t0) * 1000:.1f} ms "
@@ -179,6 +203,7 @@ def on_load(*_args):
 def reset():
     """Forget snapshots (mode toggled, settings changed)."""
     _trackers.clear()
+    overlay.hide()
 
 
 _HANDLERS = (

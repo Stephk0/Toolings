@@ -157,6 +157,7 @@ class EdgeRails:
         self.reach = 1 if stop_at_vertices else reach
         self.stop_at_selected = stop_at_selected
         self.turn_limit_cos = turn_limit_cos
+        self.path = []          # edges the last project() slid along (overlay)
 
     def _edges_from(self, u, came_from):
         """Yield (other, unit_dir, length, prefers) for u's edges."""
@@ -172,43 +173,84 @@ class EdgeRails:
             leaves = not self.mesh.edge_fully_selected(ei)
             yield w, vec.mul(d, 1.0 / ln), ln, leaves
 
-    def project(self, target):
+    def _chain_end(self, u):
+        """u ends a selected edge / chain: exactly one of its edges is selected."""
+        return sum(1 for ei in self.mesh.vert_edges[u] if self.mesh.edge_fully_selected(ei)) == 1
+
+    def _pick(self, u, came_from, prev_dir, remaining, moving=False):
+        """The edge at u the motion slides along: (w, unit_dir, length, s) or None.
+
+        moving: the whole selection is translated by one offset. The end of a
+        selected edge / chain may then slide along that edge itself, like
+        Vertex Slide, so an edge can be pushed along its own length. (Under
+        rotate / scale that would collapse the edge instead.)
+        """
+        # Best positive alignment per tier: [leaving edges, in-selection edges].
+        rlen = vec.length(remaining)
+        tiers = [None, None]
+        scores = [MIN_RAIL_SCORE * rlen] * 2
+        any_leaving = False
+        max_leaving = -float("inf")
+        candidates = [c for c in self._edges_from(u, came_from)
+                      if prev_dir is None or vec.dot(c[1], prev_dir) >= self.turn_limit_cos]
+        leaving_dirs = [t for _w, t, _ln, leaves in candidates if leaves]
+        along_self = moving and self._chain_end(u)
+        for w, t, ln, leaves in candidates:
+            s = vec.dot(remaining, t)
+            if leaves:
+                any_leaving = True
+                max_leaving = max(max_leaving, s)
+            elif along_self:
+                pass
+            elif leaving_dirs and not any(vec.dot(t, ld) < -self.turn_limit_cos
+                                          for ld in leaving_dirs):
+                # An in-selection edge is a rail only where it continues a
+                # leaving one through the vertex (the rung between two
+                # selected loops), never sideways along the loop itself.
+                continue
+            k = 0 if leaves or along_self else 1
+            if s > scores[k]:
+                scores[k], tiers[k] = s, (w, t, ln, s)
+        best = tiers[0]
+        if best is None and (not any_leaving or max_leaving < -INTO_SELECTION * rlen):
+            best = tiers[1]
+        return best
+
+    def rail(self, delta):
+        """The first edge a move by ``delta`` slides along, or None."""
+        if vec.length_sq(delta) < 1e-24:
+            return None
+        return self._pick(self.v, None, None, delta, moving=True)
+
+    def side_rail(self, side):
+        """The leaving edge closest to ``side`` (not pointing away from it)."""
+        best, best_d = None, -self.turn_limit_cos
+        for w, t, ln, leaves in self._edges_from(self.v, None):
+            d = vec.dot(t, side)
+            if leaves and d > best_d:
+                best, best_d = (w, t, ln, d), d
+        return best
+
+    def candidate_edges(self):
+        """Every edge this vertex could slide along (for the overlay)."""
+        end = self._chain_end(self.v)
+        return [(self.origin, self.mesh.positions[w])
+                for w, _t, _ln, leaves in self._edges_from(self.v, None) if leaves or end]
+
+    def project(self, target, moving=False):
         mesh = self.mesh
         remaining = vec.sub(target, self.origin)
+        self.path = []
         if vec.length_sq(remaining) < 1e-24:
             return self.origin
         pos = self.origin
         u, came_from, prev_dir = self.v, None, None
         for _step in range(max(1, self.reach)):
-            # Best positive alignment per tier: [leaving edges, in-selection edges].
-            rlen = vec.length(remaining)
-            tiers = [None, None]
-            scores = [MIN_RAIL_SCORE * rlen] * 2
-            any_leaving = False
-            max_leaving = -float("inf")
-            candidates = [c for c in self._edges_from(u, came_from)
-                          if prev_dir is None or vec.dot(c[1], prev_dir) >= self.turn_limit_cos]
-            leaving_dirs = [t for _w, t, _ln, leaves in candidates if leaves]
-            for w, t, ln, leaves in candidates:
-                s = vec.dot(remaining, t)
-                if leaves:
-                    any_leaving = True
-                    max_leaving = max(max_leaving, s)
-                elif leaving_dirs and not any(vec.dot(t, ld) < -self.turn_limit_cos
-                                              for ld in leaving_dirs):
-                    # An in-selection edge is a rail only where it continues a
-                    # leaving one through the vertex (the rung between two
-                    # selected loops), never sideways along the loop itself.
-                    continue
-                k = 0 if leaves else 1
-                if s > scores[k]:
-                    scores[k], tiers[k] = s, (w, t, ln, s)
-            best = tiers[0]
-            if best is None and (not any_leaving or max_leaving < -INTO_SELECTION * rlen):
-                best = tiers[1]
+            best = self._pick(u, came_from, prev_dir, remaining, moving)
             if best is None:
                 break
             w, t, ln, s = best
+            self.path.append((mesh.positions[u], mesh.positions[w]))
             if s <= ln:
                 return vec.add(pos, vec.mul(t, s))
             # Ran past the far vertex: land on it, consume, keep walking.
@@ -318,7 +360,102 @@ def build_constraints(mesh, mode, *, reach=DEFAULT_REACH, stop_at_selected=True,
     return out
 
 
-def solve(constraints, targets):
-    """Project free targets {v: point} through constraints -> {v: point}."""
-    return {v: constraints[v].project(t) if v in constraints else t
+def solve(constraints, targets, *, even=False):
+    """Project free targets {v: point} through constraints -> {v: point}.
+
+    even: when the transform is a pure move (every target has the same
+    offset), each connected piece of an Edge selection slides one shared
+    distance, each vertex along its own edge, like Blender's Edge Slide in
+    Even mode. The selection keeps its size instead of every vertex taking
+    its own share of the drag.
+    """
+    delta = _common_delta(constraints, targets)
+    if even and delta is not None:
+        return _solve_even(constraints, targets, delta)
+    moving = delta is not None
+    return {v: (constraints[v].project(t, moving) if moving else constraints[v].project(t))
+            if v in constraints else t
             for v, t in targets.items()}
+
+
+def _common_delta(constraints, targets):
+    delta = None
+    for v, t in targets.items():
+        c = constraints.get(v)
+        if not isinstance(c, EdgeRails):
+            return None
+        d = vec.sub(t, c.origin)
+        if delta is None:
+            delta = d
+            tol = 1e-5 * (1.0 + vec.length(d))
+        elif (abs(d[0] - delta[0]) > tol or abs(d[1] - delta[1]) > tol
+              or abs(d[2] - delta[2]) > tol):
+            return None
+    if delta is None or vec.length_sq(delta) < 1e-24:
+        return None
+    return delta
+
+
+def _islands(rails):
+    """Groups of selected verts joined by selected edges."""
+    seen, out = set(), []
+    for start in rails:
+        if start in seen:
+            continue
+        mesh = rails[start].mesh
+        seen.add(start)
+        stack, island = [start], []
+        while stack:
+            u = stack.pop()
+            island.append(u)
+            for ei in mesh.vert_edges[u]:
+                w = mesh.other(ei, u)
+                if w in rails and w not in seen and mesh.edge_fully_selected(ei):
+                    seen.add(w)
+                    stack.append(w)
+        out.append(island)
+    return out
+
+
+def _solve_even(rails, targets, delta):
+    out = {}
+    for island in _islands({v: rails[v] for v in targets}):
+        picks = {v: rails[v].rail(delta) for v in island}
+        got = [p for p in picks.values() if p is not None]
+        if not got:
+            for v in island:
+                rails[v].path = []
+                out[v] = rails[v].origin
+            continue
+        # Least squares: the shared distance that best follows the drag.
+        dist = sum(p[3] for p in got) / len(got)
+        # A vertex with no edge along the drag still slides with the rest,
+        # along its edge on the same side (like Edge Slide), instead of
+        # staying behind and stretching the selection.
+        side = vec.normalized(_sum(p[1] for p in got))
+        for v in island:
+            if picks[v] is None and vec.length_sq(side) > 0.0:
+                picks[v] = rails[v].side_rail(side)
+        got = [p for p in picks.values() if p is not None]
+        stop = rails[island[0]].reach == 1
+        if stop:
+            dist = min(dist, min(p[2] for p in got))   # the whole piece stops together
+        for v in island:
+            r, p = rails[v], picks[v]
+            if p is None:
+                r.path = []
+                out[v] = r.origin
+            elif stop:
+                w, t, _ln, _s = p
+                r.path = [(r.origin, r.mesh.positions[w])]
+                out[v] = vec.add(r.origin, vec.mul(t, dist))
+            else:
+                out[v] = r.project(vec.add(r.origin, vec.mul(p[1], dist)), moving=True)
+    return out
+
+
+def _sum(vectors):
+    acc = (0.0, 0.0, 0.0)
+    for d in vectors:
+        acc = vec.add(acc, d)
+    return acc

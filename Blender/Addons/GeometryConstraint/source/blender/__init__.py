@@ -1,8 +1,8 @@
 """Blender UI + bpy boundary."""
 
-from . import live, operators, properties, ui
+from . import live, operators, overlay, properties, ui
 
-_modules = (properties, operators, ui, live)
+_modules = (properties, operators, ui, live, overlay)
 
 
 def register():
