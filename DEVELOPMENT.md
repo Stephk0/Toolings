@@ -49,7 +49,7 @@ Check [`Blender/Knowledge/`](Blender/Knowledge/README.md) before debugging a sil
 - **[Authoring guide](Blender/Geonodes/AUTHORING.md)** — making a group appear under
   *Add Modifier → ST3E*, demo objects, the Asset Browser icon pipeline.
 - [Geonode asset checklist](Blender/Knowledge/geonodes/asset-checklist.md) — build recipe,
-  roster, publish checklist. Also: [layout](Blender/Knowledge/geonodes/layout.md) ·
+  publish traps, retire checklist. Also: [layout](Blender/Knowledge/geonodes/layout.md) ·
   [nodes & fields](Blender/Knowledge/geonodes/nodes-and-fields.md) ·
   [sockets & menus](Blender/Knowledge/geonodes/sockets-and-menus.md) ·
   [techniques](Blender/Knowledge/geonodes/techniques.md) ·

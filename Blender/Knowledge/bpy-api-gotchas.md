@@ -2,47 +2,29 @@
 
 Python-API traps that fail silently: stale wrappers, lazy data, modal lifecycle.
 
-> Migrated verbatim from Claude auto-memory on 2026-09-22. Dates and version numbers are from when each note was written — trust the code when they disagree.
-
 - [BMesh is rebuilt on every undo push — never cache it in a modal](#feedback_blender_bmesh_invalidated_by_undo_push)
 - [Image.has_data is not a health check; modal operators need cancel()](#feedback_blender_gpu_image_and_modal_teardown)
 - [Draw handlers: gate on the datablock (==), not region identity](#feedback_blender_draw_handler_context_gating)
 - [Never key sets on id() of bpy wrappers](#feedback_blender_no_id_on_bpy_wrappers)
-- [Duplicate names get .001 — free the name first](#feedback_blender_unique_names)
 - [Blender 5 links its essentials brushes into every .blend](#feedback_blender_bundled_essentials_false_deps)
 - [Constraining native transforms: post-process in depsgraph_update_post](#finding_native_transform_postprocess)
 - [links.new can return None for a socket taken off a removed link](#links_new_stale_socket)
 - [activate_init is ignored under use_property_split](#activate_init_property_split)
 
+Duplicate names / `.001`: see [Export pipeline](export-pipeline.md#feedback_blender_unique_names).
+
 <a id="feedback_blender_bmesh_invalidated_by_undo_push"></a>
 
 ## BMesh is rebuilt on every undo push — never cache it in a modal
 
-*A modal started from inside a {'REGISTER','UNDO'} operator outlives the BMesh it captured - the undo push rebuilds it and cached BMLoopUV writes vanish with no error*
+*A modal launched from a `{'REGISTER','UNDO'}` operator outlives the BMesh it captured; writes to cached elements land in an orphan with no error.*
 
-Found fixing Tile UV Projector fine adjust (v1.4.0 → v1.4.1), see
-(`Blender/Addons/TileUVProjector/`).
-
-**Blender rebuilds the edit-mesh BMesh on every undo push.** If a modal operator
-captures BMesh elements in `invoke()` and is *launched from inside another
-operator flagged `{'REGISTER', 'UNDO'}`*, that operator pushes an undo step the
-moment it returns — so the modal's very first event is already working against
-an orphaned BMesh.
-
-The failure mode is the nasty one: **no exception**. Writes to the stale
-`BMLoopUV` succeed into the orphan, `bmesh.update_edit_mesh(mesh)` flushes the
-*current* BMesh instead, and nothing moves on screen. It reads as "my transform
-maths is wrong" when the maths is fine.
-
-**The mesh datablock reference is the part that actually kills you.** Caching
-`context.active_object.data` in `invoke()` and passing it to
-`bmesh.from_edit_mesh()` on later events returns a THROWAWAY BMesh rebuilt from
-that datablock, not the live edit BMesh. Writes land in a copy that is discarded
-before the next event — and they read back correctly immediately after
-assignment, so a debug trace of `before -> after` looks perfect. The tell is that
-`before` is the pristine original on EVERY event.
-
-Resolve the mesh from live context every time:
+The launching operator pushes an undo step as it returns, which rebuilds the edit BMesh, so
+the modal's first event already works on an orphan. Worse: caching
+`context.active_object.data` and calling `bmesh.from_edit_mesh()` on it later returns a
+**throwaway** BMesh. Writes read back correctly right after assignment, then vanish; the tell
+is that "before" values are pristine on every event. Found in Tile UV Projector 1.4.1
+(cost four releases).
 
 ```python
 def _edit_mesh(self, context):
@@ -56,271 +38,140 @@ def _fetch_loops(self, context):
     return get_selected_face_uv_loops(bm, bm.loops.layers.uv.active)
 ```
 
-Never cache the BMesh, its elements, OR the mesh they came from across modal
-events. Same trap applies to any modal that survives an operator call, an undo,
-or a mode toggle.
+- **Don't "optimise" the flush.** `bmesh.update_edit_mesh(me, loop_triangles=False)` gives
+  the same silent symptom for UV edits (the viewport draws from tessellated loops). Use the
+  plain call, then `tag_redraw()` every VIEW_3D and IMAGE_EDITOR.
+- Consume `INBETWEEN_MOUSEMOVE` along with `MOUSEMOVE`; tablets send mostly the former.
+- Ratio drags (`now_d / start_d`) are dead when the drag starts on the anchor; use
+  `(now_d + K) / (start_d + K)`, K ≈ 60 px. Wrap angle deltas with `(a + pi) % (2*pi) - pi`.
 
-**Verify persistence once.** Re-read one element on the second apply and compare
-against what was written; report loudly on mismatch. This failure mode is
-invisible from inside the transform and cost four releases to find.
+**Why:** silent no-ops cost far more than crashes, and blanket try/except hides them.
 
-**Do NOT "optimise" the flush.** `bmesh.update_edit_mesh(me,
-loop_triangles=False)` looks right for a UV-only edit and produces the SAME
-silent symptom: the viewport draws textures from the tessellated loop data, so
-the UVs change in the mesh and the screen keeps showing the old ones. Always use
-the plain full `bmesh.update_edit_mesh(mesh)`, then `area.tag_redraw()` on every
-VIEW_3D and IMAGE_EDITOR. This cost an extra release on top of the BMesh bug —
-two different causes, one identical "nothing happens" symptom.
-
-Collect elements with the same helper and iteration order the working operators
-already use, rather than inventing index-based re-resolution: fewer API
-assumptions (`face.loops[i]`, `ensure_lookup_table()`) that cannot be verified
-without a live Blender.
-
-One related detail from the same fix:
-- A drag driven by `now_distance / start_distance` is dead when the drag starts
-  on the anchor (ratio pinned at 1.0). Soften it:
-  `(now_d + K) / (start_d + K)` with K ≈ 60px — zero movement still yields
-  exactly 1.0 at any starting distance. For angle drags, wrap the delta with
-  `(a + pi) % (2*pi) - pi` or crossing the ±pi seam snaps a half turn.
-
-**Why:** silent no-ops are far more expensive to diagnose than crashes, and the
-guard-everything-in-try/except reflex actively hides them. Make the failure path
-report once (status bar + console) instead of returning None quietly — three
-release cycles were spent guessing at a bug that could have announced itself.
-Correctness first: never add a performance shortcut to a code path that has not
-yet been seen working.
-
-Also consume `INBETWEEN_MOUSEMOVE` alongside `MOUSEMOVE` in modal transforms —
-high-rate mice and tablets send mostly the former.
-
-**How to apply:** In any Blender modal touching mesh data, re-resolve the edit
-object, its mesh, the BMesh and its elements from live context on every event. Related: [bpy API gotchas](bpy-api-gotchas.md#feedback_blender_gpu_image_and_modal_teardown),
-[bpy API gotchas](bpy-api-gotchas.md#feedback_blender_no_id_on_bpy_wrappers).
+**How to apply:** re-resolve the edit object, mesh, BMesh and elements from live context on
+every modal event. Verify persistence once (re-read one written element on the next event)
+and report loudly on mismatch.
 
 <a id="feedback_blender_gpu_image_and_modal_teardown"></a>
 
 ## Image.has_data is not a health check; modal operators need cancel()
 
-*Image.has_data/size are NOT health checks (lazy loading + reload() frees the buffer) - only a missing file is a real error; and modal operators need cancel() or their class state leaks*
+*Buffers load lazily and `reload()` frees them, so `has_data`/`size` are false for good images; and modals torn down outside `modal()` leak class state.*
 
-Learned while fixing Tile UV Projector v1.3.0 → v1.3.1
-(see `Blender/Addons/TileUVProjector/`).
+1. A valid texture reports `has_data == False`, `size == (0, 0)` most of the time and always
+   right after `reload()`. Only a missing file gives the magenta texture, so check that:
 
-**1. `Image.has_data` and `Image.size` are NOT validity checks.** Blender loads
-image buffers lazily and frees them under its image cache limit, and
-`Image.reload()` *deliberately* drops the buffer so it is re-read on next use.
-So a perfectly good texture reports `has_data == False` and `size == (0, 0)`
-most of the time — and **always** in the moment right after a reload. Gating on
-them condemns working images: valid atlases showed "no pixel data", the Reload
-button reported failure on every press, and the picker opened onto an empty grid.
+   ```python
+   def image_is_resolvable(img):
+       if img.source in {'GENERATED', 'VIEWER'} or img.packed_file:
+           return True
+       path = bpy.path.abspath(img.filepath_raw, library=img.library)
+       return os.path.exists(path) if path else bool(img.has_data)
+   ```
 
-The only condition that reliably produces Blender's magenta *missing image*
-texture is **the file not existing on disk**. Check that instead:
+   Then call `gpu.texture.from_image(img)`; requesting the texture loads the buffer. It
+   returns the magenta placeholder instead of raising for a missing file. Cache the
+   `exists` result; draw handlers run every frame. Fallback without the full buffer: build a
+   GPUTexture from `img.preview` (`image_pixels_float` → `Buffer('FLOAT', n, px)` →
+   `GPUTexture((w, h), format='RGBA16F', data=buf)`).
+2. Blender ends modals without calling `modal()` on file load, area close, script reload or
+   undo. A class-level `_is_active` then stays True and `poll()` blocks the tool forever.
+   Add `cancel()`, a `@persistent` `load_post` reset, and treat "`_is_active` but no draw
+   handle" as not running.
 
-```python
-def image_is_resolvable(img):
-    if img.source in {'GENERATED', 'VIEWER'} or img.packed_file:
-        return True
-    path = bpy.path.abspath(img.filepath_raw, library=img.library)
-    return os.path.exists(path) if path else bool(img.has_data)
-```
-
-Then just call `gpu.texture.from_image(img)` — **requesting the GPU texture is
-what makes Blender load the buffer**. Do not try to pre-verify it. Cache the
-`os.path.exists` result behind a refresh token; a draw handler runs per frame.
-
-Related trap that is real: `gpu.texture.from_image()` does not raise for a truly
-missing image, it returns the magenta placeholder, so `try/except` around it
-never fires. Handle that by checking the path, not the buffer. Useful fallback
-when the full-res buffer is unavailable: build a GPUTexture from the preview
-thumbnail (`img.preview.image_size` + `image_pixels_float.foreach_get` →
-`Buffer('FLOAT', n, px)` → `GPUTexture((w,h), format='RGBA16F', data=buf)`) —
-that is literally the picture `template_icon` shows.
-
-**2. Modal operators need `cancel(self, context)`.** Blender tears a modal down
-without routing through `modal()` on file load, area close, script reload, or an
-undo that swallows it. Any class-level `_is_active` flag then stays True forever
-and its `poll()` blocks the operator from ever running again — the button looks
-alive but does nothing. Fix with all three: a `cancel()` that cleans up, a
-`@persistent load_post` reset, and a self-healing check that treats
-"`_is_active` True but draw handle is None" as not running.
-
-**Why:** Both look like "the tool broke after I reloaded a texture", so they get
-misdiagnosed as addon logic bugs. And the has_data trap is worse than the
-original bug — it breaks the working case, not just the broken one.
-
-**How to apply:** Never gate rendering on `has_data`/`size`. Gate on the file
-path. Give every modal operator a `cancel()` plus a load_post state reset.
-Related: [bpy API gotchas](bpy-api-gotchas.md#feedback_blender_draw_handler_context_gating).
+**Why:** both look like "the tool broke after reloading a texture" (Tile UV Projector 1.3.1).
 
 <a id="feedback_blender_draw_handler_context_gating"></a>
 
 ## Draw handlers: gate on the datablock (==), not region identity
 
-*Space-type draw handlers fire for ALL areas with transient context wrappers — gate on persistent datablock (==), never region/area wrapper identity (is)*
+*`SpaceXxx.draw_handler_add` fires for every area of that type with fresh context wrappers, so `context.region is my_region` is always False.*
 
-A `bpy.types.SpaceXxx.draw_handler_add(..., 'WINDOW', 'POST_PIXEL')` handler is
-**global to that editor type** — it fires for every area/region of that type, and
-inside it `bpy.context.region`/`context.area` are **fresh transient wrappers**,
-not the objects you captured at registration. So `if bpy.context.region is not my_region: return` always returns early → handler draws nothing.
-
-**Why:** bpy wrappers are recreated per access; `is` on region/area wrappers
-fails. (Same root cause as [bpy API gotchas](bpy-api-gotchas.md#feedback_blender_no_id_on_bpy_wrappers), different
-symptom — there it was dedup sets, here it's draw-handler gating.)
-
-**How to apply:** gate on the persistent **datablock** with `==`, and read the
-live region/space from context at draw time:
 ```python
 def draw():
-    space = bpy.context.space_data
-    region = bpy.context.region
-    if space is None or region is None: return
+    space, region = bpy.context.space_data, bpy.context.region
+    if space is None or region is None:
+        return
     shown = getattr(space, "edit_tree", None) or getattr(space, "node_tree", None)
-    if shown != my_tree: return          # datablock compare, persistent
-    v2d = region.view2d                   # live region, exact view2d
-    ...
+    if shown != my_tree:                 # datablock compare, persistent
+        return
+    v2d = region.view2d                  # live region at draw time
 ```
-Caught while building the GeoNode Layout MCP (`blender-geonode-layout-mcp`): the
-node-index stamps silently failed to render into `screenshot_area` captures until
-the guard was switched from region identity to tree-datablock equality. Verified
-live in Blender 5.0 — see [Headless Blender and automation](headless-and-automation.md#reference_blender_mcp).
+
+Found when the GeoNode Layout MCP's node-index stamps never rendered (Blender 5.0). Same root
+cause as the next section.
 
 <a id="feedback_blender_no_id_on_bpy_wrappers"></a>
 
 ## Never key sets on id() of bpy wrappers
 
-*Never use Python id() of bpy struct wrappers (LayerCollection, Collection, Object) as an identity/visited key — wrappers are transient and id()s get recycled, causing false collisions*
+*Every attribute access returns a fresh wrapper and CPython recycles freed ids, so `id()`-keyed visited sets report false hits.*
 
-Blender re-creates the Python wrapper object for a bpy struct on **every attribute access** (e.g. `lc.children`, `lc.collection` each hand back a fresh throwaway wrapper). Once a temporary wrapper is garbage-collected, CPython freely **recycles its `id()`** for the next wrapper. So a `visited = set()` keyed on `id(wrapper)` produces **false "already visited" hits**, and a tree/graph walk can abort early.
+MassExporter's layer-collection BFS (`_get_layer_collection_path`) keyed on `id(lc)` and
+returned `[]` on a deep scene, which silently disabled the unhide pipeline; a 2-level test
+passed (fixed in 13.6.2).
 
-**Real bug it caused:** MassExporter `_get_layer_collection_path` used `id(lc)` in its BFS visited-set. On a deep real scene it returned `[]` for a nested collection, which silently disabled the whole unhide pipeline → eye-hidden parent collections (`LayerCollection.hide_viewport`) were never revealed → nested objects exported wrong/empty. A minimal 2-level test passed (no id collision), masking it. Fixed in MassExporter v13.6.2 by keying the visited-set on `lc.collection.name`. Same bug existed in a `seen_colls = {id(coll)}` dedup, also fixed.
-
-**Why:** id() of a bpy wrapper is NOT a stable identity — it identifies the short-lived Python object, not the underlying Blender datablock.
-
-**How to apply:** For visited-sets / dedup / membership over bpy structs, key on something stable: the datablock **name** (unique per blend for collections/objects), or use `==` comparison (bpy implements it by underlying data pointer), or hold a single materialized list of wrappers and reuse those exact references. Verify graph/tree walks against a DEEP real hierarchy, not just a 2-level toy. Relates to [Export pipeline](export-pipeline.md#feedback_blender_master_layercollection_exclude) and [Headless Blender and automation](headless-and-automation.md#feedback_blender_version_and_headless).
-
-<a id="feedback_blender_unique_names"></a>
-
-## Duplicate names get .001 — free the name first
-
-*Blender auto-appends .001/.002 to duplicate object names — always rename explicitly after duplication to avoid name pollution in exports or data references*
-
-Blender enforces unique names across all objects in `bpy.data.objects`. When you duplicate an object, the copy gets `.001` appended automatically if the original name is taken.
-
-**Why:** This bit us when creating temporary modifier-apply copies for export — the copy came out as `ObjectName.001` instead of `ObjectName`, so exported files had wrong mesh names.
-
-**How to apply:** Whenever creating a temporary duplicate that should impersonate the original name:
-1. Rename the original to a guaranteed-unique temp: `obj.name = f"__temp_{obj.name}"`
-2. Assign the real name to the copy: `copy.name = original_name`
-3. In cleanup: **delete copies first**, then rename originals back — if you rename original while the copy still holds the name, Blender creates a conflict again.
-
-Pattern:
-```python
-original_name = obj.name
-obj.name = f"__temp_{original_name}"   # free up the name
-copy.name = original_name              # copy gets the clean name
-
-# cleanup:
-bpy.ops.object.delete()                # delete copies first
-obj.name = original_name               # then restore — no conflict
-```
+**How to apply:** key on the datablock name, compare with `==` (compares the underlying
+pointer), or keep one materialised list of wrappers. Test tree walks on a deep real
+hierarchy.
 
 <a id="feedback_blender_bundled_essentials_false_deps"></a>
 
 ## Blender 5 links its essentials brushes into every .blend
 
-*Blender 5 auto-links its essentials brush libraries into EVERY .blend with absolute paths — any self-contained/asset-inventory audit must filter linked datablocks and install-dir libraries or it flags every file*
+*Every file carries absolute-path links to Blender's install-dir brush libraries, with asset-marked brushes in Blender's own catalogs; audits must filter them.*
 
-Blender 5 silently links its own **essentials brush** asset libraries into every
-`.blend` (`essentials_brushes-mesh_sculpt.blend`, `…-mesh_vertex.blend`) as
-**absolute paths into the install dir**. Two consequences for any audit that asks
-"is this file self-contained?" or "what assets does this file own?":
+An "absolute library = not portable" check flags every file, and asset inventories
+over-count. Caught on LibraryPublisher's first criteria run: `no_external_deps` in `block`
+mode would have withheld nearly the whole library.
 
-1. `bpy.data.libraries` contains absolute-path entries in a pristine file. An
-   "absolute library link = broken portability" check flags **every single file**.
-2. Those libraries bring asset-marked datablocks with them (brushes "Paint Hard",
-   "Draw") sitting in **Blender's own catalog UUIDs**, not yours. So an asset
-   inventory over-counts, and a "are all assets in a known catalog?" check
-   complains about catalogs that were never yours.
-
-**Filters that fix it:**
-
-- Skip datablocks where `datablock.library is not None` (and
-  `override_library is not None`) — a linked asset is not one this file publishes.
-- Treat a library path as bundled when it lives under
-  `bpy.utils.resource_path('LOCAL')`, `bpy.utils.resource_path('SYSTEM')`, or
-  `os.path.dirname(bpy.app.binary_path)`; belt-and-braces also match
-  `datafiles/assets` in the normcased path.
-- `bpy.utils.blend_paths(absolute=True, packed=False, local=False)` needs the same
-  bundled filter before treating a non-existent path as a missing dependency.
-
-**Why:** caught on LibraryPublisher's first real criteria run — the
-`no_external_deps` check (in `block` mode) would have withheld nearly the entire
-asset library from publishing. Asset counts also dropped from 2–4 to 1 per file
-once linked datablocks were excluded, which is the correct number.
-
-**How to apply:** any headless `.blend` inspection that reasons about
-dependencies or asset ownership needs both filters from the start. See
-`Blender/Addons/LibraryPublisher/` (`source/checks/blender_inspect.py`,
-`_bundled_roots` / `_is_bundled`) and the asset checklist in
-[ST3E geonode modifier — build recipe, roster, publish checklist](geonodes/asset-checklist.md).
+**How to apply:**
+- Skip datablocks with `library is not None` or `override_library is not None`.
+- Treat a library as bundled when it lies under `bpy.utils.resource_path('LOCAL')`,
+  `resource_path('SYSTEM')` or `dirname(bpy.app.binary_path)` (also match
+  `datafiles/assets`). Apply the same filter to `bpy.utils.blend_paths(absolute=True)`.
+- Reference: LibraryPublisher `source/checks/blender_inspect.py` (`_bundled_roots`,
+  `_is_bundled`).
 
 <a id="finding_native_transform_postprocess"></a>
 
 ## Constraining native transforms: post-process in depsgraph_update_post
 
-*There is no API to hook Blender's transform system, but snapping the selected verts in a `depsgraph_update_post` handler is reliable for every keymap, gizmo and menu, and the undo step keeps the result.*
+*There is no hook into Blender's transform system, but rewriting the selected verts in a `depsgraph_update_post` handler works for every keymap, gizmo and menu, and the undo step keeps the result.*
 
-Found building Edge Constraint Mode v2.1, now Geometry Constraint (`Blender/Addons/GeometryConstraint/`).
-Measured in a real UI with simulated input on Blender 4.0.2, and headless on 5.0.
+Measured in a real UI (4.0.2) and headless (5.0) for Geometry Constraint.
 
-- During a modal transform, each mouse move recomputes the selected verts
-  from the transform's stored originals plus the free delta, then the
-  depsgraph updates. A handler that rewrites `BMVert.co` there (and calls
-  `bmesh.update_edit_mesh`) runs **before the viewport draws**, so the user
-  sees only the corrected positions. There's no drift, because the next
-  move recomputes from the originals.
-- On confirm no recalc follows, so the **undo step Blender pushes already
-  holds the corrected positions** (Ctrl+Shift+Z restores them).
-- `Window.modal_operators` (4.2+) tells you a `TRANSFORM_OT_*` is running.
-  A macro such as extrude + move shows up as its own `MESH_OT_*` id.
-- **Operators called from Python never appear in `wm.operators`.** Only
-  UI-invoked operators are registered. So headless tests can't use
-  `wm.operators[-1]` to detect a transform they just ran, and
-  `bpy.ops.transform.*` from other add-ons can be told apart from user
-  edits.
-- F9 is "undo, then exec": `undo_post` fires first. To tell F9 from a plain
-  Ctrl+Z, compare positions at the next update with the post-undo
-  snapshot.
-- Guard re-entrancy: your own `update_edit_mesh` fires the handler again.
-  Use a module flag and skip writes when nothing changed.
+- During a modal transform each mouse move recomputes the verts from the stored originals,
+  then updates the depsgraph. Rewriting `BMVert.co` there (+ `bmesh.update_edit_mesh`) runs
+  before the draw, with no drift.
+- On confirm no recalc follows, so the pushed undo step holds the corrected positions.
+- `Window.modal_operators` (4.2+) shows a running `TRANSFORM_OT_*`; extrude + move appears
+  as its own `MESH_OT_*` macro.
+- Operators called from Python never appear in `wm.operators`, so headless tests can't
+  detect their own transform there.
+- F9 is "undo, then exec": `undo_post` fires first. Tell it from Ctrl+Z by comparing
+  positions at the next update with the post-undo snapshot.
+- Your own `update_edit_mesh` re-fires the handler: guard with a flag, skip no-op writes.
 
-**Why:** the alternative (remapping G/R/S to a custom modal) misses the
-gizmos, Industry Compatible keymaps and menus, and has to re-implement axis
-locks, numeric input, snapping and pivots.
+**Why:** remapping G/R/S to a custom modal misses gizmos, other keymaps and menus, and
+re-implements axis locks, numeric input, snapping and pivots.
 
-**How to apply:** see `GeometryConstraint/source/blender/live.py` and the
-state machine in `core/live.py`. Snapshot the selection while idle, freeze
-it when a transform starts, and project every update from that frozen
-snapshot. Never project from the previous frame.
+**How to apply:** snapshot the selection while idle, freeze it when a transform starts,
+project every update from the frozen snapshot, never from the previous frame. Reference:
+`GeometryConstraint/source/blender/live.py` + `core/live.py`.
 
 <a id="links_new_stale_socket"></a>
 
 ## links.new can return None for a socket taken off a removed link
 
-*Re-resolve sockets from their node after `ng.links.remove(link)`; don't reuse `link.to_socket`*
+*After `ng.links.remove(link)`, re-fetch sockets from their node; `link.to_socket` may be stale.*
 
-Found 2026-09-26 in `polish_layout._jog` (Blender 5.0). Pattern: `ts = link.to_socket;
-ng.links.remove(link); ng.links.new(new_reroute.outputs[0], ts)` returned **None** — no
-error, no link — when `ts` was a reroute input. `ng.links.new(new_reroute.outputs[0],
-node.inputs[0])` on the same socket, fetched fresh from the node, worked. Most calls with the
-stale wrapper did work, which is what makes it dangerous: the graph silently lost one
-connection (caught only because the pass compared `logical_links` before/after).
+Blender 5.0, `polish_layout._jog`: `ts = link.to_socket; ng.links.remove(link);
+ng.links.new(reroute.outputs[0], ts)` returned **None** (no error, no link) when `ts` was a
+reroute input. Most calls worked, so the graph silently lost one connection.
 
-**How to apply:** keep links as `(from node name, from socket identifier, to node name,
-to socket identifier)` keys, look sockets up from `ng.nodes[...]` after any removal, and
-check the return value of `links.new` — `None` means no link was made.
+**How to apply:** store links as `(from node, from socket identifier, to node, to socket
+identifier)`, look sockets up from `ng.nodes[...]` after removals, and check `links.new`'s
+return value.
 
 <a id="activate_init_property_split"></a>
 
@@ -328,12 +179,10 @@ check the return value of `links.new` — `None` means no link was made.
 
 *A props dialog meant to open with its text field already editing does nothing when the layout uses property split.*
 
-Measured on Blender 5.0 with a real UI, 2026-10-21 (Modifier Stack Actions, Extract As dialog).
+Blender 5.0, real UI, 2026-10-21 (Modifier Stack Actions, Extract As dialog).
 `row = layout.row(); row.activate_init = True; row.prop(self, "name")` inside an
-`invoke_props_dialog` draw opens with the field in edit mode and its text selected, so typing
-replaces it. Set `layout.use_property_split = True` first and the field opens idle; typed keys
-go nowhere. Setting it on the layout instead of a row works too, but Blender's own scripts
-always use a row.
+`invoke_props_dialog` draw opens with the text selected, so typing replaces it. With
+`layout.use_property_split = True` the field opens idle and typed keys go nowhere.
 
-**How to apply:** draw dialogs that need a focused text field without property split. Check it
-with a real UI run, because background mode never draws the dialog.
+**How to apply:** draw such dialogs without property split, and check with a real UI run;
+background mode never draws the dialog.

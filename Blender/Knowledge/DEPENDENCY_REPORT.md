@@ -1,14 +1,14 @@
 # Geonodes External Dependency Report
 
-> Reference audit of every `.blend` in `Blender/Geonodes/` for external dependencies
-> (linked libraries, images/textures, fonts, sounds, cache files).
+> Snapshot audit of the `.blend` files in `Blender/Geonodes/` for external dependencies
+> (linked libraries, images, fonts, sounds, caches), headless Blender 5.0, **2026-07-17**,
+> 59 files. Files added since (GN_AmbientOcclusion, GN_CurveFromSurface, GN_Mosaic,
+> GN_QuadCap, GN_SolidifyPlus, GN_TileableMeshNoise, GN_VertexDataComposer, …) were not
+> scanned; GN_Spherify has been deleted.
 >
-> **Scan date:** 2026-07-17
-> **Method:** Headless Blender 5.0 (`--background --factory-startup`), opened each file and
-> inspected `bpy.data.libraries`, `bpy.data.images`, etc.
-> **Files scanned:** 59
-> **Since the scan:** `GN_Spherify` was deleted (2026-09-21, covered by
-> `GN_Cast` in Sphere mode) and is no longer listed below.
+> **Live check:** LibraryPublisher's `no_external_deps` criterion runs the same inspection
+> on every publish (`Blender/Addons/LibraryPublisher/README.md`). Re-scan before trusting a
+> row here.
 
 ---
 

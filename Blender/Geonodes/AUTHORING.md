@@ -4,7 +4,7 @@ How modifiers in this folder are built, published and illustrated. The user-faci
 [README.md](README.md); AI-agent work rules are in [CLAUDE.md](CLAUDE.md).
 
 Before building anything, read the [geonode asset checklist](../Knowledge/geonodes/asset-checklist.md)
-(build recipe, roster, publish checklist) and the layout criteria in
+(build recipe, publish traps, catalog UUIDs) and the layout criteria in
 [`GEONODE_CRITERIA.md`](../Addons/LLMGeonodePipeline/GEONODE_CRITERIA.md).
 
 ## Making a group appear under Add Modifier → ST3E

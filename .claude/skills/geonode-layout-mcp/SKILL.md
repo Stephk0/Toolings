@@ -224,6 +224,7 @@ so a single frame around both ends drags the whole loop body left of its own inp
   rule set both engines are checked against.
 - `prepare_capture.py` — open + frame a node editor and start the server.
 - `GEONODE_CRITERIA.md` — the canonical creation/tidying criteria (read it first).
-- Suite `README.md` + `DEVELOPMENT.md`. Rules memory:
-  `feedback_gn_node_layout_spacing`; rewiring safety: `feedback_gn_link_rewire_gotchas`
+- Suite `README.md` + `DEVELOPMENT.md`. Layout traps:
+  `Blender/Knowledge/geonodes/layout.md`; rewiring safety:
+  `Blender/Knowledge/geonodes/sockets-and-menus.md#feedback_gn_link_rewire_gotchas`
   (relink by identifier, viewer dynamic sockets, geometry-unchanged gate).

@@ -157,6 +157,16 @@ The three stages map onto how a schematic is made:
 - **Menus.** Menu sockets need a string `default_value`; the modifier override
   is an INT. One menu drives ONE master `MenuSwitch(INT)` → `IndexSwitch` nodes
   (never two Menu Switches off one menu).
+- **Inert when added.** A freshly added modifier must not change the mesh until
+  the user drives it (GN_Delete's `Selection Group` defaulting True deleted the whole
+  mesh). A socket default only affects newly added modifiers, so fixing it is safe.
+- **Panel names.** A panel never shares its name with one of its own sockets
+  (`items_tree["X"]` then returns the panel). A panel holding only sub-panels is an
+  empty wrapper, and a one-socket sub-panel is a click tax — flatten both. Sockets
+  don't repeat what their panel already says (`Axis` under `Axis Filter`).
+- **Controls must respond.** No silent safety clamp that stops a control doing what
+  it says (a rotation cap delivered 6.5° for any request); state the limit in the
+  tooltip instead.
 
 ## Deformer conventions (tools with a pivot)
 
@@ -164,7 +174,7 @@ Editable `Center` (TRANSLATION) + `Show Center Gizmo` (3 linear arrows + CROSS
 marker, overlay-only) in a `Center` panel; `Symmetry` (abs-distance) only for
 gradient-along-axis effects; `Affect X/Y/Z` filters for scaling effects;
 `Show Deformation Preview` bbox cage (`GNG_DeformCage`) in a `Preview` panel.
-Details: memory `feedback_gn_deformer_center_gizmo_symmetry`.
+Details: `Blender/Knowledge/geonodes/techniques.md#feedback_gn_deformer_center_gizmo_symmetry`.
 
 ## Tidying an existing messy graph — order of operations
 
@@ -191,7 +201,9 @@ Details: memory `feedback_gn_deformer_center_gizmo_symmetry`.
 
 ## Publishing
 
-Asset checklist (mark, ST3E catalog `f9ab2fa9…`, `ST3E` tag, `is_modifier=True`,
-demo object attached, full mainfile save): memory
-`project_geonode_modifier_asset_checklist`. Target Blender 5.0; no external
+Asset checklist (mark, ST3E **leaf** sub-catalog — never the `ST3E` root, `ST3E`
+tag, `is_modifier=True`, demo object attached, full mainfile save):
+`Blender/Geonodes/AUTHORING.md`; catalog UUIDs and traps in
+`Blender/Knowledge/geonodes/asset-checklist.md#st3e_gn_publish_traps`, full order in
+`#st3e_gn_build_recipe`. Target Blender 5.0; no external
 dependencies — keep .blend files self-contained (no absolute-path libraries).

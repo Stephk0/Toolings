@@ -77,6 +77,16 @@ R3/R6, because the first pass is what gives the frames their real drawn extents
 (`node.dimensions` is only valid post-draw). `GN_AmbientOcclusion` went 5 backward
 links → 0, and the helper 10 → 2, on the second run, then held steady on the third.
 
+**Open backlog** (found when helpers were first audited, nothing rewritten yet):
+- BLOCKING R1/R2 in helpers: `GNG_ObjectDirection` in GN_Bend + GN_ShearGeometry (the
+  9-node variant; the 5-node one elsewhere passes, so the helper has drifted between files),
+  `GN_InsetFaces` in GN_MeshFromImage, most of GN_CellFrac's imported `G_*` groups.
+- About 12 files are skipped entirely because no tree is named after the file
+  (`process_file` requires `node_groups[fname]`): GN_ExtrudeSelection, GN_InsetFace,
+  GN_Mirror_Groupable, GN_SimpleTransform, GN_Solidify2, GN_SplitByAttribute,
+  GN_CollectionInstancer, GN_DisplaceByImage, GN_EdgeDestruct*, GN_VariousTest,
+  GN_AttributeFunctions_4.5, GN_treeGenerator_03.
+
 ## Polish pass (`polish_layout.py`)
 
 `tidy_layout` routes against `_socket_y`, a headless estimate that ignores vector
