@@ -63,7 +63,6 @@ Check [`Blender/Knowledge/`](Blender/Knowledge/README.md) before debugging a sil
 |------|--------------|------|
 | **LLM Geonode Pipeline** | Reads and lays out Geometry Nodes graphs — the `tidy_layout` engine plus the GeoNode Layout MCP server | [README](Blender/Addons/LLMGeonodePipeline/README.md) · [criteria](Blender/Addons/LLMGeonodePipeline/GEONODE_CRITERIA.md) |
 | **Library Publisher** | Publishes the asset library to the Shared Drive; its criteria gates run the geonode layout audit | [README](Blender/Addons/LibraryPublisher/README.md) · [dev notes](Blender/Addons/LibraryPublisher/source/DEVELOPMENT.md) |
-| **Docs site** | Astro/Starlight build of these docs | [README](docs-site/README.md) |
 
 ## Git
 

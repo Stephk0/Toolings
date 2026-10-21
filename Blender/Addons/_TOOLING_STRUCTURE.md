@@ -36,8 +36,8 @@ tool (mixed case with spaces is fine, e.g. `Smart Crease`). Inside:
 
 ## When building a new zip (release)
 
-Use the release CLI (`_release/README.md`); it does steps 1-4, rewrites the README,
-index and docs-site version lines, and verifies the zip:
+Use the release CLI (`_release/README.md`); it does steps 1-4, rewrites the README
+and index version lines, and verifies the zip:
 
 ```
 python Blender/Addons/_release/release.py release <Tool> patch|minor|major

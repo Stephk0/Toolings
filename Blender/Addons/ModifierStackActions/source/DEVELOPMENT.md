@@ -49,7 +49,7 @@ UI test: every menu entry is clicked for real, Add After goes through the submen
 search, and the log prints the resulting stack. Last run 2026-10-21, Blender 5.0, Windows,
 ui_scale 1.25. `MENU_OFFSETS` are measured at that scale; re-measure on another one.
 Outputs: `assets/demo/` (MP4, GIF, full-window stills with cursor) and the cropped README
-images in `assets/`. The docs-site page uses copies in `docs-site/src/assets/tools/modifier-stack-actions/`.
+images in `assets/`.
 
 ## Implementation notes
 

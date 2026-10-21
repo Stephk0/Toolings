@@ -11,9 +11,9 @@ python Blender/Addons/_release/release.py release "Smart Crease" patch
 
 | Command | What it does |
 |---------|--------------|
-| `status [tool]` | Version in bl_info, manifest, current zip, README, `DOCUMENTATION_INDEX.md` and the docs-site page; flags stale zips and files no spec covers |
+| `status [tool]` | Version in bl_info, manifest, current zip, README and `DOCUMENTATION_INDEX.md`; flags stale zips and files no spec covers |
 | `check [tool]` | Same, exits 1 when something needs attention (hooks, CI) |
-| `bump <tool> <major\|minor\|patch\|X.Y.Z>` | Writes the version into bl_info / `VERSION`, `blender_manifest.toml`, the README version line / badge / title / zip name, the index row and the docs-site frontmatter |
+| `bump <tool> <major\|minor\|patch\|X.Y.Z>` | Writes the version into bl_info / `VERSION`, `blender_manifest.toml`, the README version line / badge / title / zip name, and the index row |
 | `docs <tool>` | Re-syncs those doc slots to the code version without bumping |
 | `build <tool>` | Builds `<stem>_v<version>.zip`, compiles every `.py` in it, checks the versions inside, then moves the previous zip to `distribution/archive/` |
 | `release <tool> <part>` | `bump` + `build` |
