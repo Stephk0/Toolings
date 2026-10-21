@@ -43,7 +43,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Mass Collection Exporter** | 13.8.0 | Batch export collections/objects (FBX, OBJ, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/MassExporter/README.md) · [flow charts](Blender/Addons/MassExporter/EXPORT_FLOW.md) |
+| **Mass Collection Exporter** | 13.9.0 | Batch export collections/objects (FBX, OBJ, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/MassExporter/README.md) · [flow charts](Blender/Addons/MassExporter/EXPORT_FLOW.md) |
 | **Quick Animation Export** | 1.0.9 | Streamlined export of animation/action clips to game-engine-ready files | [README](Blender/Addons/QuickAnimationExport/README.md) |
 | **Library Publisher** | 1.3.1 | Publishes the ST3E asset library to a Google Shared Drive as `ST3E_Ext`, remapping catalog UUIDs on the way out | [README](Blender/Addons/LibraryPublisher/README.md) |
 | **Library Relink** | 1.0.0 | Bulk-relink a file's linked libraries to a new folder, with a dry-run preview | [README](Blender/Addons/LibraryRelink/README.md) |

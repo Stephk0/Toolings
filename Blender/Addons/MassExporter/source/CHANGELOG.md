@@ -3,6 +3,37 @@
 User docs: [README](../README.md). The authoritative current version is `VERSION` in
 `__init__.py`.
 
+## v13.9.0
+Fixes from the Export Lab (`source/tests/export_lab/`, 504 cases in three.js) plus the
+headless suite (54 checks).
+
+Behaviour changes
+- **Use Parent Empties** treats each parent empty as one asset: one file per empty, named after
+  it, holding all its meshes as elements with their hierarchy (it wrote one file per child,
+  `<empty>_<child>`). With **Join Empty Children** the meshes become one mesh named after the
+  empty, origin at the empty — per empty, no longer the whole collection in one mesh.
+  Sub-Collections + Join still joins each sub-collection into one mesh.
+- **Move to Center** is the only centring option: it puts each asset's pivot at the origin —
+  its parent empty when it has one (parts keep their layout around it), otherwise the object.
+  **Center Each Empty** and **Move All Empties to Origin** are removed. Sub-Collections + Join
+  honours it too.
+- **Materials** is one choice: *Keep* / *Fill Empty* / *Overwrite* (replaces the Override
+  Materials and Assign if No Material checkboxes; older files are converted on load).
+  Fill Empty fills empty slots too, and fills each part before a join.
+- **Export Hidden Collections** off also leaves out hidden sub-collections and hidden objects
+  of an exported row (it only checked the row's own collection).
+
+Fixes
+- Hidden objects no longer stay selected after an export (their selection leaked into every
+  later export of the session)
+- **Apply Transforms** no longer cancels Move to Center for meshes parented to an empty
+- `//` (relative) export paths work; they resolve next to the .blend, and an unsaved file
+  reports an error instead of "Cannot create directory"
+
+Known, unchanged
+- FBX **Apply Transform** (`bake_space_transform`, on by default) misplaces children in any
+  hierarchy — a Blender exporter limitation. See `Blender/Knowledge/export-pipeline.md`.
+
 ## v13.8.0
 Reliability release from a full review. Every item below is covered by
 `source/tests/headless_export_test.py` (Blender 5.0 and 4.5, 44 checks).

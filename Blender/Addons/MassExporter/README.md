@@ -1,4 +1,4 @@
-# Mass Collection Exporter v13.8.0
+# Mass Collection Exporter v13.9.0
 
 A powerful Blender addon for batch exporting collections with advanced parent-child relationship handling, automatic joining, and flexible export options.
 Allows specifying a collection for export with subcollections (Main Collection Env_Buildings > SubCollections Building_01, Building_02, Building_03, etc)
@@ -7,7 +7,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 >
 > **Export flow diagrams:** [EXPORT_FLOW.md](EXPORT_FLOW.md) — mermaid charts of the mode priority order and the shared export tail
 >
-> **v13.8.0:** reliability release. Override Materials / M_ prefix no longer change your scene, joined exports keep every child's modifiers, shape-key meshes bake their modifiers, Whole Collection keeps its hierarchy with modifiers and honours Apply Transforms, OBJ export works again, quick exports inherit every collection setting. **Collada (DAE) was removed** (Blender 5.0 dropped it). See the [changelog](source/CHANGELOG.md).
+> **v13.9.0:** a parent empty is one asset — **Use Parent Empties** writes one file per empty (Join makes it one mesh). **Move to Center** is the only centring option and works with Apply Transforms. **Materials** is one choice: Keep / Fill Empty / Overwrite. Relative `//` export paths work, hidden objects no longer stay selected after an export, and Export Hidden Collections off skips hidden sub-collections too. See the [changelog](source/CHANGELOG.md).
 >
 > **v13.7.0:** new **Only Visible Modifiers** option (Modifier & Rig Options → Modifiers, **on by default**). Exports now bake only the modifiers that are enabled in the viewport, matching what you actually see. ⚠️ This changes export output for objects that carry viewport-disabled modifiers — see [Only Visible Modifiers](#only-visible-modifiers-v1370).
 >
@@ -36,10 +36,10 @@ Allows specifying a collection for export with subcollections (Main Collection E
 - **Flexible Export Modes**: Individual objects, merged collections, or sub-collection based
 
 ### Advanced Features
-- **Auto-Move to Origin**: Automatically center empties at world origin before export
-- **Join ALL Empties**: Combine all empties from a collection into a single mesh
+- **Move to Center**: Every exported asset lands at the world origin while it stays lined up in your scene
+- **Join Empty Children**: Turn each parent empty's meshes into one mesh
 - **Apply Modifiers Option**: Apply modifiers before joining/exporting
-- **Material Override**: Batch apply materials to exported objects
+- **Materials**: Keep, fill empty slots, or overwrite with one material
 - **Transform Options**: Control object transforms, axis orientation, and scaling
 - **Fallback Export**: Automatically exports regular meshes if no empties are found
 
@@ -47,7 +47,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 1: Direct Install (Recommended)
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.8.0.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.9.0.zip`)
 2. Open Blender
 3. Go to: **Edit → Preferences → Add-ons**
 4. Click **Install...** button
@@ -56,7 +56,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 2: Manual Install
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.8.0.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.9.0.zip`)
 2. Locate your Blender addons folder:
    - **Windows**: `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
    - **macOS**: `~/Library/Application Support/Blender/[version]/scripts/addons/`
@@ -114,15 +114,13 @@ After installation, you should see a new **"Mass Exporter"** tab in the 3D Viewp
 When **"Use Parent Empties"** is enabled:
 
 **What it does:**
+- A parent empty is one asset: everything under it goes into **one file named after the empty**
 - Searches for Empty objects with mesh children (grandchildren included — each mesh belongs to its nearest empty)
-- Uses the empty's world position as the origin point
-- Exports children relative to their parent empty
+- The empty is the asset's origin; with **Move to Center** it sits at (0,0,0) in the file
 - Meshes that sit under no empty are still exported: one file each, or merged into `<collection>.fbx` with **Merge** on
 
 **Options:**
-- **Center Each Empty**: Move each empty to world (0,0,0) during its export
-- **Move All Empties to Origin**: Move this collection's empties to world origin before export (other collections are not affected)
-- **Join Empty Children**: Combine all children into single mesh
+- **Join Empty Children**: the empty's meshes become one mesh named after the empty (off: they stay separate elements inside the file)
 
 **Example Structure:**
 ```
@@ -136,27 +134,30 @@ Collection: "Buildings"
       └─ Mesh: "Structure"
 ```
 
-**With Join Enabled** → Exports as:
-- `Buildings.fbx` (single file, all buildings plus any loose meshes merged, origin at the first empty)
-
 **Without Join** → Exports as:
-- `Building_A.fbx` (Wall_01, Wall_02, Roof)
+- `Building_A.fbx` (Wall_01, Wall_02, Roof as separate meshes)
 - `Building_B.fbx` (Foundation, Structure)
+
+**With Join Enabled** → Exports as:
+- `Building_A.fbx` (one mesh `Building_A`, origin at the empty)
+- `Building_B.fbx` (one mesh `Building_B`)
 
 ### 3. Join Empty Children
 
 **The Problem:**
-You have multiple empties with children, and you want to export everything as ONE mesh.
+Each asset is built from several meshes under an empty, and the engine should get ONE mesh per asset.
 
 **The Solution:**
 ```
-1. Enable: "Join Empty Children"
+1. Enable: "Use Parent Empties" and "Join Empty Children"
 2. Click: "Export All Collections"
 → Creates temporary duplicates
-→ Joins ALL empties together
-→ Exports as single file
+→ Joins each empty's meshes into one mesh named after the empty
+→ One file per empty
 → Cleans up (originals untouched)
 ```
+
+To join a whole sub-collection into one mesh instead, use **Sub-Collections as Single** together with Use Parent Empties + Join.
 
 **Advanced Options:**
 - Every child bakes its **own** modifier stack before the join when *Apply Modifiers* (here or the global one) is on; otherwise modifiers are left out
@@ -183,9 +184,10 @@ Two powerful debug buttons for testing:
 ### Transform Options
 
 **Move to Center** (per collection)
-- Moves objects to (0,0,0) before export
-- Restores original position after export
-- Useful for: Centering models, Unity imports
+- The one centring option: each exported asset is placed at (0,0,0) in its file
+- An asset under a parent empty is moved by its empty, so its parts keep their layout; anything else is moved by its own origin
+- Your scene is restored after the export, so assets can stay lined up side by side in Blender
+- Works together with Apply Transforms
 
 **Apply Transforms**
 - Bakes location, rotation, scale into the exported mesh
@@ -201,13 +203,10 @@ Two powerful debug buttons for testing:
 
 All material options only affect the exported file — your scene's materials and their names are restored right after each export.
 
-**Override Materials**
-- Replace all materials with a single material
-- Useful for: Placeholder exports, testing
-
-**Assign if No Material**
-- Works on its own (Override Materials off): adds the chosen material only to objects without one
-- Preserves existing materials
+**Materials** — pick one:
+- **Keep**: every object keeps its own materials (default)
+- **Fill Empty**: existing materials stay; objects and empty slots without a material get the Override Material. In a joined mesh each part is filled before the join, so a collision mesh never borrows another part's material
+- **Overwrite**: every material is replaced by the Override Material — useful for placeholder exports and tests
 
 **Add M_ Prefix**
 - Adds the "M_" prefix to the names of the exported objects' materials
@@ -269,7 +268,7 @@ regardless of visibility.
 **Apply Transform**
 - Bakes space transform into object data
 - **Enable for Unity** static meshes to avoid the -90° rotation
-- Blender marks it experimental: turn it **off** for rigged or animated exports
+- Blender marks it experimental: it **moves child objects** in any parent hierarchy (an asset under an empty, a mesh parented to a mesh), and breaks rigs and animation. Checked in Unity 6: for hierarchies turn it off, set Forward **Y** / Up **Z** (Blender's default), and tick **Bake Axis Conversion** in Unity's model importer — the hierarchy is correct and objects come in upright. Assets then face the other way round than with Apply Transform on, so check facing before switching an existing project
 
 ---
 
@@ -344,7 +343,7 @@ Collection: "Props"
 ```
 1. Add collection
 2. Enable: "Use Parent Empties" ☑
-3. Enable: "Center Parent Empties" ☑
+3. Keep: "Move to Center" ☑
 4. Export
 ```
 
@@ -352,7 +351,7 @@ Collection: "Props"
 ```
 For each Empty:
   1. Move empty to (0,0,0)
-  2. Export children
+  2. Export everything under it into <empty>.fbx
   3. Restore empty position
 ```
 
@@ -363,9 +362,9 @@ For each Empty:
 
 ---
 
-### Scenario 5: Join ALL Empties Together
+### Scenario 5: One Joined Mesh per Empty
 
-**Use Case**: Export entire collection as ONE joined mesh
+**Use Case**: Each asset under an empty becomes ONE mesh
 
 **Setup:**
 ```
@@ -378,11 +377,11 @@ For each Empty:
 
 **What Happens:**
 ```
-1. Finds ALL empties in collection
-2. Duplicates ALL their children
-3. Joins duplicates into ONE mesh
-4. Exports single file
-5. Cleans up (originals safe)
+For each Empty:
+  1. Duplicates its meshes
+  2. Joins the duplicates into ONE mesh named after the empty
+  3. Exports <empty>.fbx, origin at the empty
+  4. Cleans up (originals safe)
 ```
 
 **Example:**
@@ -393,8 +392,10 @@ Input:
   Empty_C → [Mesh5]
 
 Output:
-  CollectionName.fbx (single mesh with Mesh1-5)
+  Empty_A.fbx, Empty_B.fbx, Empty_C.fbx (one mesh each)
 ```
+
+For one joined mesh per sub-collection, also enable **Sub-Collections as Single**.
 
 ---
 
@@ -528,7 +529,7 @@ Selected object is in: "Props"
 **Recommended Settings:**
 ```
 ✓ Use Parent Empties (if organized with empties)
-✓ Center Parent Empties
+✓ Move to Center
 ✓ Apply Scaling: FBX Units Scale
 ✓ Apply Transform: Enabled
   Forward: -Z
@@ -579,8 +580,9 @@ Collection: Buildings
 
 Settings:
   ☑ Use Parent Empties
-  ☑ Center Parent Empties
-  ☐ Join Empty Children (each building separate)
+  ☑ Move to Center
+  ☐ Join Empty Children (each building's parts stay separate)
+  → Result: Building_A.fbx, Building_B.fbx
 ```
 
 **Pattern 2: Prop Collection**
@@ -602,10 +604,11 @@ Collection: Level_01
   Empty: Buildings → [House, Shop, Tower]
 
 Settings:
+  ☑ Sub-Collections as Single
   ☑ Use Parent Empties
   ☑ Join Empty Children
   ☑ Apply Modifiers Before Join
-  → Result: Level_01.fbx (everything merged)
+  → Result: one merged mesh per sub-collection
 ```
 
 ---
@@ -693,16 +696,17 @@ Set:
 ### Issue: Transforms Wrong After Export
 
 **Check:**
-1. "Export at Origin" setting
-2. "Apply Transforms" setting
+1. "Move to Center" setting
+2. FBX "Apply Transform" — it misplaces children in a hierarchy
 3. Parent-child relationships
 
 **Solution:**
 ```
-For Unity:
-  ☑ Center Parent Empties
-  ☑ Apply Transform (bake_space_transform)
-  ☐ Apply Transforms (unless needed)
+For Unity, assets with a hierarchy:
+  ☑ Move to Center
+  ☐ Apply Transform (bake_space_transform)
+  Forward: Y   Up: Z
+  → In Unity: Bake Axis Conversion ☑
 ```
 
 ---
@@ -714,7 +718,8 @@ For Unity:
 - [Unity FBX Import Guide](https://docs.unity3d.com/Manual/ImportingModelFiles.html)
 
 ### Common Issues
-- Hidden collections/objects ARE exported by default since v13.6 ("Export Hidden Collections" toggle) — disable it to skip them
+- Hidden collections/objects ARE exported by default since v13.6 ("Export Hidden Collections" toggle) — disable it to skip them, hidden sub-collections and hidden objects of an exported collection included
+- Export paths may be relative (`//Exports/`): they resolve next to the saved .blend file
 - Disabled modifiers won't apply
 
 ---

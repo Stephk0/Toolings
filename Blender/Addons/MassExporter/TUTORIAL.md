@@ -169,17 +169,11 @@ For assets rigged around **empties as pivot points** (furniture, machinery parts
 
 ![Furniture row — Use Parent Empties with Empty Options and Join Options](assets/tutorial/12_state_furniture_empties.png)
 
-Enabling it reveals two sub-panels:
-
-**Empty Options**
-- **Center Each Empty** (default on) — each empty is temporarily moved to the world origin while its children export, so the empty's position becomes the pivot. Restored afterwards.
-- **Move All Empties to Origin** — moves every empty to origin *before the batch starts* (also restored at the end).
+Each parent empty is one asset: everything under it is written to **one file named after the empty** (`<empty>.fbx`), the meshes as separate elements. With **Move to Center** on (the default) the empty sits at the world origin in the file and is put back afterwards. Since v13.9.0 the *Empty Options* panel in the screenshot (Center Each Empty, Move All Empties to Origin) is gone — Move to Center does this.
 
 **Join Options**
-- **Join Empty Children** — instead of exporting children individually, duplicates of all empties' children are joined into **one object named after the collection** and exported as a single file. The join happens on duplicates; your originals are untouched.
+- **Join Empty Children** — the empty's meshes are joined into **one mesh named after the empty**, origin at the empty; still one file per empty. The join happens on duplicates; your originals are untouched.
 - **Apply Modifiers** (sub-option) — apply modifiers on the duplicates before joining; **Only Visible Modifiers** skips viewport-disabled ones.
-
-Naming without joining: one child → `<empty>.fbx`; several children → `<empty>_<child>.fbx`.
 
 Demo: `Furniture` (table_pivot + stool_pivot, no join) →
 
@@ -260,8 +254,7 @@ Per-collection toggle (default **on**): during export, every **root object** of 
 ### Material Options
 ![Material Options](assets/tutorial/05_material_options.png)
 
-- **Override Materials** + material picker — replace all materials on export (e.g., export everything with a placeholder).
-- **Assign Override Material if No Material** — also covers objects with no material at all.
+- **Materials** — *Keep* (default), *Fill Empty* (objects and slots without a material get the picked material; joined meshes are filled per part) or *Overwrite* (replace every material, e.g. for a placeholder export). The screenshot still shows the two checkboxes this replaced in v13.9.0.
 - **Add M_ Prefix if Missing** — enforce the `M_` material naming convention in the exported file.
 
 ### Modifier & Rig Options

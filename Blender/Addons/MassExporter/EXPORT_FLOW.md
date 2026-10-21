@@ -26,11 +26,7 @@ flowchart TD
     A["Export All Collections"] --> B["Force OBJECT mode"]
     B --> C["Recover stale temp copies and<br/>__mexport_ names left by a crashed run"]
     C --> D["Snapshot selection, active object<br/>and every empty transform"]
-    D --> E{"Any enabled collection with<br/>Move All Empties to Origin?"}
-    E -->|yes| F["move_empties_to_origin_core_logic<br/>only those collections, world origin"]
-    E -->|no| G["skip pre-pass"]
-    F --> LOOP
-    G --> LOOP
+    D --> LOOP
 
     LOOP --> Z["Restore empty positions,<br/>selection and active object"]
     Z --> Y["Report count plus first 3 collection names<br/>in the status bar"]
@@ -125,10 +121,10 @@ flowchart TD
     end
 
     subgraph M4 ["MODE 4 - Use Parent Empties"]
-        B1{"Join Empty Children?"} -->|ON| B2["export_collection_with_all_empties_joined<br/>every empty member AND loose mesh<br/>joined into ONE file named after the collection"]
-        B1 -->|OFF| B3["export_with_empty_origins_individual"]
-        B3 --> B5["One file per empty member<br/>Center Each Empty parks the empty at world 0,0,0"]
-        B3 --> B6{"Loose meshes<br/>under no empty?"}
+        B0["export_with_empty_origins<br/>one file per empty, named after it"] --> B1{"Join Empty Children?"}
+        B1 -->|ON| B2["export_empty_joined<br/>the empty's meshes joined into ONE mesh<br/>named after the empty, origin at the empty"]
+        B1 -->|OFF| B5["export_objects_as_single<br/>the empty's meshes as elements"]
+        B0 --> B6{"Loose meshes<br/>under no empty?"}
         B6 -->|Merge ON| B7["one merged file named after the collection"]
         B6 -->|Merge OFF| B8["one file per loose mesh"]
     end
@@ -219,13 +215,11 @@ If *every* modifier on an object is hidden, no copy is made at all and the objec
 | Group by Suffix | `use_suffix_grouping` | Mode 2 |
 | Sub-Collections as Single | `export_subcollections_as_single` | Mode 3 |
 | Use Parent Empties | `use_empty_origins` | Mode 4 |
-| Center Each Empty | `center_parent_empties` | Mode 4, per-empty centering |
-| Move All Empties to Origin | `move_empties_to_origin_on_export` | Diagram 1 — scene-wide pre-pass |
 | Join Empty Children | `join_empty_children` | Modes 3 and 4 |
 | Apply Modifiers | `apply_modifiers_before_join` | Join path: bake each copy even when global Apply Modifiers is off |
 | Only Visible Modifiers | `apply_only_visible` | Join path: skip hidden modifiers even when the global toggle is off |
 | Merge | `merge_to_single` | Mode 5a, and mode 4's no-empties fallback |
-| Move to Center | `move_to_center` | Diagram 4 — the shared tail |
+| Move to Center | `move_to_center` | Every mode — each file's pivot (parent empty, else the root) at world 0 (`_center_root_objects_temporarily`, `export_empty_joined`) |
 
 ### Global scene settings — apply to every collection
 
@@ -238,7 +232,7 @@ If *every* modifier on an object is hidden, no copy is made at all and the objec
 | Skip Armature Modifier | `skip_armature_modifier` | Diagram 4 — suppresses ALL armature modifiers |
 | Export Rig with Mesh | `export_rig_with_mesh` | Diagram 4 |
 | Apply Transforms | `apply_transforms` | Diagram 4, every mode |
-| Override Materials / Assign if No Material / Add M_ Prefix | `override_materials`, `assign_if_no_material`, `add_m_prefix` | Diagram 4 — exported file only, restored after |
+| Materials (Keep / Fill Empty / Overwrite) / Add M_ Prefix | `material_mode`, `override_material`, `add_m_prefix` | Diagram 4 — exported file only, restored after; Fill Empty also per part before a join |
 | Suffix list | `suffix_items` | Gates mode 2 (needs an enabled suffix) |
 | Debug Mode | `debug_mode` | Console output throughout |
 

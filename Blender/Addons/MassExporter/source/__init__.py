@@ -1,7 +1,7 @@
 # Single source of truth for the addon version. bl_info + blender_manifest.toml
 # both derive from this; the panel title does NOT show the version. Bump here
 # and in blender_manifest.toml only.
-VERSION = (13, 8, 0)
+VERSION = (13, 9, 0)
 
 bl_info = {
     "name": "Mass Collection Exporter",
@@ -170,7 +170,7 @@ def _find_empty_groups(collection, view_layer=None):
 
     def walk(coll):
         for obj in coll.objects:
-            if obj.type != 'EMPTY' or obj.name in seen:
+            if obj.type != 'EMPTY' or obj.name in seen or not _exportable(obj):
                 continue
             if view_layer is not None and obj.name not in view_layer.objects:
                 continue
@@ -184,7 +184,7 @@ def _find_empty_groups(collection, view_layer=None):
     for empty in empties:
         members = []
         for desc in empty.children_recursive:
-            if desc.type != 'MESH':
+            if desc.type != 'MESH' or not _exportable(desc):
                 continue
             if view_layer is not None and desc.name not in view_layer.objects:
                 continue
@@ -203,7 +203,7 @@ def _collection_meshes(collection):
     result = []
     names = set()
     for obj in collection.all_objects:
-        if obj.type == 'MESH' and obj.name not in names:
+        if obj.type == 'MESH' and obj.name not in names and _exportable(obj):
             names.add(obj.name)
             result.append(obj)
     return result
@@ -215,13 +215,15 @@ def _loose_meshes(collection, groups):
     return [o for o in _collection_meshes(collection) if o.name not in claimed]
 
 
-def _join_copies(context, sources, origin_world, bake, only_visible, temp=True):
+def _join_copies(context, sources, origin_world, bake, only_visible, temp=True, fill_material=None):
     """Join copies of `sources` into one new object whose origin is origin_world.
 
     Each copy bakes its OWN modifier stack before the join (bake=True), or has
     every modifier stripped (bake=False). bpy.ops.object.join keeps only the
     active object's stack, so joining un-baked copies used to drop every other
     child's modifiers and spread the active child's stack over all of them.
+    fill_material fills each copy's empty slots BEFORE the join: after it, the
+    faces of a material-less part point at the first slot of another part.
     Copies that are not consumed are cleaned up on failure.
     """
     copies = []
@@ -235,6 +237,8 @@ def _join_copies(context, sources, origin_world, bake, only_visible, temp=True):
                 _bake_modifiers(context, copy)
             else:
                 copy.modifiers.clear()
+            if fill_material is not None and copy.type == 'MESH':
+                _fill_empty_slots(copy, fill_material)
         context.view_layer.update()
         for copy in copies:
             if copy.parent is not None:
@@ -405,6 +409,117 @@ def _has_enabled_suffixes(props):
     return any(s.enabled and s.suffix for s in props.suffix_items)
 
 
+def _export_dir(item):
+    """Absolute export folder of a row. A `//` path is relative to the .blend
+    file (bpy.path.abspath); os.makedirs would otherwise read `//Exports` as a
+    UNC share and fail with "Cannot create directory"."""
+    path = (item.export_path or "").strip()
+    if not path:
+        return ""
+    return os.path.normpath(bpy.path.abspath(path))
+
+
+# Names of objects left out of the running export because they sit in a hidden
+# sub-collection (or are hidden themselves) while Export Hidden Collections is
+# off. Filled by export_collection for the duration of one row, read by every
+# function that gathers the objects of a collection.
+_SKIPPED = set()
+
+
+def _exportable(obj):
+    return obj.name not in _SKIPPED
+
+
+def _hidden_object_names(collection):
+    """Objects of collection's tree that are only reachable through a hidden
+    sub-collection, or are hidden themselves (eye / monitor icon)."""
+    root_lc = bpy.context.view_layer.layer_collection
+    visible = set()
+
+    def coll_hidden(coll):
+        if getattr(coll, 'hide_viewport', False):
+            return True
+        lc = _find_layer_collection(root_lc, coll)
+        return lc is not None and (lc.exclude or lc.hide_viewport)
+
+    def walk(coll, hidden):
+        hidden = hidden or coll_hidden(coll)
+        if not hidden:
+            for obj in coll.objects:
+                try:
+                    shown = not (obj.hide_viewport or obj.hide_get())
+                except RuntimeError:
+                    shown = False
+                if shown:
+                    visible.add(obj.name)
+        for child in coll.children:
+            walk(child, hidden)
+
+    walk(collection, False)
+    return {o.name for o in collection.all_objects if o.name not in visible}
+
+
+_MATERIAL_MODES = [
+    ('KEEP', "Keep", "Export every object with its own materials", 0),
+    ('FILL', "Fill Empty",
+     "Keep existing materials; objects and slots without a material get the override material. "
+     "Joined meshes are filled per part, before the join", 1),
+    ('OVERWRITE', "Overwrite", "Replace every material with the override material", 2),
+]
+
+
+def _material_mode(props):
+    """The material mode, reading the pre-13.9 checkboxes when they are still set."""
+    if props.material_mode != 'KEEP':
+        return props.material_mode
+    if props.override_materials:
+        return 'OVERWRITE'
+    if props.assign_if_no_material:
+        return 'FILL'
+    return 'KEEP'
+
+
+def _fill_material(props):
+    """The material that fills empty slots, or None when the mode is not Fill Empty."""
+    if _material_mode(props) == 'FILL':
+        return props.override_material
+    return None
+
+
+def _clear_legacy_material_flags(props):
+    if props.override_materials:
+        props.override_materials = False
+    if props.assign_if_no_material:
+        props.assign_if_no_material = False
+
+
+@bpy.app.handlers.persistent
+def _migrate_material_flags(_dummy=None):
+    """Turn the pre-13.9 material checkboxes of every scene into material_mode."""
+    for scene in bpy.data.scenes:
+        props = getattr(scene, "mass_exporter_props", None)
+        if props is None or not (props.override_materials or props.assign_if_no_material):
+            continue
+        mode = _material_mode(props)
+        props.override_materials = False
+        props.assign_if_no_material = False
+        props.material_mode = mode
+
+
+def _fill_empty_slots(obj, mat):
+    """Give obj's empty material slots (or a slot-less mesh) mat. Temp copies only."""
+    me = obj.data
+    if not me.materials:
+        me.materials.append(mat)
+        return
+    for i, m in enumerate(me.materials):
+        if m is None:
+            me.materials[i] = mat
+    for slot in obj.material_slots:
+        if slot.link == 'OBJECT' and slot.material is None:
+            slot.material = mat
+
+
 _ITEM_SETTINGS_SKIP = {'rna_type', 'name', 'collection', 'export_enabled'}
 
 
@@ -424,15 +539,15 @@ def _override_materials_temporarily(objects, props):
     """
     backup = {'meshes': [], 'slots': [], 'names': []}
     mat = props.override_material
-    replace = props.override_materials and mat is not None
-    fill = (not replace) and props.assign_if_no_material and mat is not None
+    mode = _material_mode(props) if mat is not None else 'KEEP'
+    replace = mode == 'OVERWRITE'
     seen_meshes = set()
     meshes = [o for o in objects if o.type == 'MESH' and o.data is not None]
 
-    if replace or fill:
+    if mode != 'KEEP':
         for obj in meshes:
-            has_material = any(s.material for s in obj.material_slots)
-            if not replace and has_material:
+            # Fill Empty: skip objects whose every slot already has a material
+            if not replace and obj.material_slots and all(s.material for s in obj.material_slots):
                 continue
             for i, slot in enumerate(obj.material_slots):
                 if slot.link == 'OBJECT':
@@ -441,10 +556,15 @@ def _override_materials_temporarily(objects, props):
             if me.name not in seen_meshes:
                 seen_meshes.add(me.name)
                 backup['meshes'].append((me, list(me.materials)))
-                me.materials.clear()
-                me.materials.append(mat)
+                if replace or not me.materials:
+                    me.materials.clear()
+                    me.materials.append(mat)
+                else:
+                    for i, m in enumerate(me.materials):
+                        if m is None:
+                            me.materials[i] = mat
             for slot in obj.material_slots:
-                if slot.link == 'OBJECT':
+                if slot.link == 'OBJECT' and (replace or slot.material is None):
                     slot.material = mat
 
     if props.add_m_prefix:
@@ -766,7 +886,7 @@ def find_suffix_groups_in_collection(collection, suffix_items, include_subcollec
 
     # 3) Remaining direct meshes group by their own name
     for obj in collection.objects:
-        if obj.type != 'MESH' or obj.name in claimed:
+        if obj.type != 'MESH' or obj.name in claimed or not _exportable(obj):
             continue
         base_name, suffix = get_base_name_without_suffix(obj.name, suffix_items)
         add(base_name, obj, suffix)
@@ -862,18 +982,6 @@ class CollectionExportItem(PropertyGroup):
         default=False
     )
 
-    center_parent_empties: BoolProperty(
-        name="Center Each Empty",
-        description="Temporarily center each empty at origin during its export",
-        default=True
-    )
-
-    move_empties_to_origin_on_export: BoolProperty(
-        name="Move All Empties to Origin",
-        description="Move all empties to world origin before export begins",
-        default=False
-    )
-
     join_empty_children: BoolProperty(
         name="Join Empty Children",
         description="Combine all mesh children into a single object per export",
@@ -898,7 +1006,11 @@ class CollectionExportItem(PropertyGroup):
 
     move_to_center: BoolProperty(
         name="Move to Center",
-        description="Temporarily move objects to world origin (0,0,0) during export",
+        description=(
+            "Put each exported asset at the world origin (0,0,0) for the export: its parent "
+            "empty when it has one, otherwise the object itself. The scene is restored "
+            "afterwards, so assets can stay lined up side by side in Blender"
+        ),
         default=True
     )
 
@@ -999,21 +1111,32 @@ class MassExporterProperties(PropertyGroup):
     )
 
     # Material Options
-    override_materials: BoolProperty(
-        name="Override Materials",
-        description="Override materials on export",
-        default=False
+    material_mode: EnumProperty(
+        name="Materials",
+        description="What the exported files use as materials",
+        items=_MATERIAL_MODES,
+        default='KEEP',
+        update=lambda self, _context: _clear_legacy_material_flags(self),
     )
 
     override_material: PointerProperty(
         name="Override Material",
         type=bpy.types.Material,
-        description="Material to use for override"
+        description="Material used by Fill Empty and Overwrite"
+    )
+
+    # Before v13.9.0 two checkboxes set the material behaviour. They stay
+    # registered so older files keep their choice; _migrate_material_flags
+    # turns them into material_mode on load and clears them.
+    override_materials: BoolProperty(
+        name="Override Materials (legacy)",
+        description="Replaced by Materials > Overwrite",
+        default=False
     )
 
     assign_if_no_material: BoolProperty(
-        name="Assign Override Material if No Material",
-        description="Assign override material to objects with no material",
+        name="Assign if No Material (legacy)",
+        description="Replaced by Materials > Fill Empty",
         default=False
     )
 
@@ -1486,24 +1609,9 @@ class MASSEXPORTER_OT_export_all(Operator):
             if obj.type == 'EMPTY':
                 original_empty_positions[obj.name] = obj.matrix_basis.copy()
 
-        # Only the collections that ask for it get their empties moved
-        auto_move_collections = [
-            item.collection for item in props.collection_items
-            if item.export_enabled and item.collection and item.export_path
-            and item.move_empties_to_origin_on_export
-        ]
-
-        if auto_move_collections:
-            if props.debug_mode:
-                print(f"\n=== AUTO-MOVE TO ORIGIN ENABLED FOR {len(auto_move_collections)} COLLECTIONS ===")
-
-            result = move_empties_to_origin_core_logic(context, self.report, collections=auto_move_collections)
-            
-            if result == {'CANCELLED'}:
-                self.report({'WARNING'}, "Auto-move empties to origin failed")
-            else:
-                if props.debug_mode:
-                    print("Auto-move empties to origin completed successfully")
+        # Centering is one per-row option, Move to Center, applied per exported
+        # file (see _center_root_objects_temporarily). The old "Move All Empties
+        # to Origin" pre-pass and "Center Each Empty" are gone since v13.9.0.
 
         # Export only collections whose checkbox is enabled, regardless of
         # which row is active/selected in the UIList. A per-item try/except
@@ -1669,6 +1777,7 @@ class MASSEXPORTER_OT_export_all(Operator):
             'objects': [],        # [(obj, hide_viewport, hide_get), ...]
             'hide_select': [],    # [(obj, prev_hide_select), ...]
             'local_view': [],     # [(obj, space), ...]
+            'selected': [],       # [(obj, select_get), ...]
         }
 
         root_lc = bpy.context.view_layer.layer_collection
@@ -1766,6 +1875,7 @@ class MASSEXPORTER_OT_export_all(Operator):
                 continue
             try:
                 backup['objects'].append((obj, obj.hide_viewport, obj.hide_get()))
+                backup['selected'].append((obj, obj.select_get()))
                 obj.hide_viewport = False
                 obj.hide_set(False)
             except (AttributeError, RuntimeError, ReferenceError) as exc:
@@ -1807,6 +1917,15 @@ class MASSEXPORTER_OT_export_all(Operator):
         consecutive exports leave the scene in identical state."""
         # Objects first (they depend on their collections existing in view
         # layer — which, after restore, may no longer be true).
+        # Selection goes back while the objects are still visible: once hidden
+        # they drop out of context.selected_objects, so the caller's deselect
+        # missed them and they stayed selected, leaking into the next export.
+        for obj, was_selected in backup.get('selected', ()):
+            if obj.name in bpy.data.objects:
+                try:
+                    obj.select_set(was_selected)
+                except (RuntimeError, ReferenceError):
+                    pass
         for obj, space in backup.get('local_view', ()):
             if obj.name in bpy.data.objects:
                 try:
@@ -1857,17 +1976,21 @@ class MASSEXPORTER_OT_export_all(Operator):
     def export_collection(self, context, props, item):
         """Export a single collection"""
         collection = item.collection
-        export_path = item.export_path
+        export_path = _export_dir(item)
 
         if props.debug_mode:
             print(f"\n=== EXPORTING COLLECTION: {collection.name} ===")
 
-        if not os.path.exists(export_path):
-            try:
-                os.makedirs(export_path)
-            except:
-                self.report({'ERROR'}, f"Cannot create directory: {export_path}")
-                return False
+        if item.export_path.strip().startswith("//") and not bpy.data.filepath:
+            self.report({'ERROR'},
+                        f"'{collection.name}': save the .blend file first - its export path "
+                        f"'{item.export_path}' is relative to it")
+            return False
+        try:
+            os.makedirs(export_path, exist_ok=True)
+        except OSError:
+            self.report({'ERROR'}, f"Cannot create directory: {export_path}")
+            return False
 
         # Visibility isolation: forces collection / layer collection / object
         # / local-view state into an exportable shape for the duration of the
@@ -1887,6 +2010,14 @@ class MASSEXPORTER_OT_export_all(Operator):
         if is_hidden and props.debug_mode:
             print(f"[MassExporter] Unhiding hidden collection '{collection.name}' for export "
                   f"(armature rules still apply via export_rig_with_mesh)")
+        # With the toggle off, hidden sub-collections and hidden objects of
+        # this row are left out too, not only a hidden row. Read BEFORE the
+        # unhide below clears the flags.
+        _SKIPPED.clear()
+        if not props.export_hidden_collections:
+            _SKIPPED.update(_hidden_object_names(collection))
+            if _SKIPPED and props.debug_mode:
+                print(f"[MassExporter] Leaving out hidden objects: {sorted(_SKIPPED)}")
         visibility_backup = MASSEXPORTER_OT_export_all._unhide_collection_for_export(collection)
 
         try:
@@ -1922,20 +2053,21 @@ class MASSEXPORTER_OT_export_all(Operator):
                             success_count += 1
                     return success_count > 0
         finally:
+            _SKIPPED.clear()
             if visibility_backup:
                 MASSEXPORTER_OT_export_all._restore_collection_for_export(visibility_backup)
 
     def export_subcollections_as_single(self, context, props, item):
         """Export each sub-collection as a single merged object"""
         collection = item.collection
-        export_path = item.export_path
+        export_path = _export_dir(item)
         success_count = 0
 
         if props.debug_mode:
             print(f"Exporting sub-collections as single files for: {collection.name}")
 
         # Export main collection objects (if any) as one file
-        main_objects = [obj for obj in collection.objects if obj.type == 'MESH']
+        main_objects = [obj for obj in collection.objects if obj.type == 'MESH' and _exportable(obj)]
         if main_objects:
             if MASSEXPORTER_OT_export_all.export_objects_as_single(self, context, props, main_objects, f"{collection.name}_main", export_path, item=item):
                 success_count += 1
@@ -1972,46 +2104,39 @@ class MASSEXPORTER_OT_export_all(Operator):
         """
         return [
             obj for obj in collection.all_objects
-            if obj.type in MASSEXPORTER_OT_export_all._SINGLE_FBX_TYPES
+            if obj.type in MASSEXPORTER_OT_export_all._SINGLE_FBX_TYPES and _exportable(obj)
         ]
 
     @staticmethod
     def _center_root_objects_temporarily(objects):
-        """Park every export-set root at world (0,0,0) for the export.
+        """Move to Center: put each exported asset's pivot at world (0,0,0).
 
-        A "root" is an object whose parent is None or whose parent is outside
-        the export set. Children inherit their parent's transform, so moving
-        only the roots is sufficient — moving a child too would re-apply the
-        offset through its parent.
+        The pivot of a root (an object whose parent is None or outside the
+        export set) is its parent when that parent is an EMPTY - the empty is
+        the asset's origin, so the parts keep their layout around it - and
+        the root itself otherwise. Children follow their parent, so only
+        pivots move. Several pivots stack at the origin.
 
-        For a root with no parent, `obj.location` is the world position, so
-        zeroing it parks the object at the origin. For a root that has an
-        external parent, the local `obj.location` that produces world (0,0,0)
-        is `parent.matrix_world.inverted().translation` (parent_world @ that
-        local point lands on the world origin).
-
-        Per-object-to-origin (not centroid): multiple roots stack on top of
-        each other at origin. Relative positions are intentionally dropped —
-        this is the semantic the user requested for grouped exports.
-
-        Returns a backup that `_restore_root_object_locations` will consume.
+        Positions go through matrix_world, so parent inverse matrices and
+        parented empties are honoured. Returns a backup of each pivot's
+        matrix_basis for `_restore_root_object_locations`.
         """
         if not objects:
             return None
         obj_set = set(objects)
-        roots = [
-            o for o in objects
-            if o.parent is None or o.parent not in obj_set
-        ]
-        if not roots:
+        pivots = []
+        for o in objects:
+            if o.parent is not None and o.parent in obj_set:
+                continue
+            pivot = o.parent if (o.parent is not None and o.parent.type == 'EMPTY') else o
+            if pivot not in pivots:
+                pivots.append(pivot)
+        if not pivots:
             return None
-        backup = [(o, o.location.copy()) for o in roots]
-        for o in roots:
-            if o.parent is None:
-                o.location = mathutils.Vector((0.0, 0.0, 0.0))
-            else:
-                # Local location whose world projection is (0,0,0).
-                o.location = o.parent.matrix_world.inverted().translation
+        backup = [(o, o.matrix_basis.copy()) for o in pivots]
+        for o in pivots:
+            bpy.context.view_layer.update()
+            _move_to_world_origin(o)
         bpy.context.view_layer.update()
         return backup
 
@@ -2019,9 +2144,9 @@ class MASSEXPORTER_OT_export_all(Operator):
     def _restore_root_object_locations(backup):
         if not backup:
             return
-        for obj, original in backup:
+        for obj, original in reversed(backup):
             if obj.name in bpy.data.objects:
-                obj.location = original
+                obj.matrix_basis = original
         bpy.context.view_layer.update()
 
     def export_collection_as_single_fbx(self, context, props, item):
@@ -2035,7 +2160,7 @@ class MASSEXPORTER_OT_export_all(Operator):
         temporary copies; children keep pointing at their (copied) parents.
         """
         collection = item.collection
-        export_path = item.export_path
+        export_path = _export_dir(item)
 
         if props.debug_mode:
             print(f"\n=== SINGLE-FBX EXPORT: {collection.name} ===")
@@ -2086,7 +2211,7 @@ class MASSEXPORTER_OT_export_all(Operator):
         Each mesh belongs to exactly one group (see find_suffix_groups_in_collection).
         """
         collection = item.collection
-        export_path = item.export_path
+        export_path = _export_dir(item)
         success_count = 0
 
         if props.debug_mode:
@@ -2127,51 +2252,36 @@ class MASSEXPORTER_OT_export_all(Operator):
         return success_count > 0
 
     def export_with_empty_origins(self, context, props, item):
-        """Use empty origins for export centering
-        FIXED: If join_empty_children is enabled, joins ALL empties together into ONE export"""
+        """Use Parent Empties: every parent empty is one asset.
+
+        One file per empty, named after it, with the empty as the pivot (Move
+        to Center puts it at the origin). Without Join the member meshes keep
+        their hierarchy as separate elements of the file; with Join they become
+        one mesh named after the empty. Meshes under no empty: Merge on ->
+        `<collection>`, off -> one file each.
+        """
         collection = item.collection
-        export_path = item.export_path
-
-        if props.debug_mode:
-            print(f"Exporting with empty origins for: {collection.name}")
-
-        # FIXED: If join is enabled, export the entire collection as ONE joined file
-        if item.join_empty_children:
-            return MASSEXPORTER_OT_export_all.export_collection_with_all_empties_joined(self, context, props, item, collection, export_path)
-
-        # Original behavior: export each empty separately (without join)
-        return MASSEXPORTER_OT_export_all.export_with_empty_origins_individual(self, context, props, item)
-
-    def export_with_empty_origins_individual(self, context, props, item):
-        """Export each empty's children individually, then the meshes no empty
-        claims (per object, or merged into `<collection>.fbx` with Merge on)."""
-        collection = item.collection
-        export_path = item.export_path
+        export_path = _export_dir(item)
         success_count = 0
 
-        groups = _find_empty_groups(collection)
-        loose = _loose_meshes(collection, groups)
+        context.view_layer.update()
+        groups = _find_empty_groups(collection, context.view_layer)
+        loose = [o for o in _loose_meshes(collection, groups) if o.name in context.view_layer.objects]
 
         if props.debug_mode:
-            print(f"Found {len(groups)} empties to process individually, {len(loose)} loose meshes")
+            print(f"Parent empties in {collection.name}: {len(groups)} assets, {len(loose)} loose meshes")
 
         for empty, members in groups:
             if props.debug_mode:
-                print(f"\n--- PROCESSING EMPTY: {empty.name} ---")
-
-            if item.center_parent_empties:
-                original_basis = empty.matrix_basis.copy()
-                try:
-                    _move_to_world_origin(empty)
-                    bpy.context.view_layer.update()
-                    if MASSEXPORTER_OT_export_all.export_children_individual(self, context, props, empty, members, export_path):
-                        success_count += 1
-                finally:
-                    empty.matrix_basis = original_basis
-                    bpy.context.view_layer.update()
+                print(f"\n--- ASSET: {empty.name} ({len(members)} meshes) ---")
+            if item.join_empty_children:
+                ok = MASSEXPORTER_OT_export_all.export_empty_joined(
+                    self, context, props, item, empty, members, export_path)
             else:
-                if MASSEXPORTER_OT_export_all.export_children_individual(self, context, props, empty, members, export_path):
-                    success_count += 1
+                ok = MASSEXPORTER_OT_export_all.export_objects_as_single(
+                    self, context, props, members, empty.name, export_path, item=item)
+            if ok:
+                success_count += 1
 
         if loose:
             if item.merge_to_single:
@@ -2183,6 +2293,41 @@ class MASSEXPORTER_OT_export_all(Operator):
                         success_count += 1
 
         return success_count > 0
+
+    def export_empty_joined(self, context, props, item, empty, members, export_path):
+        """Join copies of one empty's members into a mesh named after the
+        empty, with its origin at the empty, and export it as `<empty>`."""
+        empty_name = empty.name
+        basis = empty.matrix_basis.copy()
+        joined = None
+        try:
+            if item.move_to_center:
+                _move_to_world_origin(empty)
+                context.view_layer.update()
+            joined = _join_copies(
+                context, members, empty.matrix_world.translation.copy(),
+                bake=item.apply_modifiers_before_join or props.apply_modifiers,
+                only_visible=item.apply_only_visible or props.apply_only_visible_modifiers,
+                fill_material=_fill_material(props),
+            )
+            # The empty holds the name the joined mesh must carry in the file
+            empty.name = f"__mexport_{empty_name}"
+            joined.name = empty_name
+            return MASSEXPORTER_OT_export_all.export_single_object_simple(
+                self, context, props, joined, empty_name, export_path)
+        except Exception as e:
+            if props.debug_mode:
+                import traceback
+                traceback.print_exc()
+            self.report({'ERROR'}, f"Error joining '{empty_name}': {e}")
+            return False
+        finally:
+            if joined is not None:
+                _remove_temp_object(joined)
+            if empty.name != empty_name:
+                empty.name = empty_name
+            empty.matrix_basis = basis
+            context.view_layer.update()
 
     def export_collection_with_all_empties_joined(self, context, props, item, collection, export_path):
         """
@@ -2228,8 +2373,14 @@ class MASSEXPORTER_OT_export_all(Operator):
                 context, sources, origin,
                 bake=item.apply_modifiers_before_join or props.apply_modifiers,
                 only_visible=item.apply_only_visible or props.apply_only_visible_modifiers,
+                fill_material=_fill_material(props),
             )
             joined_obj.name = collection.name
+            if item.move_to_center:
+                mw = joined_obj.matrix_world.copy()
+                mw.translation = (0.0, 0.0, 0.0)
+                joined_obj.matrix_world = mw
+                context.view_layer.update()
             return MASSEXPORTER_OT_export_all.export_single_object_simple(
                 self, context, props, joined_obj, collection.name, export_path)
         except Exception as e:
@@ -2247,29 +2398,6 @@ class MASSEXPORTER_OT_export_all(Operator):
                     obj.select_set(True)
             if original_active and original_active.name in bpy.data.objects:
                 context.view_layer.objects.active = original_active
-
-    def export_children_individual(self, context, props, empty, children, export_path):
-        """Export children individually"""
-        if not children:
-            return False
-
-        empty_name = empty.name
-        success_count = 0
-        
-        if props.debug_mode:
-            print(f"Exporting children of {empty_name} individually")
-
-        # Export each child individually
-        for i, child in enumerate(children):
-            if props.debug_mode:
-                print(f"Exporting {child.name} at world position: {child.matrix_world.translation}")
-
-            # Export this child
-            child_name = f"{empty_name}_{child.name}" if len(children) > 1 else empty_name
-            if MASSEXPORTER_OT_export_all.export_single_object_simple(self, context, props, child, child_name, export_path):
-                success_count += 1
-
-        return success_count > 0
 
     def export_single_object_simple(self, context, props, obj, name, export_path):
         """Simple export of a single object without additional transform modifications"""
@@ -2300,7 +2428,7 @@ class MASSEXPORTER_OT_export_all(Operator):
 
         # Add objects directly in collection
         for obj in collection.objects:
-            if obj.type == 'MESH':
+            if obj.type == 'MESH' and _exportable(obj):
                 objects.append(obj)
 
         # Add objects from sub-collections
@@ -2443,6 +2571,14 @@ class MASSEXPORTER_OT_export_all(Operator):
             copy = None
             try:
                 copy, original_name = _make_named_copy(obj, "__mexport_xform_")
+                # transform_apply bakes only the local transform. A parent that
+                # is not exported (the asset's empty, possibly moved to the
+                # origin by Move to Center) would still place the copy, so the
+                # copy leaves it first and its whole world transform is baked.
+                if copy.parent is not None and copy.parent not in objects:
+                    world = copy.matrix_world.copy()
+                    copy.parent = None
+                    copy.matrix_world = world
                 batch_select_objects([copy], context)
                 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
                 temp.copies.append(copy)
@@ -3101,7 +3237,7 @@ class MASSEXPORTER_OT_export_selected_objects(Operator):
                             print(f"Exporting entire subcollection '{collection.name}' (parent has subcollections-as-single enabled)")
                         sub_objects = MASSEXPORTER_OT_export_all.get_collection_objects(self, collection)
                         if MASSEXPORTER_OT_export_all.export_objects_as_single(
-                                self, context, props, sub_objects, collection.name, export_item.export_path, item=export_item):
+                                self, context, props, sub_objects, collection.name, _export_dir(export_item), item=export_item):
                             exported_count += 1
                     elif export_item.use_suffix_grouping and _has_enabled_suffixes(props):
                         # Selection only: group the selected meshes by base name
@@ -3109,19 +3245,19 @@ class MASSEXPORTER_OT_export_selected_objects(Operator):
                         for base_name, members in groups.items():
                             if MASSEXPORTER_OT_export_all.export_objects_as_single(
                                     self, context, props, [o for o, _s in members], base_name,
-                                    export_item.export_path, item=export_item):
+                                    _export_dir(export_item), item=export_item):
                                 exported_count += 1
                     elif export_item.merge_to_single and len(objects) > 1:
                         group_name = f"{collection.name}_selected"
                         if MASSEXPORTER_OT_export_all.export_objects_as_single(
-                                self, context, props, objects, group_name, export_item.export_path, item=export_item):
+                                self, context, props, objects, group_name, _export_dir(export_item), item=export_item):
                             exported_count += 1
                     else:
                         if props.debug_mode:
                             print(f"Exporting {len(objects)} selected objects from '{collection.name}'")
                         for obj in objects:
                             if MASSEXPORTER_OT_export_all.export_single_object(
-                                    self, context, props, obj, export_item.export_path, item=export_item):
+                                    self, context, props, obj, _export_dir(export_item), item=export_item):
                                 exported_count += 1
                 finally:
                     MASSEXPORTER_OT_export_all._restore_collection_for_export(visibility_backup)
@@ -3263,12 +3399,6 @@ class MASSEXPORTER_PT_collections(Panel):
             sub_modes.prop(active_item, "use_empty_origins")
 
             if active_item.use_empty_origins:
-                header, body = sub_modes.panel("massexporter_collections_empty_options", default_closed=False)
-                header.label(text="Empty Options", icon='EMPTY_ARROWS')
-                if body is not None:
-                    body.prop(active_item, "center_parent_empties")
-                    body.prop(active_item, "move_empties_to_origin_on_export")
-
                 header, body = sub_modes.panel("massexporter_collections_join_options", default_closed=True)
                 header.label(text="Join Options", icon='MOD_SOLIDIFY')
                 if body is not None:
@@ -3319,13 +3449,11 @@ class MASSEXPORTER_PT_materials(Panel):
         layout = self.layout
         props = context.scene.mass_exporter_props
 
-        layout.prop(props, "override_materials")
+        layout.prop(props, "material_mode", expand=True)
 
         row = layout.row()
-        row.enabled = props.override_materials or props.assign_if_no_material
+        row.enabled = _material_mode(props) != 'KEEP'
         row.prop(props, "override_material")
-
-        layout.prop(props, "assign_if_no_material")
         layout.prop(props, "add_m_prefix")
 
 class MASSEXPORTER_PT_export(Panel):
@@ -3520,9 +3648,12 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.Scene.mass_exporter_props = PointerProperty(type=MassExporterProperties)
+    bpy.app.handlers.load_post.append(_migrate_material_flags)
     bpy.types.VIEW3D_HT_header.append(_draw_viewport_header_export_all)
 
 def unregister():
+    if _migrate_material_flags in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_migrate_material_flags)
     try:
         bpy.types.VIEW3D_HT_header.remove(_draw_viewport_header_export_all)
     except (ValueError, AttributeError):

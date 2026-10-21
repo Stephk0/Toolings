@@ -4,4 +4,4 @@ zip_stem = "MassExporter"
 wrapper = ""  # folder inside the zip; "" = files at the archive root
 source_dir = "source"
 include = ["__init__.py", "blender_manifest.toml"]  # globs relative to source_dir
-exclude = ["CHANGELOG.md", "MASSEXPORTER_DIAGNOSE.py", "_make_mce_annotated_doc.py", "tests/**"]
+exclude = ["CHANGELOG.md", "DEVELOPMENT.md", "MASSEXPORTER_DIAGNOSE.py", "_make_mce_annotated_doc.py", "tests/**"]

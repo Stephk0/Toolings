@@ -254,7 +254,7 @@ def t05_override_materials_source():
     a.data.materials.append(orig)
     ov = bpy.data.materials.new("Override")
     p = bpy.context.scene.mass_exporter_props
-    p.override_materials = True
+    p.material_mode = 'OVERWRITE'
     p.override_material = ov
     item(c, d)
     s0 = snapshot()
@@ -274,7 +274,7 @@ def t06_m_prefix_renames_all():
     bpy.data.materials.new("UnrelatedMat").use_fake_user = True
     ov = bpy.data.materials.new("Override")
     p = bpy.context.scene.mass_exporter_props
-    p.override_materials = True
+    p.material_mode = 'OVERWRITE'
     p.override_material = ov
     p.add_m_prefix = True
     item(c, d)
@@ -292,7 +292,7 @@ def t07_assign_if_no_material_alone():
     cube("nomat", c)
     ov = bpy.data.materials.new("Fallback")
     p = bpy.context.scene.mass_exporter_props
-    p.override_material = ov          # override_materials stays OFF
+    p.override_material = ov          # legacy pre-13.9 checkbox, read as Fill Empty
     p.assign_if_no_material = True
     item(c, d)
     run_export()
@@ -320,7 +320,7 @@ def t08_join_keeps_each_childs_modifiers():
     run_export()
     s1 = snapshot()
     check("t08 join source untouched", not diff(s0, s1), diff(s0, s1))
-    info = inspect(os.path.join(d, "Joined.fbx")) if "Joined.fbx" in files(d) else {}
+    info = inspect(os.path.join(d, "Root.fbx")) if "Root.fbx" in files(d) else {}
     verts = sum(v["verts"] or 0 for v in info.values())
     check("t08 joined mesh = 26 + 24 verts (each child's own modifiers)", verts == 50, f"files={files(d)} verts={verts} {info}")
 
@@ -333,7 +333,7 @@ def t09_join_apply_bakes_hidden():
     b.modifiers["ArrB"].show_viewport = False                      # user hid it
     item(c, d, use_empty_origins=True, join_empty_children=True, apply_modifiers_before_join=True)
     run_export()
-    info = inspect(os.path.join(d, "Joined.fbx")) if "Joined.fbx" in files(d) else {}
+    info = inspect(os.path.join(d, "Root.fbx")) if "Root.fbx" in files(d) else {}
     verts = sum(v["verts"] or 0 for v in info.values())
     check("t09 join+apply skips viewport-hidden modifier (26 + 8)", verts == 34, f"verts={verts}")
 
@@ -404,21 +404,21 @@ def t12b_whole_collection_hierarchy_no_modifiers():
 
 
 @test
-def t13_move_empties_flag_leaks_to_other_collections():
+def t13_move_to_center_is_per_row():
     d = outdir("t13")
     ca = coll("A_moves")
     cb = coll("B_stays")
     ea = empty("EA", ca, (5, 0, 0)); ma = cube("ma", ca, (5, 0, 0)); parent(ma, ea)
     eb = empty("EB", cb, (7, 0, 0)); mb = cube("mb", cb, (7, 0, 0)); parent(mb, eb)
-    item(ca, os.path.join(d, "a"), move_empties_to_origin_on_export=True, use_empty_origins=True, move_to_center=False)
-    item(cb, os.path.join(d, "b"), move_to_center=False, center_parent_empties=False)
+    item(ca, os.path.join(d, "a"), use_empty_origins=True)
+    item(cb, os.path.join(d, "b"), use_empty_origins=True, move_to_center=False)
     s0 = snapshot()
     run_export()
     s1 = snapshot()
     check("t13 source restored", not diff(s0, s1), diff(s0, s1))
-    info = inspect(os.path.join(d, "b", "mb.fbx")) if os.path.exists(os.path.join(d, "b", "mb.fbx")) else {}
-    w = [v["world"][0] for v in info.values()]
-    check("t13 collection B (flag off) keeps its empty at x=7", w == [7.0], info)
+    wa = [v["center"] for v in inspect(os.path.join(d, "a", "EA.fbx")).values() if v["type"] == "MESH"]
+    wb = [v["center"] for v in inspect(os.path.join(d, "b", "EB.fbx")).values() if v["type"] == "MESH"]
+    check("t13 row A (Move to Center) at 0, row B (off) keeps x=7", wa == [(0, 0, 0)] and wb == [(7, 0, 0)], (wa, wb))
 
 
 @test
@@ -571,7 +571,7 @@ def t22_rig_export_and_binding():
 
 
 @test
-def t23_join_includes_grandchildren_and_loose():
+def t23_join_per_empty_with_grandchildren():
     d = outdir("t23")
     c = coll("Deep")
     e = empty("Root", c, (1, 0, 0))
@@ -580,9 +580,11 @@ def t23_join_includes_grandchildren_and_loose():
     cube("loose", c, (-3, 0, 0))
     item(c, d, use_empty_origins=True, join_empty_children=True)
     run_export()
-    info = inspect(os.path.join(d, "Deep.fbx")) if "Deep.fbx" in files(d) else {}
-    verts = sum(v["verts"] or 0 for v in info.values())
-    check("t23 join includes grandchild + loose mesh (3 cubes = 24 verts)", verts == 24, f"{files(d)} {info}")
+    check("t23 one joined file per empty + loose mesh on its own", files(d) == ["Root.fbx", "loose.fbx"], files(d))
+    info = inspect(os.path.join(d, "Root.fbx")) if "Root.fbx" in files(d) else {}
+    meshes = {k: v for k, v in info.items() if v["type"] == "MESH"}
+    check("t23 Root.fbx = one mesh 'Root' of a + grandchild b (16 verts)",
+          len(meshes) == 1 and next(iter(meshes)).startswith("Root") and next(iter(meshes.values()))["verts"] == 16, info)
     check("t23 no temp objects left", sorted(o.name for o in bpy.data.objects) == ["Root", "a", "b", "loose"],
           sorted(o.name for o in bpy.data.objects))
 
@@ -632,7 +634,7 @@ def t26_object_linked_material_restore():
     a.material_slots[0].link = "OBJECT"
     a.material_slots[0].material = bpy.data.materials.new("ObjMat")
     p = bpy.context.scene.mass_exporter_props
-    p.override_materials = True
+    p.material_mode = 'OVERWRITE'
     p.override_material = bpy.data.materials.new("Override")
     item(c, d)
     slot0 = (a.material_slots[0].link, a.material_slots[0].material.name, a.data.materials[0].name)
@@ -687,7 +689,110 @@ def t29_center_each_empty_parented():
     run_export()
     info = inspect(os.path.join(d, "Inner.fbx")) if "Inner.fbx" in files(d) else {}
     w = [v["world"] for v in info.values()]
-    check("t29 Center Each Empty puts a parented empty's child at world 0", w == [(0, 0, 0)], f"{files(d)} {info}")
+    check("t29 Move to Center puts a parented empty's child at world 0", w == [(0, 0, 0)], f"{files(d)} {info}")
+
+
+@test
+def t30_empty_without_join_is_one_file():
+    d = outdir("t30")
+    c = coll("Assets")
+    e = empty("Crate", c, (6, 0, 0))
+    a = cube("lid", c, (6, 0, 1)); parent(a, e)
+    b = cube("box", c, (6, 0, 0)); parent(b, e)
+    item(c, d, use_empty_origins=True)
+    run_export()
+    check("t30 one file per empty, named after it", files(d) == ["Crate.fbx"], files(d))
+    info = inspect(os.path.join(d, "Crate.fbx")) if "Crate.fbx" in files(d) else {}
+    cen = sorted(v["center"] for v in info.values() if v["type"] == "MESH")
+    check("t30 members kept as elements around the centred empty", cen == [(0, 0, 0), (0, 0, 1)], info)
+
+
+@test
+def t31_apply_transforms_keeps_center_of_parented_mesh():
+    import math
+    d = outdir("t31")
+    c = coll("Pivot")
+    e = empty("Asset", c, (4, 2, 0))
+    e.rotation_euler = (0, 0, 0.5)
+    bpy.context.view_layer.update()
+    a = cube("part", c)
+    a.matrix_world = e.matrix_world @ __import__("mathutils").Matrix.Translation((1, 0, 0))
+    parent(a, e)
+    bpy.context.scene.mass_exporter_props.apply_transforms = True
+    item(c, d, use_empty_origins=True)
+    s0 = snapshot()
+    run_export()
+    check("t31 source untouched", not diff(s0, snapshot()), diff(s0, snapshot()))
+    info = inspect(os.path.join(d, "Asset.fbx")) if "Asset.fbx" in files(d) else {}
+    v = [x for x in info.values() if x["type"] == "MESH"]
+    want = (math.cos(0.5), math.sin(0.5), 0)
+    ok = v and all(abs(p - q) < 0.002 for p, q in zip(v[0]["center"], want)) and v[0]["world"] == (0, 0, 0)
+    check("t31 Apply Transforms + Move to Center: part 1 m from the centred empty, baked", ok, info)
+
+
+@test
+def t32_hidden_selection_does_not_leak():
+    d = outdir("t32")
+    c = coll("Row")
+    cube("shown", c)
+    sub = coll("HiddenSub", c)
+    cube("ghost", sub, (3, 0, 0))
+    bpy.context.view_layer.update()
+    mx._find_layer_collection(bpy.context.view_layer.layer_collection, sub).hide_viewport = True
+    item(c, d, merge_to_single=True)
+    for o in bpy.data.objects:
+        o.select_set(False)
+    run_export()
+    sel = [o.name for o in bpy.data.objects if o.select_get()]
+    check("t32 nothing left selected after exporting a hidden sub-collection", sel == [], sel)
+
+
+@test
+def t33_hidden_sub_skipped_when_toggle_off():
+    d = outdir("t33")
+    c = coll("Row")
+    cube("shown", c)
+    sub = coll("HiddenSub", c)
+    cube("ghost", sub, (3, 0, 0))
+    bpy.context.view_layer.update()
+    mx._find_layer_collection(bpy.context.view_layer.layer_collection, sub).hide_viewport = True
+    bpy.context.scene.mass_exporter_props.export_hidden_collections = False
+    item(c, d)
+    s0 = snapshot()
+    run_export()
+    check("t33 hidden sub-collection left out with the toggle off", files(d) == ["shown.fbx"], files(d))
+    check("t33 visibility restored", not diff(s0, snapshot()), diff(s0, snapshot()))
+
+
+@test
+def t34_join_fill_empty_per_part():
+    d = outdir("t34")
+    c = coll("Fill")
+    e = empty("Rock", c)
+    a = cube("rock", c); parent(a, e)
+    a.data.materials.append(bpy.data.materials.new("Stone"))
+    b = cube("rock_COL", c, (0, 0, 2)); parent(b, e)
+    p = bpy.context.scene.mass_exporter_props
+    p.material_mode = 'FILL'
+    p.override_material = bpy.data.materials.new("Fallback")
+    item(c, d, use_empty_origins=True, join_empty_children=True)
+    run_export()
+    info = inspect(os.path.join(d, "Rock.fbx")) if "Rock.fbx" in files(d) else {}
+    mats = sorted(m.split(".")[0] for v in info.values() if v["mats"] for m in v["mats"])
+    check("t34 joined mesh keeps Stone and fills the bare part with Fallback", mats == ["Fallback", "Stone"], info)
+
+
+@test
+def t35_relative_export_path():
+    outdir("t35")
+    blend = os.path.join(OUT, "t35", "scene.blend")
+    c = coll("Rel")
+    cube("relcube", c)
+    bpy.ops.wm.save_as_mainfile(filepath=blend)
+    item(c, "//Exports/Rel/")
+    run_export()
+    target = os.path.join(OUT, "t35", "Exports", "Rel")
+    check("t35 // path resolves next to the .blend", files(target) == ["relcube.fbx"], files(target))
 
 
 for t in TESTS:
