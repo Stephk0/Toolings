@@ -50,7 +50,7 @@ Restart 3DS Max
 ### Full Addon Roster (versions)
 | Addon | Ver | Access |
 |-------|-----|--------|
-| Mass Collection Exporter | 13.8.0 | `N` Panel → Mass Exporter |
+| Mass Collection Exporter | 13.9.0 | `N` Panel → Mass Exporter |
 | Synced Modifiers | 2.5.0 | `N` Panel → Item |
 | Compositor Render Sets | 2.0.0 | Compositor → `N` Panel |
 | Modifier List (Stephko fork) | 1.9.89 | Properties → Modifiers / popup |
@@ -72,7 +72,7 @@ Restart 3DS Max
 | Smart Wireframe View | 1.0.0 | `Shift+Alt+Z` / `Ctrl+Shift+Alt+Z` |
 | **ST3E Geometry Nodes** | 53 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
 
-### Mass Exporter v13.8
+### Mass Exporter v13.9
 
 **Location:** `N` Panel → Mass Exporter tab
 
@@ -89,7 +89,8 @@ Join ALL Empties            → Debug tool (preview join)
 Unity Export:
   Format: FBX
   Apply Scaling: FBX Units Scale
-  Apply Transform: ☑ ON
+  Apply Transform: ☑ ON (static, unparented meshes; for hierarchies: OFF, Forward Y / Up Z,
+                   Unity "Bake Axis Conversion" on)
   Forward: -Z
   Up: Y
   
@@ -297,13 +298,13 @@ Use Selection: ON
    - Add collection
    - Enable export ☑
    - Use Parent Empties: ☑ ON
-   - Center Parent Empties: ☑ ON
+   - Move to Center: ☑ ON
    - Set export path
 4. Export All
-→ Result: Each empty exports as separate file
+→ Result: one file per empty, named after it
 ```
 
-### Workflow 4: Everything as One Mesh
+### Workflow 4: One Mesh per Asset
 ```
 1. Create collection with empties + children
 2. Mass Exporter:
@@ -314,7 +315,8 @@ Use Selection: ON
    - Apply Modifiers Before Join: ☑ ON
    - Set export path
 3. Export All
-→ Result: SingleMergedFile.fbx
+→ Result: <empty>.fbx per empty, one joined mesh each
+   (Sub-Collections as Single on as well → one joined mesh per sub-collection)
 ```
 
 ### Workflow 5: Sub-Collections as Separate Files

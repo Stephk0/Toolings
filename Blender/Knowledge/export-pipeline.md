@@ -8,6 +8,8 @@ Rules and traps for exporters (MassExporter, QuickAnimationExport, any future on
 - [modifier_apply bakes hidden modifiers and refuses shape keys](#feedback_blender_modifier_apply_ignores_show_viewport)
 - [Duplicates that impersonate the original need its name freed first](#feedback_blender_unique_names)
 - [Imported rock FBX: clear custom split normals + shade smooth](#feedback_blender_fbx_rock_normals)
+- [FBX Apply Transform misplaces children in any hierarchy](#fbx_bake_space_transform_hierarchy)
+- [Hidden objects keep their selection flag](#hidden_objects_keep_selection)
 
 <a id="feedback_blender_exporter_no_source_mutation"></a>
 
@@ -114,3 +116,62 @@ leftover `__temp_` / `__mexport_` names.
 `bpy.ops.object.shade_smooth()`, before re-export; export with `mesh_smooth_type='OFF'` so
 custom normals aren't re-embedded. The source assets were authored as flat geometry +
 smooth shading, not with custom normals.
+
+<a id="fbx_bake_space_transform_hierarchy"></a>
+
+## FBX Apply Transform misplaces children in any hierarchy
+
+*`bake_space_transform=True` is only correct for unparented meshes; a child in any parent chain lands in the wrong place.*
+
+Blender's exporter does not support parenting with Apply Transform (closed as a known issue:
+projects.blender.org/blender/blender/issues/70799, blender-addons #65478 / #100325,
+developer.blender.org/T97043). In `fbx_utils.py` (`ObjectWrapper.fbx_object_matrix`) an object
+whose parent is not exported is written in world space, but its children are corrected with
+the parent's Blender `matrix_local` (relative to that unexported parent). When the parent is
+rotated or offset the two frames disagree and the child moves. Armatures, cameras and lights
+take another code path, so rigs break too.
+
+Measured by importing every file into Unity 6000.3 (MassExporter Export Lab,
+`unity_dump.py`; an asset = empty > meshes, a tree = empty rotated 15° > trunk > canopy). The
+file itself is wrong with Apply Transform on: the canopy gets `Lcl Rotation 90,0,0` under the
+trunk, so Unity knocks it over just like any other importer.
+
+| Apply Transform | Axes (fwd / up) | Placement in Unity | Node rotation, default import | with Bake Axis Conversion |
+|---|---|---|---|---|
+| on | -Z / Y | **wrong** — canopy on its side, parts of an empty asset off by 0.3–0.8 m | upright | upright |
+| on | Y / Z (Blender default) | correct (nothing to bake) | 90° X tilt | upright |
+| off | -Z / Y | correct | 90° X tilt | **90° X tilt** |
+| off | Y / Z | correct | 90° X tilt | **upright** |
+
+Apply Scalings (None / FBX Units Scale / FBX All) never changes placement in Unity: Convert
+Units scales by `UnitScaleFactor / 100`. Bake Axis Conversion turns the asset half a turn round
+Y compared with the default import. glTF and OBJ are exact in every case. three.js FBXLoader
+ignores both `UnitScaleFactor` and the axis system; the lab's `viewer/unity-fbx.js` adds them
+and matches Unity on all 366 meshes.
+
+**How to apply:**
+- Unity 2020+: export with Apply Transform **off**, Blender's default axes (**Y forward,
+  Z up**), FBX Units Scale, and tick **Bake Axis Conversion** on the model importer: correct
+  hierarchy and upright nodes. With -Z / Y the -90° X stays even with Bake Axis Conversion.
+  Assets come in turned half a turn round Y compared with the old Apply-Transform setup -
+  check facing before switching an existing project.
+- Keep Apply Transform only for single unparented static meshes.
+- Unreal: Convert Scene / Force Front X Axis on import, FBX All or unit scale 0.01 on export.
+  Godot 4.3+ (ufbx) applies unit conversion to the mesh; empties come in at 100× unless FBX
+  Units Scale is used (godotengine/godot#90314).
+- MassExporter still defaults it to on (user decision, 2026-10-21); the lab's `fbx_*` sweep
+  cases (`source/tests/export_lab/`) track it.
+
+<a id="hidden_objects_keep_selection"></a>
+
+## Hidden objects keep their selection flag
+
+*An object selected while unhidden for export stays selected after it is hidden again — and `context.selected_objects` no longer lists it.*
+
+A deselect loop over `context.selected_objects` after re-hiding misses it. The next export
+selects the visible objects, and the exporter (`use_selection`) also writes the invisible but
+still-selected one.
+
+**How to apply:** record `select_get()` together with the hide flags when unhiding, and put it
+back *before* the objects are hidden again (MassExporter `_unhide_collection_for_export` /
+`_restore_collection_for_export`).
