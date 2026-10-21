@@ -1,0 +1,9 @@
+# Release spec for Smart Isolate, read by Blender/Addons/_release/release.py.
+zip_stem = "SmartIsolate"
+wrapper = "SmartIsolate"  # folder inside the zip; "" = files at the archive root
+source_dir = "source"
+include = ["__init__.py", "blender_manifest.toml", "blender/*.py", "core/*.py"]  # globs relative to source_dir
+exclude = ["DEVELOPMENT.md", "CHANGELOG.md", "tests/**"]
+
+[files]  # published path = source path relative to the tool folder
+"README.md" = "README.md"

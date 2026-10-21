@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Edge Constraint Mode",
     "author": "Stephan Viranyi",
-    "version": (2, 1, 0),
+    "version": (2, 2, 0),
     "blender": (4, 5, 0),
     "location": "View3D > Header (Mesh Edit mode): constraint toggle + Edge / Face / Normal",
     "description": (

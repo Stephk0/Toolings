@@ -12,6 +12,7 @@
       --factory-startup --python verify_gn_solidify_plus.py
 Exit code 1 on any failure.
 """
+from collections import Counter
 import bpy, bmesh, os, sys, math
 
 GEO = r"D:\Stephko_Tooling\Toolings\Blender\Geonodes"
@@ -163,6 +164,18 @@ f = run('grid', {})
 check(sig(e) == sig(f), "Grow / Shrink 0 is a passthrough")
 z = run('grid', {"Thickness": 0.0, "Rim Loops": 2, "Push": 0.1, "Even Thickness": True})
 check(no_nan(z), "zero thickness: no NaN")
+
+print("== material index")
+def mats(set_mode):
+    def base_mat(md):
+        me = md.id_data.data
+        for i in range(4): me.materials.append(bpy.data.materials.new(f"M{i}"))
+        for p in me.polygons: p.material_index = 1
+    me = run('grid', {"Shell Material Offset": 1, "Rim Material Offset": 2,
+                      "Set Material Index": set_mode}, extra=base_mat)
+    return sorted(Counter(p.material_index for p in me.polygons).items())
+check(mats(False) == [(1, 16), (2, 16), (3, 16)], f"offset mode adds {mats(False)}")
+check(mats(True) == [(1, 32), (2, 16)], f"Set Material Index sets {mats(True)}")
 
 print(f"\n{len(FAILS)} failure(s)")
 sys.stdout.flush()

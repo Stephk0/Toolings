@@ -43,7 +43,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 
 | Tool | Ver | Description | Docs |
 |------|-----|-------------|------|
-| **Mass Collection Exporter** | 13.7.0 | Batch export collections/objects (FBX, OBJ, DAE, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/MassExporter/README.md) · [flow charts](Blender/Addons/MassExporter/EXPORT_FLOW.md) |
+| **Mass Collection Exporter** | 13.8.0 | Batch export collections/objects (FBX, OBJ, glTF) with suffix grouping, parent-empty handling, and per-collection settings | [README](Blender/Addons/MassExporter/README.md) · [flow charts](Blender/Addons/MassExporter/EXPORT_FLOW.md) |
 | **Quick Animation Export** | 1.0.9 | Streamlined export of animation/action clips to game-engine-ready files | [README](Blender/Addons/QuickAnimationExport/README.md) |
 | **Library Publisher** | 1.3.1 | Publishes the ST3E asset library to a Google Shared Drive as `ST3E_Ext`, remapping catalog UUIDs on the way out | [README](Blender/Addons/LibraryPublisher/README.md) |
 | **Library Relink** | 1.0.0 | Bulk-relink a file's linked libraries to a new folder, with a dry-run preview | [README](Blender/Addons/LibraryRelink/README.md) |
@@ -56,7 +56,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 | **Smart Collapse** | 1.0.0 | 3ds Max-style collapse (collapse + merge at center) | [README](Blender/Addons/Smart%20Collapse/README.md) |
 | **Smart Set Orientation** | 1.5.0 | Set transform orientation from selection (Maya "D" working-pivot style) | [README](Blender/Addons/Smart%20Set%20Orientation/README.md) |
 | **Center Edges/Loops** | 1.5.1 | Center edge loops / selections along their average position | [README](Blender/Addons/Center%20Edges/README.md) |
-| **Edge Constraint Mode** | 2.1.0 | 3ds Max-style constraint toggle (Edge / Face / Normal): every Move, Rotate, Scale stays on the mesh | [README](Blender/Addons/EdgeConstraintMode/README.md) |
+| **Edge Constraint Mode** | 2.2.0 | 3ds Max-style constraint toggle (Edge / Face / Normal): every Move, Rotate, Scale stays on the mesh | [README](Blender/Addons/EdgeConstraintMode/README.md) |
 
 ### Modifiers
 
@@ -65,6 +65,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 | **Synced Modifiers** | 2.5.0 | Add & keep modifiers synchronized across objects via drivers; Geometry Nodes input sync | [README](Blender/Addons/SyncedModifiers/README.md) |
 | **Modifier List (Stephko fork)** | 1.9.89 | Enhanced modifier-stack UI (list view, popup, sidebar) with GN input-attribute toggle fix | [README](Blender/Addons/ModifierList_Stephko/README.md) |
 | **Toggle Modifier Display** | 1.3.0 | Quick modifier visibility toggle in edit mode (D / Shift+D), 3ds Max "show end result" style | [README](Blender/Addons/Toggle%20Modifier%20Display/README.md) |
+| **Modifier Stack Actions** | 1.0.0 | Right-click a modifier: preview the stack up to it, extract the mesh at that point, or add a modifier before / after it | [README](Blender/Addons/ModifierStackActions/README.md) |
 
 ### UV, Naming & Rigging
 
@@ -80,6 +81,8 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 |------|-----|-------------|------|
 | **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/Edit%20Mode%20Overlay/README.md) |
 | **Compositor Render Sets** | 2.0.0 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/Compositor%20Render%20Sets/README.md) |
+| **Smart Isolate** | 1.0.0 | Local View replacement: toggles, nests deeper on a sub-selection, can keep cameras/lights (3ds Max Smart Isolate port) | [README](Blender/Addons/Smart%20Isolate/README.md) |
+| **Smart Wireframe View** | 1.0.0 | One hotkey cycles overlays off / overlays / overlays + wireframe (3ds Max WireframeEdgeFaceOff port) | [README](Blender/Addons/Smart%20Wireframe%20View/README.md) |
 
 ### Internal Tooling
 

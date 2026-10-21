@@ -78,7 +78,7 @@ def _active_point(bm, world):
     return None
 
 
-def gather_sessions(context, mode, *, reach, stop_at_selected):
+def gather_sessions(context, mode, *, reach, stop_at_selected, stop_at_vertices=True):
     sessions = []
     for obj in _edit_objects(context):
         bm = bmesh.from_edit_mesh(obj.data)
@@ -91,10 +91,14 @@ def gather_sessions(context, mode, *, reach, stop_at_selected):
         positions = [tuple(world @ v.co) for v in bm.verts]
         normals = [tuple((normal_mat @ v.normal).normalized()) for v in bm.verts]
         edges = [(e.verts[0].index, e.verts[1].index) for e in bm.edges if not e.hide]
+        sel_edges = [(e.verts[0].index, e.verts[1].index) for e in bm.edges
+                     if e.select and not e.hide]
         faces = [tuple(v.index for v in f.verts) for f in bm.faces if not f.hide]
-        mesh = C.MeshData(positions, edges, faces, selected, normals)
+        mesh = C.MeshData(positions, edges, faces, selected, normals,
+                          selected_edges=sel_edges)
         constraints = C.build_constraints(mesh, mode, reach=reach,
-                                          stop_at_selected=stop_at_selected)
+                                          stop_at_selected=stop_at_selected,
+                                          stop_at_vertices=stop_at_vertices)
         originals = {i: positions[i] for i in selected}
         sessions.append(_ObjectSession(obj.name, world, originals, constraints,
                                        _active_point(bm, world)))
@@ -192,7 +196,8 @@ class MESH_OT_edge_constraint_transform(Operator):
         if self.use_scene_constraint:
             self.constraint = active_mode(s)
         self._sessions = gather_sessions(context, self.constraint, reach=s.reach,
-                                         stop_at_selected=s.stop_at_selected)
+                                         stop_at_selected=s.stop_at_selected,
+                                         stop_at_vertices=s.stop_at_vertices)
         if not self._sessions:
             return False
         self._pivot_pt = _pivot(context, self._sessions)

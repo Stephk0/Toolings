@@ -1,0 +1,11 @@
+schema_version = "1.0.0"
+
+id = "smart_isolate"
+version = "1.0.0"
+name = "Smart Isolate"
+tagline = "Local View that toggles, nests and can keep cameras and lights"
+maintainer = "Stephan Viranyi"
+type = "add-on"
+blender_version_min = "4.5.0"
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["3D View"]

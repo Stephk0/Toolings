@@ -765,12 +765,17 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng):
       desc="Mitre Push and the profile at border corners so the rim stays evenly wide.")
 
     p_mat = iface.new_panel("Materials", default_closed=True)
+    S("Set Material Index", 'INPUT', 'NodeSocketBool', p_mat, default=False,
+      desc="Give the inner shell and the rim the two values below as their material "
+           "index, instead of adding them to the index they start with (the original "
+           "Solidify Plus behaviour).")
     S("Shell Material Offset", 'INPUT', 'NodeSocketInt', p_mat, default=0, single=True,
       desc="Added to the material index of the inner shell (the flipped one, at "
-           "Offset -1).")
+           "Offset -1). With Set Material Index: the inner shell's material index.")
     S("Rim Material Offset", 'INPUT', 'NodeSocketInt', p_mat, default=0, single=True,
       desc="Added to the material index of the rim faces (they start with the material "
-           "of the face they grow from).")
+           "of the face they grow from). With Set Material Index: the rim's material "
+           "index.")
 
     p_dir = iface.new_panel("Direction", default_closed=True)
     S("Use Custom Direction", 'INPUT', 'NodeSocketBool', p_dir, default=False,
@@ -959,7 +964,7 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng):
         x = (wn, "Geometry")
 
     # ============================================================ 12. MATERIALS
-    g = gi(F_mat, "Shell Material Offset", "Rim Material Offset")
+    g = gi(F_mat, "Set Material Index", "Shell Material Offset", "Rim Material Offset")
     part = G.named('INT', A_PART, F_mat)
     is_inner = G.cmp('INT', 'EQUAL', part, PART_INNER, F_mat, label="Inner Face")
     is_rimf = G.cmp('INT', 'EQUAL', part, PART_RIM, F_mat, label="Rim Face")
@@ -967,7 +972,12 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng):
                    (g, "Shell Material Offset"), F_mat), (g, "Rim Material Offset"), F_mat,
                    label="Offset Per Face")
     midx = (mk("GeometryNodeInputMaterialIndex", F_mat), "Material Index")
-    newm = G.imath('MAXIMUM', G.imath('ADD', midx, add, F_mat), 0, F_mat,
+    # Set mode: the inner shell and rim start from 0, so the offset becomes the index
+    set_here = G.bmath('AND', (g, "Set Material Index"),
+                       G.bmath('OR', is_inner, is_rimf, F_mat), F_mat,
+                       label="Set  (inner shell or rim)")
+    base = G.switch('INT', set_here, midx, 0, F_mat, label="Start Index")
+    newm = G.imath('MAXIMUM', G.imath('ADD', base, add, F_mat), 0, F_mat,
                    label="Index + Offset  (>= 0)")
     smi = mk("GeometryNodeSetMaterialIndex", F_mat, label="Offset Materials")
     feed(smi, "Geometry", x); feed(smi, "Material Index", newm)

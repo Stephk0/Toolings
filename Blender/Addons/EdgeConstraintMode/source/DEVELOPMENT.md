@@ -14,7 +14,7 @@ source/
 │   ├── transform.py       # free move/rotate/scale targets (Constrained Transform op)
 │   └── live.py            # LiveTracker: which originals a native transform projects from
 ├── blender/
-│   ├── properties.py      # Scene.edge_constraint_mode: enabled, mode, reach, stop_at_selected, live, debug
+│   ├── properties.py      # Scene.edge_constraint_mode: enabled, mode, reach, stop_at_vertices, stop_at_selected, live, debug
 │   ├── live.py            # depsgraph/undo handlers that constrain Blender's own transforms
 │   ├── operators.py       # mesh.edge_constraint_transform (own modal, F3/scripts), toggle/set ops
 │   └── ui.py              # header toggle + type dropdown + settings popover
@@ -25,7 +25,8 @@ source/
     ├── meshes.py
     └── headless/
         ├── blender_checks.py  # Blender 5.0 headless: checks + comparison renders
-        └── gui_drive.py       # REAL Blender UI under Xvfb, simulated mouse/keys, screenshots
+        ├── gui_drive.py       # REAL Blender UI under Xvfb, simulated mouse/keys, screenshots
+        └── demo_media.py      # demo video / GIF / stills (README, case study)
 ```
 
 ## How Live mode works (v2.1)
@@ -93,7 +94,16 @@ free target is snapped back, measured on the pre-transform mesh.
 
   Sideways motion along a loop is rejected. Without this rule the "hinge"
   verts of a tilted cylinder or sphere loop slid along the loop
-  (`test_tilting_a_round_loop_keeps_hinge_verts_in_place`). Overshoot walks
+  (`test_tilting_a_round_loop_keeps_hinge_verts_in_place`). "Inside the
+  selection" means Blender's own edge selection (`MeshData.selected_edges`,
+  from `BMEdge.select`), not "both verts selected": in Edge/Face select mode
+  the unselected rung between two selected edges must stay a rail. An
+  in-selection edge is only ever a fallback rail where it continues a leaving
+  edge through the vertex (dot < -cos 60°), i.e. the rung between two
+  selected loops - never a loop's own edge
+  (`test_scaling_two_selected_loops_slides_them_along_the_rungs`). By default
+  (`stop_at_vertices`, 2.2) overshoot stops at the edge's far vertex, so a
+  loop can't pass through an unselected loop. With it off, overshoot walks
   on to the next edge only if it turns < 60°, up to `reach` edges, and
   stops at selected verts.
 - `FacePatch`: the closest point on the original surface, meaning **all**
@@ -130,7 +140,17 @@ blender --background --factory-startup --python source/tests/headless/blender_ch
 Xvfb :99 -screen 0 1600x1000x24 &
 DISPLAY=:99 blender --factory-startup --enable-event-simulate \
     --python source/tests/headless/gui_drive.py -- /tmp/ecm <out_dir>
+
+# Demo media, 1920x1080 Workbench (13 segments, ~700 frames; add `preview`
+# after <frames_dir> for one frame per segment). Step 2 needs PIL.
+blender -b --factory-startup --python source/tests/headless/demo_media.py -- render /tmp/ecm <frames_dir>
+python source/tests/headless/demo_media.py <frames_dir> <out_dir>   # captioned/, stills/, GIF
+blender -b --factory-startup --python source/tests/headless/demo_media.py -- encode <out_dir>/captioned <out_dir>/edge_constraint_demo.mp4
 ```
+
+On Windows, `gui_drive.py` runs as is apart from `capture()`, which shells
+out to `xwd`; stub it to skip screenshots (last run 2026-10-18, Blender 5.0,
+all 18 checks pass).
 
 What each layer covers:
 

@@ -3,8 +3,8 @@
 zip_stem = "EdgeConstraintMode"
 wrapper = "EdgeConstraintMode"  # folder inside the zip; "" = files at the archive root
 source_dir = "source"
-include = ["__init__.py"]  # globs relative to source_dir
-exclude = ["DEVELOPMENT.md"]
+include = ["__init__.py", "blender_manifest.toml", "blender/*.py", "core/*.py"]  # globs relative to source_dir
+exclude = ["DEVELOPMENT.md", "CHANGELOG.md", "tests/**"]
 
 [files]  # published path = source path relative to the tool folder
 "README.md" = "README.md"

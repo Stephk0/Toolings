@@ -1,6 +1,6 @@
 # Mass Collection Exporter — Export Flow
 
-> Diagrams generated from `source/__init__.py` v13.7.0. Line references point at the
+> Diagrams describe `source/__init__.py` v13.8.0. Function names point at the
 > dispatching code so this stays checkable against the source.
 
 - [1. Top-level run](#1-top-level-run)
@@ -13,7 +13,7 @@
 
 ## 1. Top-level run
 
-`MASSEXPORTER_OT_export_all.execute()` — `source/__init__.py:1277`
+`MASSEXPORTER_OT_export_all.execute()`
 
 Everything below happens once per click, wrapped around the per-collection loop.
 
@@ -24,10 +24,10 @@ flowchart TD
     end
 
     A["Export All Collections"] --> B["Force OBJECT mode"]
-    B --> C["Recover stale __mexport_ objects<br/>left by a crashed prior run"]
-    C --> D["Snapshot selection, active object<br/>and every parented empty location"]
+    B --> C["Recover stale temp copies and<br/>__mexport_ names left by a crashed run"]
+    C --> D["Snapshot selection, active object<br/>and every empty transform"]
     D --> E{"Any enabled collection with<br/>Move All Empties to Origin?"}
-    E -->|yes| F["move_empties_to_origin_core_logic<br/>runs once, scene-wide"]
+    E -->|yes| F["move_empties_to_origin_core_logic<br/>only those collections, world origin"]
     E -->|no| G["skip pre-pass"]
     F --> LOOP
     G --> LOOP
@@ -43,7 +43,7 @@ in the UIList. A per-item `try/except` means one failing collection does not abo
 
 ## 2. Per-collection gate and mode priority
 
-`export_collection()` — `source/__init__.py:1688`
+`export_collection()`
 
 This is the diagram that matters. The five export modes are **mutually exclusive** and
 resolved in a fixed priority order — turning two on does not combine them, the higher one
@@ -64,7 +64,7 @@ flowchart TD
     ISO --> M1{"Whole Collection<br/>as One File?"}
     M1 -->|ON| R1["MODE 1 - export_collection_as_single_fbx<br/>every object type plus hierarchy in one file<br/>name = Custom Filename or collection name"]
 
-    M1 -->|OFF| M2{"Group by Suffix?<br/>AND suffix list not empty"}
+    M1 -->|OFF| M2{"Group by Suffix?<br/>AND an enabled suffix"}
     M2 -->|ON| R2["MODE 2 - export_with_suffix_grouping<br/>one file per base name"]
 
     M2 -->|OFF| M3{"Sub-Collections<br/>as Single?"}
@@ -100,9 +100,12 @@ flowchart TD
 | 4 | Use Parent Empties | `use_empty_origins` | Empties drive origins — joined or per-empty |
 | 5 | Merge / *(none)* | `merge_to_single` | One merged file, or one file per object |
 
-> **Mode 2 has a silent fallthrough.** `use_suffix_grouping` only fires when the global
-> suffix list has at least one entry. With *Group by Suffix* ticked but no suffixes defined,
-> the collection quietly drops to mode 3 / 4 / 5 instead.
+> **Mode 2 needs an enabled suffix.** `use_suffix_grouping` only fires when the global
+> suffix list has at least one *enabled*, non-empty suffix. With *Group by Suffix* ticked but
+> no suffix switched on, the collection drops to mode 3 / 4 / 5 instead.
+>
+> Each mesh lands in exactly one suffix group: children of an empty go with the empty, then
+> meshes of a sub-collection go with the sub-collection, then any other mesh by its own name.
 
 ---
 
@@ -113,7 +116,7 @@ mode 4's joining routine.
 
 ```mermaid
 flowchart TD
-    subgraph M3 ["MODE 3 - Sub-Collections as Single (line 1757)"]
+    subgraph M3 ["MODE 3 - Sub-Collections as Single"]
         A1["Meshes sitting directly<br/>in the parent collection"] --> A2["export_objects_as_single<br/>named collection_main"]
         A2 --> A3["then: for each child collection"]
         A3 --> A4{"Use Parent Empties<br/>AND Join Empty Children?"}
@@ -121,28 +124,32 @@ flowchart TD
         A4 -->|no| A6["export_objects_as_single<br/>one merged file per sub-collection"]
     end
 
-    subgraph M4 ["MODE 4 - Use Parent Empties (line 1989)"]
-        B1{"Join Empty Children?"} -->|ON| B2["export_collection_with_all_empties_joined<br/>ALL empties joined into ONE file"]
+    subgraph M4 ["MODE 4 - Use Parent Empties"]
+        B1{"Join Empty Children?"} -->|ON| B2["export_collection_with_all_empties_joined<br/>every empty member AND loose mesh<br/>joined into ONE file named after the collection"]
         B1 -->|OFF| B3["export_with_empty_origins_individual"]
-        B3 --> B4{"Any empty with<br/>mesh children found?"}
-        B4 -->|yes| B5["One file per empty<br/>Center Each Empty parks it at 0,0,0"]
-        B4 -->|no empties| B6{"Merge?"}
-        B6 -->|ON| B7["Fallback: one merged file"]
-        B6 -->|OFF| B8["Fallback: one file per object"]
+        B3 --> B5["One file per empty member<br/>Center Each Empty parks the empty at world 0,0,0"]
+        B3 --> B6{"Loose meshes<br/>under no empty?"}
+        B6 -->|Merge ON| B7["one merged file named after the collection"]
+        B6 -->|Merge OFF| B8["one file per loose mesh"]
     end
 ```
 
-**Join path only:** when joining, `apply_modifiers_before_join` bakes modifiers onto the
-temporary duplicates, and its sub-option `apply_only_visible` drops modifiers whose viewport
-toggle is off. This is a *separate, older* setting from the global **Only Visible Modifiers**
-in diagram 4 — it governs the join path only, and still defaults to OFF.
+**Empty membership:** a mesh belongs to its *nearest* empty ancestor, so grandchildren
+(empty → mesh → mesh) are included and nested empties never claim the same mesh twice.
+
+**Join path:** every temporary copy bakes its *own* modifier stack before the join when
+`apply_modifiers_before_join` or the global *Apply Modifiers* is on; otherwise all modifiers
+are removed from the copies. (`bpy.ops.object.join` keeps only the active object's stack, so
+joining un-baked copies used to spread one child's modifiers over all of them.) Hidden
+modifiers are dropped when the global **Only Visible Modifiers** is on, or when the
+per-collection `apply_only_visible` is ticked.
 
 ---
 
 ## 4. The shared export tail
 
 Every mode above eventually funnels into `export_objects_as_single()` / `export_single_object()`
-and then the single choke point `perform_export()` — `source/__init__.py:2920`.
+and then the single choke point `perform_export()`.
 
 ```mermaid
 flowchart TD
@@ -151,29 +158,27 @@ flowchart TD
         PE1 -->|ON| PE2["_select_associated_rigs<br/>pulls armatures into the selection"]
         PE1 -->|OFF| PE3{"Apply Modifiers?"}
         PE2 --> PE3
-        PE3 -->|OFF| PE8["FBX / OBJ / DAE / glTF<br/>exporter-side modifier flags all FALSE"]
-        PE3 -->|ON| PE4["Duplicate each mesh<br/>copy takes the original name"]
-        PE4 --> PE5{"Only Visible Modifiers?<br/>v13.7.0, default ON"}
-        PE5 -->|ON| PE6["DELETE show_viewport=False modifiers<br/>off the copy BEFORE applying<br/>armature bindings exempt"]
+        PE3 -->|OFF| PEM["Material Options on the final selection<br/>restored after export"]
+        PE3 -->|ON| PE4["Copy each mesh<br/>copy takes the original name"]
+        PE4 --> PE5{"Only Visible Modifiers?<br/>default ON"}
+        PE5 -->|ON| PE6["DELETE show_viewport=False modifiers<br/>off the copy BEFORE baking<br/>armature bindings exempt"]
         PE5 -->|OFF| PE6B["Keep every modifier"]
-        PE6 --> PE7["modifier_apply on the copy"]
+        PE6 --> PE7["Depsgraph bake into a new mesh<br/>works with shape keys<br/>children re-pointed at the copy"]
         PE6B --> PE7
-        PE7 --> PE8
+        PE7 --> PEM
+        PEM --> PE8["FBX / OBJ / glTF<br/>exporter-side modifier flags all FALSE"]
     end
 
     T0["export_objects_as_single<br/>or export_single_object"] --> T1["Select objects<br/>Snapshot loc / rot / scale"]
     T1 --> T2{"Move to Center?<br/>per collection"}
     T2 -->|ON| T3["_center_root_objects_temporarily<br/>park roots at world 0,0,0"]
-    T2 -->|OFF| T4{"Apply Transforms?<br/>global"}
+    T2 -->|OFF| T4{"Apply Transforms?<br/>global, every mode"}
     T3 --> T4
-    T4 -->|ON| T5["_apply_transforms_via_duplicates<br/>destructive, so runs on temp copies"]
-    T4 -->|OFF| T6{"Override Materials?"}
-    T5 --> T6
-    T6 -->|ON| T7["apply_material_overrides onto<br/>whatever will actually be exported"]
-    T6 -->|OFF| PE
-    T7 --> PE
+    T4 -->|ON| T5["_apply_transforms_via_duplicates<br/>destructive, so runs on temp copies<br/>children keep their parent"]
+    T4 -->|OFF| PE
+    T5 --> PE
 
-    PE8 --> F1["finally: delete temp copies,<br/>restore names, un-center,<br/>restore loc / rot / scale"]
+    PE8 --> F1["finally: restore materials, parents,<br/>delete temp copies, restore names,<br/>un-center, restore loc / rot / scale"]
 
     classDef new fill:#2f4f2f,stroke:#66cc66,color:#ffffff
     class PE5,PE6 new
@@ -182,7 +187,9 @@ flowchart TD
 ### Why the modifier step looks like that
 
 `bpy.ops.object.modifier_apply()` has **no notion of `show_viewport`** — it bakes a modifier
-that is switched off in the stack exactly as if it were on. Measured on a cube with a visible
+that is switched off in the stack exactly as if it were on. It also refuses meshes with shape
+keys. Since v13.8.0 the copy is baked through the depsgraph (`Mesh.new_from_object`) after the
+unwanted modifiers are deleted, which handles both. Measured on a cube with a visible
 Subsurf and a disabled 3x Array:
 
 | | Vertices |
@@ -215,8 +222,8 @@ If *every* modifier on an object is hidden, no copy is made at all and the objec
 | Center Each Empty | `center_parent_empties` | Mode 4, per-empty centering |
 | Move All Empties to Origin | `move_empties_to_origin_on_export` | Diagram 1 — scene-wide pre-pass |
 | Join Empty Children | `join_empty_children` | Modes 3 and 4 |
-| Apply Modifiers | `apply_modifiers_before_join` | Join path only |
-| Only Visible Modifiers | `apply_only_visible` | Join path only, default OFF |
+| Apply Modifiers | `apply_modifiers_before_join` | Join path: bake each copy even when global Apply Modifiers is off |
+| Only Visible Modifiers | `apply_only_visible` | Join path: skip hidden modifiers even when the global toggle is off |
 | Merge | `merge_to_single` | Mode 5a, and mode 4's no-empties fallback |
 | Move to Center | `move_to_center` | Diagram 4 — the shared tail |
 
@@ -224,29 +231,30 @@ If *every* modifier on an object is hidden, no copy is made at all and the objec
 
 | UI label | Property | Where it acts |
 |---|---|---|
-| Export Format | `export_format` | Diagram 4 — which exporter runs |
+| Export Format | `export_format` | Diagram 4 — which exporter runs (FBX, OBJ, glTF as `.glb`) |
 | Export Hidden Collections | `export_hidden_collections` | Diagram 2 — the hidden gate |
 | Apply Modifiers | `apply_modifiers` | Diagram 4 |
 | Only Visible Modifiers | `apply_only_visible_modifiers` | Diagram 4, **default ON** (v13.7.0) |
 | Skip Armature Modifier | `skip_armature_modifier` | Diagram 4 — suppresses ALL armature modifiers |
 | Export Rig with Mesh | `export_rig_with_mesh` | Diagram 4 |
-| Apply Transforms | `apply_transforms` | Diagram 4 |
-| Override Materials | `override_materials` | Diagram 4 |
-| Suffix list | `suffix_items` | Gates mode 2 |
+| Apply Transforms | `apply_transforms` | Diagram 4, every mode |
+| Override Materials / Assign if No Material / Add M_ Prefix | `override_materials`, `assign_if_no_material`, `add_m_prefix` | Diagram 4 — exported file only, restored after |
+| Suffix list | `suffix_items` | Gates mode 2 (needs an enabled suffix) |
 | Debug Mode | `debug_mode` | Console output throughout |
 
 ---
 
 ## Quick-export entry points
 
-The three quick-export buttons reuse the same machinery. They build a temporary collection
-item, copy the reference collection's settings onto it, and drop into diagram 2:
+The three quick-export buttons reuse the same machinery. The collection buttons build a
+temporary collection item, copy **every** setting of the reference collection onto it (minus
+its custom filename), and drop into diagram 2:
 
 ```mermaid
 flowchart LR
     Q1["Export Collection of Selected"] --> C1["Copy parent settings<br/>force Sub-Collections as Single OFF"]
     Q2["Export Sub-Collections of Selected"] --> C2["Copy reference settings"]
-    Q3["Export Selected Objects"] --> C3["Suffix grouping, then Merge,<br/>then Individual - selection only"]
+    Q3["Export Selected Objects"] --> C3["Suffix grouping, then Merge (2+ objects),<br/>then one file each - selection only"]
     C1 --> D["export_collection<br/>and the shared tail"]
     C2 --> D
     C3 --> D
