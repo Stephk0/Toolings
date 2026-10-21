@@ -666,15 +666,25 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng):
     S = lambda *a, **k: iface_sock(iface, *a, **k)
 
     S("Geometry", 'INPUT', 'NodeSocketGeometry', desc="Mesh to solidify.")
-    S("Selection", 'INPUT', 'NodeSocketBool', default=True,
+    p_selp = iface.new_panel("Selection")
+    S("Selection", 'INPUT', 'NodeSocketBool', p_selp, default=True,
       desc="Faces to solidify. Unselected faces pass through unchanged (not connected "
            "to the solidified part).")
-    S("Invert Selection", 'INPUT', 'NodeSocketBool', default=False,
+    S("Invert Selection", 'INPUT', 'NodeSocketBool', p_selp, default=False,
       desc="Solidify every face EXCEPT the selected ones.")
-    grow = S("Grow / Shrink Selection", 'INPUT', 'NodeSocketInt', default=0,
+    grow = S("Grow / Shrink Selection", 'INPUT', 'NodeSocketInt', p_selp, default=0,
              mn=-10000, mx=10000, single=True,
              desc="Grow the selection by this many rings of neighbouring faces; negative "
                   "values shrink it. 0 leaves the selection unchanged.")
+    S("Select by Material ID", 'INPUT', 'NodeSocketBool', p_selp, default=False,
+      desc="Also select by material: combine the Selection with every face that uses "
+           "Selection Material ID, as set by Material ID Mode")
+    S("Selection Material ID", 'INPUT', 'NodeSocketInt', p_selp, default=0, mn=0, mx=32767,
+      single=True, desc="Material slot index (0 = first slot) used by Select by Material ID")
+    mat_mode = S("Material ID Mode", 'INPUT', 'NodeSocketMenu', p_selp,
+                 desc="Add: Selection plus the material's faces. Subtract: Selection minus "
+                      "them. Intersect: only the selected part of the material. Material "
+                      "Minus Selection: the material's faces minus the Selection")
 
     p_sol = iface.new_panel("Solidify")
     S("Thickness", 'INPUT', 'NodeSocketFloat', p_sol, default=0.1, subtype='DISTANCE',
@@ -816,11 +826,16 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng):
         return nd
 
     # ============================================================ 1. SELECTION GATE
-    g = gi(F_sel, "Selection", "Invert Selection", "Grow / Shrink Selection")
+    g = gi(F_sel, "Selection", "Invert Selection", "Grow / Shrink Selection",
+           "Select by Material ID", "Selection Material ID", "Material ID Mode")
     gnode = group(gate.ensure(), F_sel, "Selection Gate")
     link(g, "Selection", gnode, gate.SEL)
     link(g, "Invert Selection", gnode, gate.INV)
     link(g, "Grow / Shrink Selection", gnode, gate.GROW)
+    link(g, "Select by Material ID", gnode, gate.USE_MAT)
+    link(g, "Selection Material ID", gnode, gate.MAT_ID)
+    link(g, "Material ID Mode", gnode, gate.MAT_MODE)
+    mat_mode.default_value = gate.MODES[0]      # after linking, so the enum resolves
 
     # ============================================================ 2. SPLIT
     g = gi(F_split, "Geometry")

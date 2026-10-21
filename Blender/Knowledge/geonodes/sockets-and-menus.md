@@ -62,8 +62,17 @@ Only newly added modifiers get `default_value`; existing ones store 0 / 0.0 / Fa
 - The modifier stores the override as an INT **value id**, not the 0-based position, and
   `NodeEnumItem` exposes no `.value`. Cleanly built menus have ids 0,1,2… so `mod[sock] = int`
   works by luck; hand-built ones don't (Shear's were non-sequential → "Missing property").
+- Panels never come before loose sockets of the same level: the modifier draws sockets first,
+  and `interface.move(panel, 0)` / `move_to_parent(panel, root, 1)` is ignored. To put a panel
+  on top, file every other socket of that level (except Geometry) into panels.
 - Scripted tests: set the interface `default_value` by name and add a FRESH modifier (it picks the
   default) instead of writing int overrides.
+- The interface `default_value` is ALSO stored as an id. Renumber the items (rebuild the Menu
+  Switch) and the old id now names another item: GNG_SelectionGate v2→v3 turned 40 tools'
+  default `Add` (id 2) into `Intersect`. Re-set every consumer's `default_value` by name after.
+- Adding a Menu input to a group that already has modifiers stores **-1** on them (the socket has
+  no items until linked to a Menu Switch) — the menu then selects nothing. Write
+  `mod[identifier] = <id>` after linking, and check `mod.get(identifier) != -1`.
 - After setting modifier inputs, `obj.update_tag(); bpy.context.view_layer.update()` before
   reading the evaluated mesh.
 

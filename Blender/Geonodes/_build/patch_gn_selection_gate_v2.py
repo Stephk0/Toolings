@@ -42,7 +42,8 @@ LEGACY_NOTE = ("Legacy: kept so files saved before the shared selection gate sti
                "their value. Use Select by Material ID instead. ")
 
 TARGETS = T1 + [("GN_AttributeFunctions_4.5.blend", "GN_SetAttribute"),
-                ("GN_Delete.blend", "GN_Delete")]
+                ("GN_Delete.blend", "GN_Delete"),
+                ("GN_SolidifyPlus.blend", "GN_SolidifyPlus")]
 
 
 def inputs(ng):
@@ -137,6 +138,7 @@ def patch(fname, gname, dry=False):
     for _, m in instances(ng):
         m[use.identifier] = False
         m[mid.identifier] = 0
+        m[mode.identifier] = 0              # stored -1 (no item) when the socket was added
 
     # The Group Input now shows three more sockets, so the gate frame grows and can clip
     # a neighbouring frame. Slide the frame's nodes clear (up first, then left) until no

@@ -42,6 +42,12 @@ order:
   material), *Intersect*, *Material Minus Selection*. Material faces are found on the FACE domain
   and spread to the consumer's domain — a vertex counts when any adjacent face matches.
 
+**Nothing else may sit top-level.** Blender draws a level's loose sockets before its panels,
+whatever the interface order says, so any top-level parameter pushes the Selection panel down
+(`move` to index 1 is silently ignored). Every other input goes into a panel — R10 flags
+offenders. `_build/patch_gn_selection_panel_first.py` filed the loose inputs of 12 tools into
+one panel each (Displace, Weld, Wireframe, …) placed right after Selection.
+
 Order inside the gate: combine with material → invert → grow / shrink. The group is a pure
 field (no Geometry socket), sitting in the frame `Selection Gate  (GNG_SelectionGate)`. At
 defaults it is an exact passthrough (byte-identical output). Grow runs one `Blur Attribute`
@@ -51,6 +57,15 @@ step + `> 0` per repeat iteration, so it is exact for any ring count.
 identifier, and a new input on an existing modifier is backfilled with 0. The builder renames
 the Menu Switch's two default items instead of clearing them (clearing starts at 2), so a
 backfilled 0 is `Add`. v2 got this wrong and v3 fixed it.
+
+Two follow-on traps, both repaired by `_build/fix_gn_material_mode_backfill.py`:
+
+- The modifier socket's own default is stored as an identifier too. The 40 tools patched under
+  v2 kept 2 (v2's `Add`), which v3 reads as `Intersect` — fresh modifiers started there. Never
+  renumber menu items without re-setting every consumer's `default_value` by name.
+- Adding the menu socket to a group whose modifiers already exist stores **-1** (no item) on
+  them, because the socket has no items until it is linked. Set `mod[identifier] = 0` after
+  linking. The rollout scripts now do.
 
 Building and extending it:
 
@@ -79,10 +94,21 @@ Special cases (rollout: `_build/patch_gn_selection_gate_special.py`):
   `GN_SetAttribute`'s `Expand / Shrink` stays: it grows the *combined* criteria result, later.
 - `GN_DistributeObjectOnSurface` keeps `Grow Iterations` beside the gate: its `GN_GrowSelection`
   field is evaluated by `Mesh to Points` on the subdivided surface, so it grows after subdiv.
-- `GN_NormalTransfer` is not on the gate: its mask is a float weight (attribute or open-boundary
-  mask) used as a Mix factor, inverted as `1 − mask`. The gate is boolean and would binarize it.
-  It waits for a soft (float) path in the gate.
-- `GN_InsetFaces` and `GN_GrowSelection` have no Invert yet.
+- `GN_NormalTransfer` keeps its float mask (attribute or open-boundary mask, a Mix factor:
+  0 = source normal, 1 = own normal, `Invert Mask` = `1 − mask`); the gate would binarize it.
+  The gate sits **beside** it instead: a new boolean `Selection`, evaluated on POINT, picks
+  `Switch(sel, mask, 1.0)` as the factor, so unselected corners keep their own normal. Its
+  other inputs moved into `Source` and `Mask` panels. Rollout: `_build/patch_gn_selection_gate_new.py`
+  (also `GN_InsetFaces`, whose bare `Selection` is read on FACE; its `Offset` went into an
+  `Inset` panel).
+- `GN_SolidifyPlus` got the material trio and panel through the v2 rollout; its builder
+  (`build_gn_solidify_plus.py`) now emits them too.
+- Not on the gate, on purpose: `GN_GrowSelection` (a selection utility — it outputs a grown
+  selection and has its own domain-aware grow; a gate in front would duplicate it) and
+  `GN_MaterialOverride` (`On` / `Invert` is a whole-object switch, not a selection). Tools with
+  no selection at all (CellFrac, CollectionInstancerModel, DualMesh, EdgeDestruct, MeshBoolean,
+  RadialArray, Solidify2, SpawnObjectsAlong, SplitEdgeByAttribute, Subdivide,
+  TileableMeshNoise, VoxelRemesh) were left as they are.
 
 Modifiers with the pair: `GN_Inflate`, `GN_Twist`, `GN_Taper`, `GN_Stretch`, `GN_Bend`,
 `GN_Wave`, `GN_Cast`, `GN_Smooth`, `GN_Displace`, `GN_RandomizePosition`,
@@ -90,14 +116,14 @@ Modifiers with the pair: `GN_Inflate`, `GN_Twist`, `GN_Taper`, `GN_Stretch`, `GN
 `GN_SimpleTransformMesh`, `GN_Triangulate`, `GN_PointsToSpheres`, `GN_Scatter`, `GN_Mosaic`,
 `GN_FlipFaces`, `GN_SetMaterial`, `GN_Weld`, `GN_ExtrudeFace`, `GN_MirrorGroup`,
 `GN_AmbientOcclusion`, `GN_VertexDataComposer`, `GN_AttributeTransfer`, `GN_QuadCap`,
-`GN_SolidifyPlus` — plus
-`GN_Delete`, `GN_SetAttribute` and `GN_NormalTransfer` (`Invert Mask`), which already had one.
+`GN_SolidifyPlus`, `GN_InsetFaces` — plus
+`GN_Delete` and `GN_SetAttribute`, which already had one.
 
 Nine gained the whole gate (a `Selection` defaulting to on, plus its invert) where they
 previously acted on everything: `GN_AutoSmooth`, `GN_Wireframe`, `GN_ConvexHull` and
 `GN_BoundingBox` (hull / box of the selected part, via a `Separate Geometry`),
 `GN_NoiseDisplace`, `GN_VoronoiDisplace`, `GN_Erosion`, `GN_Erosion_3D` and
-`GN_RandomDistribute`. Blender backfills a new input on an existing modifier with the type's
+`GN_RandomDistribute` — and later `GN_NormalTransfer` (beside its mask). Blender backfills a new input on an existing modifier with the type's
 zero value, not the socket default — see
 [sockets & menus](../Knowledge/geonodes/sockets-and-menus.md) — which is why the README warns
 users to re-tick `Selection` on those nine.
