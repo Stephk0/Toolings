@@ -434,18 +434,88 @@ class MESH_OT_geometry_constraint_transform(Operator):
 # Mode operators
 # ---------------------------------------------------------------------------
 
+def _report_state(op, s):
+    state = CONSTRAINT_LABELS[s.mode] if s.enabled else "Off"
+    op.report({'INFO'}, f"Geometry Constraint: {state}")
+
+
 class VIEW3D_OT_geometry_constraint_toggle(Operator):
     """Turn the transform constraint on / off (right-click > Assign Shortcut to bind a key, e.g. Shift+X like 3ds Max)"""
     bl_idname = "view3d.geometry_constraint_toggle"
     bl_label = "Toggle Transform Constraint"
     bl_options = {'REGISTER'}
 
+    @classmethod
+    def poll(cls, context):
+        # Edit-mesh only, so a key bound in the 3D View keymap stays free
+        # for its usual job in other modes.
+        return context.mode == 'EDIT_MESH'
+
     def execute(self, context):
         s = context.scene.geometry_constraint
         s.enabled = not s.enabled
-        state = CONSTRAINT_LABELS[s.mode] if s.enabled else "Off"
-        self.report({'INFO'}, f"Transform constraint: {state}")
+        _report_state(self, s)
         return {'FINISHED'}
+
+
+_EDIT_MESH_POLL = classmethod(lambda cls, context: context.mode == 'EDIT_MESH')
+
+
+def _type_toggle(mode, label):
+    """One operator per type (no properties), so every hotkey has its own
+    keymap name and right-click > Assign Shortcut binds exactly that one."""
+
+    def execute(self, context):
+        s = context.scene.geometry_constraint
+        if s.enabled and s.mode == mode:
+            s.enabled = False
+        else:
+            s.mode = mode
+            s.enabled = True
+        _report_state(self, s)
+        return {'FINISHED'}
+
+    return type(f"VIEW3D_OT_geometry_constraint_{mode.lower()}", (Operator,), {
+        "__doc__": (f"Turn the {label} constraint on, or off if it is already on "
+                    "(right-click > Assign Shortcut to bind a key)"),
+        "bl_idname": f"view3d.geometry_constraint_{mode.lower()}",
+        "bl_label": f"Toggle {label} Constraint",
+        "bl_options": {'REGISTER'},
+        "poll": _EDIT_MESH_POLL,
+        "execute": execute,
+    })
+
+
+def _cycle(key, order, label, doc):
+    def execute(self, context):
+        s = context.scene.geometry_constraint
+        nxt = C.next_in_cycle(active_mode(s), order)
+        if nxt == C.MODE_NONE:
+            s.enabled = False
+        else:
+            s.mode = nxt
+            s.enabled = True
+        _report_state(self, s)
+        return {'FINISHED'}
+
+    return type(f"VIEW3D_OT_geometry_constraint_cycle_{key}", (Operator,), {
+        "__doc__": doc + " (right-click > Assign Shortcut to bind a key)",
+        "bl_idname": f"view3d.geometry_constraint_cycle_{key}",
+        "bl_label": label,
+        "bl_options": {'REGISTER'},
+        "poll": _EDIT_MESH_POLL,
+        "execute": execute,
+    })
+
+
+TYPE_TOGGLES = tuple(_type_toggle(i[0], i[1]) for i in TYPE_ITEMS)
+CYCLES = (
+    _cycle("full", C.CYCLE_FULL, "Cycle Constraint: Off > Edge > Face > Normal",
+           "Each press steps to the next constraint type, then off"),
+    _cycle("surface", C.CYCLE_SURFACE, "Cycle Constraint: Off > Edge > Face",
+           "Each press steps through the constraints that keep the selection on the "
+           "surface (Edge, Face), then off"),
+)
 
 
 class VIEW3D_OT_geometry_constraint_set(Operator):
@@ -466,6 +536,8 @@ class VIEW3D_OT_geometry_constraint_set(Operator):
 classes = (
     MESH_OT_geometry_constraint_transform,
     VIEW3D_OT_geometry_constraint_toggle,
+    *TYPE_TOGGLES,
+    *CYCLES,
     VIEW3D_OT_geometry_constraint_set,
 )
 

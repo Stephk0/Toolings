@@ -19,9 +19,10 @@ source/
 ├── blender/
 │   ├── properties.py      # Scene.geometry_constraint: enabled, mode, reach, stop_at_vertices, stop_at_selected, live, debug
 │   ├── live.py            # depsgraph/undo handlers that constrain Blender's own transforms
+│   ├── keymap.py          # unassigned hotkey entries (3D View keymap) + add-on preferences list
 │   ├── overlay.py         # Show Constraint: POST_VIEW draw of rails / patch / normals during a drag
-│   ├── operators.py       # mesh.geometry_constraint_transform (own modal, F3/scripts), toggle/set ops
-│   └── ui.py              # header toggle + type dropdown + settings popover
+│   ├── operators.py       # mesh.geometry_constraint_transform (own modal, F3/scripts), toggle/type/cycle/set ops
+│   └── ui.py              # header toggle + type dropdown + settings popover + right-click menu entries
 └── tests/
     ├── pytest.ini         # rootdir = tests/, so pytest never imports the bpy addon package
     ├── test_constraint.py # solver (no bpy)
@@ -176,8 +177,8 @@ blender -b --factory-startup --python source/tests/headless/demo_media.py -- enc
 ```
 
 On Windows, `gui_drive.py` runs as is apart from `capture()`, which shells
-out to `xwd`; stub it to skip screenshots (last run 2026-10-18, Blender 5.0,
-all 18 checks pass).
+out to `xwd`; stub it to skip screenshots (last run 2026-10-21, Blender 5.0,
+all 27 checks pass).
 
 What each layer covers:
 
@@ -212,3 +213,25 @@ covered by unit tests plus the 5.0 headless run, not by a live 5.0 drag.
 - Curve edit mode.
 - Optional constraint for proportional-editing falloff verts.
 - Optional constraint for macros (extrude + move) when the user wants it.
+
+## Hotkeys (3.2)
+
+- One operator per hotkey, **without properties**:
+  `view3d.geometry_constraint_{toggle,edge,face,normal,cycle_full,cycle_surface}`.
+  An earlier draft used one operator with a `mode` enum; the preferences list
+  then read `kmi.properties` of user keymap items, and after the add-on
+  re-registered (disable / re-enable with the Preferences window open)
+  those properties pointed at freed memory and Blender crashed
+  (`EXCEPTION_ACCESS_VIOLATION`, Python backtrace in `keymap.py`). Matching by
+  idname alone avoids touching them.
+- Entries live in the add-on keyconfig's **3D View** keymap with type `NONE`.
+  That is the keymap Blender's right-click > Assign Shortcut picks for a
+  `VIEW3D_OT_*` button, so a key set there or in the preferences list lands on
+  the same item.
+- The toggle / type / cycle operators poll `context.mode == 'EDIT_MESH'`, so a
+  key bound in 3D View falls through to its normal binding in other modes.
+- Cycle order lives in core: `constraint.CYCLE_FULL`, `CYCLE_SURFACE`,
+  `next_in_cycle()` (a state not in the cycle, e.g. Normal in the surface
+  cycle, steps to off).
+- Tests: `test_hotkey_cycles` (pytest), and `hotkeys()` in `gui_drive.py`
+  binds F5-F8 / Shift+F5-F6 to the entries and presses them in the real UI.

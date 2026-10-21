@@ -56,7 +56,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 | **Smart Collapse** | 1.0.0 | 3ds Max-style collapse (collapse + merge at center) | [README](Blender/Addons/Smart%20Collapse/README.md) |
 | **Smart Set Orientation** | 1.5.0 | Set transform orientation from selection (Maya "D" working-pivot style) | [README](Blender/Addons/Smart%20Set%20Orientation/README.md) |
 | **Center Edges/Loops** | 1.5.1 | Center edge loops / selections along their average position | [README](Blender/Addons/Center%20Edges/README.md) |
-| **Geometry Constraint** | 3.1.0 | 3ds Max-style constraint toggle (Edge / Face / Normal): every Move, Rotate, Scale stays on the mesh | [README](Blender/Addons/GeometryConstraint/README.md) |
+| **Geometry Constraint** | 3.2.0 | 3ds Max-style constraint toggle (Edge / Face / Normal): every Move, Rotate, Scale stays on the mesh | [README](Blender/Addons/GeometryConstraint/README.md) |
 
 ### Modifiers
 
