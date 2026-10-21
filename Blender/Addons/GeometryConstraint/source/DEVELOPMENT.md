@@ -19,6 +19,7 @@ source/
 ├── blender/
 │   ├── properties.py      # Scene.geometry_constraint: enabled, mode, reach, stop_at_vertices, stop_at_selected, live, debug
 │   ├── live.py            # depsgraph/undo handlers that constrain Blender's own transforms
+│   ├── overlay.py         # Show Constraint: POST_VIEW draw of rails / patch / normals during a drag
 │   ├── operators.py       # mesh.geometry_constraint_transform (own modal, F3/scripts), toggle/set ops
 │   └── ui.py              # header toggle + type dropdown + settings popover
 └── tests/
@@ -77,6 +78,14 @@ Facts this relies on (see `Blender/Knowledge/bpy-api-gotchas.md`):
 - Rails and patches are built from the current BMesh, with the selected
   verts put back at their snapshot positions. Unselected verts don't move
   (unless proportional editing is on).
+- The transform recalculates normals for its *free* positions before our
+  handler runs. After snapping we must recalc the normals around the moved
+  verts (`update_normals`), or the viewport shades the snapped mesh with
+  stale normals until the next edit.
+- Blender doesn't always fire a depsgraph update after confirming a drag.
+  The next drag's first update then arrives with the tracker still "in
+  session" but a newer registered op; `decide()` closes the old session
+  there and starts from `written` (our last snap).
 - Our `update_edit_mesh` re-fires the handler. A module-level `_busy` guard
   and an "unchanged result → no write" check stop the loop.
 
@@ -104,11 +113,26 @@ free target is snapped back, measured on the pre-transform mesh.
   in-selection edge is only ever a fallback rail where it continues a leaving
   edge through the vertex (dot < -cos 60°), i.e. the rung between two
   selected loops - never a loop's own edge
-  (`test_scaling_two_selected_loops_slides_them_along_the_rungs`). By default
+  (`test_scaling_two_selected_loops_slides_them_along_the_rungs`).
+  Exception (3.1): under a pure move (`solve` finds one common offset,
+  `moving=True`) a chain-end vertex - exactly one selected edge - treats
+  that edge as tier 1, so a selected edge can be pushed along its own
+  length like Vertex Slide
+  (`test_edge_moved_along_itself_slides_along_its_own_line`). Not under
+  rotate / scale, where it would collapse the edge
+  (`test_scaled_edge_does_not_collapse_along_itself`). By default
   (`stop_at_vertices`, 2.2) overshoot stops at the edge's far vertex, so a
   loop can't pass through an unselected loop. With it off, overshoot walks
   on to the next edge only if it turns < 60°, up to `reach` edges, and
   stops at selected verts.
+- **Even slide** (`solve(..., even=True)`, Edge only): if every free
+  target has the same offset (a pure move), each island of selected verts
+  (joined by selected edges) slides one shared distance, the mean of the
+  per-vertex projections (least squares), each vertex along its own picked
+  edge. Verts with no edge along the drag take the leaving edge closest to
+  the island's mean rail direction (`side_rail`), like Edge Slide's side.
+  With `stop_at_vertices` the distance is clamped to the island's shortest
+  rail. Rotate/scale never qualify, so per-vertex projection stays.
 - `FacePatch`: the closest point on the original surface, meaning **all**
   faces (selected ones too, at their pre-transform positions) within
   `reach` rings. v2.0 excluded the selection's own faces, which stranded the
@@ -144,7 +168,7 @@ Xvfb :99 -screen 0 1600x1000x24 &
 DISPLAY=:99 blender --factory-startup --enable-event-simulate \
     --python source/tests/headless/gui_drive.py -- /tmp/ecm <out_dir>
 
-# Demo media, 1920x1080 Workbench (13 segments, ~700 frames; add `preview`
+# Demo media, 1920x1080 Workbench (15 segments, ~810 frames, Edge rails drawn as yellow tubes; add `preview`
 # after <frames_dir> for one frame per segment). Step 2 needs PIL.
 blender -b --factory-startup --python source/tests/headless/demo_media.py -- render /tmp/ecm <frames_dir>
 python source/tests/headless/demo_media.py <frames_dir> <out_dir>   # captioned/, stills/, GIF

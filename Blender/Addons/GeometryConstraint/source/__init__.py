@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Geometry Constraint",
     "author": "Stephan Viranyi",
-    "version": (3, 0, 0),
+    "version": (3, 1, 0),
     "blender": (4, 5, 0),
     "location": "View3D > Header (Mesh Edit mode): constraint toggle + Edge / Face / Normal",
     "description": (

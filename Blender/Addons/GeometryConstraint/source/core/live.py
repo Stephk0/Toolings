@@ -93,6 +93,18 @@ class LiveTracker:
             transform_running = self._running_heuristic(positions, last_op)
 
         base = None
+        if transform_running and self.in_session and last_op != self.session_op:
+            # A new drag, but the last one was confirmed without an update in
+            # between (Blender doesn't always fire one after confirm). Its
+            # result is what we last wrote; start this drag from there.
+            start = self.session
+            if start is not None and last_is_transform:
+                self.redo_op, self.redo_base = last_op, start
+            self.in_session = False
+            self.session = None
+            if self.written is not None:
+                self.idle = Snapshot(key, self.written, last_op)
+
         if transform_running:
             if not self.in_session:
                 self.in_session = True

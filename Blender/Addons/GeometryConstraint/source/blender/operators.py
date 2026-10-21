@@ -17,6 +17,7 @@ from mathutils import Matrix, Vector
 
 from ..core import constraint as C
 from ..core import transform as T
+from .live import update_normals
 from .properties import CONSTRAINT_ITEMS, TYPE_ITEMS, active_mode
 
 TRANSFORM_ITEMS = (
@@ -116,6 +117,7 @@ def write_positions(sessions, results):
         inv = sess.world_inv
         for i, p in res.items():
             bm.verts[i].co = inv @ Vector(p)
+        update_normals(bm, res.keys())
         bmesh.update_edit_mesh(obj.data)
 
 
@@ -181,10 +183,12 @@ class MESH_OT_geometry_constraint_transform(Operator):
 
     def _apply(self, context):
         t0 = time.perf_counter()
-        results = [C.solve(s.constraints, self._targets(s, self._pivot_pt))
-                   for s in self._sessions]
+        s = self._settings(context)
+        even = self.constraint == C.MODE_EDGE and s.even_slide
+        results = [C.solve(sess.constraints, self._targets(sess, self._pivot_pt), even=even)
+                   for sess in self._sessions]
         write_positions(self._sessions, results)
-        _log(self._settings(context),
+        _log(s,
              f"{self.transform_type} solved {sum(len(r) for r in results)} verts "
              f"in {(time.perf_counter() - t0) * 1000:.1f} ms")
 

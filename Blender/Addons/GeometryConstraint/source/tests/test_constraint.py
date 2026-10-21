@@ -357,3 +357,95 @@ def test_face_constraint_moves_a_patch_as_a_whole():
     for p in out.values():
         d = min(vec.dist_sq(p, vec.closest_point_on_triangle(p, *t)) for t in tris)
         assert d < 1e-12
+
+
+def _edge_with_splayed_rails():
+    """Selected edge A-B; A's rail runs +Y, B's rail is slanted (0.6, 0.8),
+    half as long. A strip below keeps both ends on the mesh."""
+    A, B, At, Bt, Ab, Bb = range(6)
+    pos = [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1.3, 0.4, 0), (0, -1, 0), (1, -1, 0)]
+    faces = [(A, B, Bt, At), (Ab, Bb, B, A)]
+    from tests.meshes import edges_from_faces
+    mesh = C.MeshData(pos, edges_from_faces(faces), faces, [A, B],
+                      selected_edges=[(A, B)])
+    return mesh, A, B
+
+
+def test_even_move_slides_the_edge_one_shared_distance():
+    mesh, A, B = _edge_with_splayed_rails()
+    cons = C.build_constraints(mesh, C.MODE_EDGE, stop_at_vertices=False)
+    d = (0.0, 0.3, 0.0)
+    targets = {v: vec.add(mesh.positions[v], d) for v in (A, B)}
+    free = C.solve(cons, targets)
+    assert vec.length(free[A]) == pytest.approx(0.3)                  # each its own share
+    assert vec.dist_sq(free[B], mesh.positions[B]) == pytest.approx(0.24 ** 2)
+    even = C.solve(cons, targets, even=True)
+    moved = [math.sqrt(vec.dist_sq(even[v], mesh.positions[v])) for v in (A, B)]
+    assert moved == pytest.approx([0.27, 0.27])                        # (0.3 + 0.24) / 2
+    assert approx_pt(even[B], (1 + 0.6 * 0.27, 0.8 * 0.27, 0))
+
+
+def test_even_move_stops_the_whole_edge_at_the_shortest_rail():
+    mesh, A, B = _edge_with_splayed_rails()
+    cons = C.build_constraints(mesh, C.MODE_EDGE)          # stop_at_vertices
+    targets = {v: vec.add(mesh.positions[v], (0, 5, 0)) for v in (A, B)}
+    even = C.solve(cons, targets, even=True)
+    assert approx_pt(even[A], (0, 0.5, 0))
+    assert approx_pt(even[B], (1.3, 0.4, 0))
+
+
+def test_even_leaves_rotation_per_vertex():
+    pos, edges, faces, rings = cube_with_cuts([0.0])
+    mesh = C.MeshData(pos, edges, faces, rings[1])
+    cons = C.build_constraints(mesh, C.MODE_EDGE)
+    targets = T.rotate({v: pos[v] for v in rings[1]}, (0, 0, 0), (0, 1, 0),
+                       math.radians(20))
+    assert C.solve(cons, targets, even=True) == C.solve(cons, targets)
+
+
+def test_even_move_carries_a_vertex_whose_edge_is_off_the_drag():
+    """B's edge on this side is at right angles to the drag; it still slides
+    with A (Edge Slide), instead of staying behind."""
+    A, B, At, Bt, Ab, Bb = range(6)
+    pos = [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 0, 0.5), (0, -1, 0), (1, -1, 0)]
+    faces = [(A, B, Bt, At), (Ab, Bb, B, A)]
+    from tests.meshes import edges_from_faces
+    mesh = C.MeshData(pos, edges_from_faces(faces), faces, [A, B], selected_edges=[(A, B)])
+    cons = C.build_constraints(mesh, C.MODE_EDGE)
+    targets = {v: vec.add(pos[v], (0, 0.4, 0)) for v in (A, B)}
+    assert C.solve(cons, targets)[B] == pos[B]                          # per vertex: stuck
+    even = C.solve(cons, targets, even=True)
+    assert approx_pt(even[A], (0, 0.4, 0))
+    assert approx_pt(even[B], (1, 0, 0.4))
+
+
+def _strip_with_one_selected_edge():
+    """Two columns of 4 verts (x=0, x=1), y = 0..3; edge L1-L2 selected."""
+    from tests.meshes import edges_from_faces
+    L, R = [0, 1, 2, 3], [4, 5, 6, 7]
+    pos = [(0, y, 0) for y in range(4)] + [(1, y, 0) for y in range(4)]
+    faces = [(L[i], R[i], R[i + 1], L[i + 1]) for i in range(3)]
+    mesh = C.MeshData(pos, edges_from_faces(faces), faces, [L[1], L[2]],
+                      selected_edges=[(L[1], L[2])])
+    return pos, mesh, L[1], L[2]
+
+
+def test_edge_moved_along_itself_slides_along_its_own_line():
+    """Like Vertex Slide: the trailing vertex slides along the selected edge."""
+    pos, mesh, a, b = _strip_with_one_selected_edge()
+    cons = C.build_constraints(mesh, C.MODE_EDGE)
+    targets = {v: vec.add(pos[v], (0, 0.5, 0)) for v in (a, b)}
+    for even in (False, True):
+        out = C.solve(cons, targets, even=even)
+        assert approx_pt(out[a], (0, 1.5, 0)), (even, out[a])
+        assert approx_pt(out[b], (0, 2.5, 0)), (even, out[b])
+    assert ((0, 1, 0), (0, 2, 0)) in cons[a].candidate_edges()
+
+
+def test_scaled_edge_does_not_collapse_along_itself():
+    """Under scale the ends keep to the leaving edges, not the edge itself."""
+    pos, mesh, a, b = _strip_with_one_selected_edge()
+    cons = C.build_constraints(mesh, C.MODE_EDGE)
+    pts = {v: pos[v] for v in (a, b)}
+    out = C.solve(cons, T.scale(pts, (0, 1.5, 0), (0.5, 0.5, 0.5)))
+    assert approx_pt(out[a], pos[a]) and approx_pt(out[b], pos[b])
