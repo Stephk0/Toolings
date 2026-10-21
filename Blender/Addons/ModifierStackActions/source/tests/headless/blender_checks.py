@@ -208,6 +208,60 @@ try:
     bpy.ops.object.modifier_stack_move(object_name="Cube", modifier_name="Hook", position='LAST')
     check("hook to last (allowed, same as header Move to Last)", names()[-1] == "Hook")
 
+    # -- Move Up / Down ------------------------------------------------
+    obj = scene_with_stack()  # Mirror, Subdivision, Bevel, Array
+    bpy.ops.object.modifier_stack_move(object_name="Cube", modifier_name="Bevel", position='UP')
+    check("move up", names() == ["Mirror", "Bevel", "Subdivision", "Array"])
+    check("moved-up modifier is active", obj.modifiers.active.name == "Bevel")
+    bpy.ops.object.modifier_stack_move(object_name="Cube", modifier_name="Mirror", position='DOWN')
+    check("move down", names() == ["Bevel", "Mirror", "Subdivision", "Array"])
+    res = bpy.ops.object.modifier_stack_move(object_name="Cube", modifier_name="Bevel", position='UP')
+    check("up at top is a no-op", res == {'CANCELLED'} and names()[0] == "Bevel")
+    res = bpy.ops.object.modifier_stack_move(object_name="Cube", modifier_name="Array", position='DOWN')
+    check("down at bottom is a no-op", res == {'CANCELLED'} and names()[-1] == "Array")
+
+    # -- Copy / Paste Before / After -----------------------------------
+    clipboard = sys.modules[addon.__name__ + ".blender.clipboard"]
+    obj = scene_with_stack()  # Mirror, Subdivision, Bevel, Array
+    check("paste disabled while empty", not bpy.ops.object.modifier_stack_paste.poll())
+    obj.modifiers["Bevel"].width = 0.123
+    bpy.ops.object.modifier_stack_copy(object_name="Cube", modifier_name="Bevel")
+    bpy.ops.object.modifier_stack_paste(object_name="Cube", modifier_name="Mirror",
+                                        position='BEFORE')
+    check("paste before, same object",
+          names() == ["Bevel.001", "Mirror", "Subdivision", "Bevel", "Array"])
+    check("pasted copy keeps settings and is active",
+          abs(obj.modifiers["Bevel.001"].width - 0.123) < 1e-6
+          and obj.modifiers.active.name == "Bevel.001")
+    bpy.ops.object.modifier_stack_paste(object_name="Cube", modifier_name="Array",
+                                        position='AFTER')
+    check("paste after last, same object", names()[-1] == "Bevel.002")
+
+    bpy.ops.mesh.primitive_cube_add(location=(4, 0, 0))
+    other = bpy.context.object
+    other.name = "Other"
+    other.modifiers.new("Weld", 'WELD')
+    other.modifiers.new("Smooth", 'SMOOTH')
+    bpy.ops.object.modifier_stack_paste(object_name="Other", modifier_name="Weld",
+                                        position='AFTER')
+    check("paste after, other object",
+          [m.name for m in other.modifiers] == ["Weld", "Bevel", "Smooth"]
+          and abs(other.modifiers["Bevel"].width - 0.123) < 1e-6)
+    check("cross-object paste leaves the source alone", names().count("Bevel") == 1)
+
+    insert.arm(other, "Smooth", 'BEFORE')  # armed Add Before must not grab the paste
+    bpy.ops.object.modifier_stack_paste(object_name="Other", modifier_name="Weld",
+                                        position='BEFORE')
+    bpy.context.view_layer.update()
+    check("paste disarms a pending insert",
+          [m.name for m in other.modifiers][0] == "Bevel.001" and insert._pending is None)
+
+    bpy.ops.object.modifier_stack_copy(object_name="Other", modifier_name="Smooth")
+    bpy.data.objects.remove(other)
+    check("paste disabled once the source is gone", not bpy.ops.object.modifier_stack_paste.poll())
+    clipboard._on_load(None)
+    check("load clears the clipboard", clipboard._clipboard["object"] == "")
+
     addon.unregister()
     check("unregister clean", not hasattr(bpy.types.Object, "modifier_stack_actions_state"))
 except Exception:

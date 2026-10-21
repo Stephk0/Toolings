@@ -71,5 +71,9 @@ def test_find_added_rejects_other_edits(after):
 def test_move_index():
     assert S.move_index(4, 'FIRST') == 0
     assert S.move_index(4, 'LAST') == 3
+    assert S.move_index(4, 'UP', 2) == 1
+    assert S.move_index(4, 'DOWN', 2) == 3
+    assert S.move_index(4, 'UP', 0) == 0      # already first: stays
+    assert S.move_index(4, 'DOWN', 3) == 3    # already last: stays
     with pytest.raises(ValueError):
         S.move_index(4, 'MIDDLE')

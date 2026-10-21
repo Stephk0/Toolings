@@ -2,7 +2,7 @@
 
 import bpy
 
-from . import insert, operators, properties
+from . import clipboard, insert, operators, properties
 
 
 def context_modifier(context):
@@ -53,10 +53,15 @@ def draw_button_context_menu(self, context):
 
     layout.separator()
     insert.draw_menu_entries(layout, obj, mod)
+    layout.separator()
+    clipboard.draw_menu_entries(layout, obj, mod)
+    layout.separator()
 
     index = obj.modifiers.find(mod.name)
     for position, text, icon, enabled in (
         ('FIRST', "Move to First", 'TRIA_UP_BAR', index > 0),
+        ('UP', "Move Up", 'TRIA_UP', index > 0),
+        ('DOWN', "Move Down", 'TRIA_DOWN', index < len(obj.modifiers) - 1),
         ('LAST', "Move to Last", 'TRIA_DOWN_BAR', index < len(obj.modifiers) - 1),
     ):
         row = layout.row()

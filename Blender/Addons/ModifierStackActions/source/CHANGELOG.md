@@ -1,5 +1,12 @@
 # Changelog — Modifier Stack Actions
 
+## 1.1.0 — 2026-10-21
+
+- **New:** **Move Up / Move Down** in the right-click menu, next to Move to First / Last.
+- **New:** **Copy Modifier** and **Paste Modifier Before / After**: copy a modifier, then
+  right-click any modifier (same object or another one) to paste a copy with all its settings
+  directly before or after it. The paste entries show the copied modifier's name.
+
 ## 1.0.0 — 2026-10-20
 
 - **New:** right-click a modifier → **Show Up To Here**: hides every later modifier in the

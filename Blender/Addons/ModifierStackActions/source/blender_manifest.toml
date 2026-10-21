@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "modifier_stack_actions"
-version = "1.0.0"
+version = "1.1.0"
 name = "Modifier Stack Actions"
 tagline = "Right-click a modifier to preview or extract the stack up to it"
 maintainer = "Stephan Viranyi"

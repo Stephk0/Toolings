@@ -33,7 +33,8 @@ on the mesh. [Docs](Blender/Addons/GeometryConstraint/README.md) ·
 ![Modifier Stack Actions: Show Up To Here, Extract As, Add Modifier After, Move to Last](Blender/Addons/ModifierStackActions/assets/demo/modifier_stack_actions_demo.gif)
 
 Right-click any modifier: see the stack up to that modifier, extract the mesh at that point as
-a new object, add a modifier right before or after it, or send it to the top or bottom.
+a new object, add or paste a modifier right before or after it, or move it up, down, to the
+top or bottom.
 [Docs](Blender/Addons/ModifierStackActions/README.md) ·
 [tutorial](Blender/Addons/ModifierStackActions/TUTORIAL.md) ·
 [zip](Blender/Addons/ModifierStackActions/distribution/)
@@ -44,26 +45,26 @@ a new object, add a modifier right before or after it, or send it to the top or 
 
 | Tool | What it does | Get it |
 |------|--------------|--------|
-| **Mass Collection Exporter** | Batch export collections/objects (FBX, OBJ, glTF) with suffix grouping and per-collection settings | [docs](Blender/Addons/MassExporter/README.md) · [tutorial](Blender/Addons/MassExporter/TUTORIAL.md) · [zip](Blender/Addons/MassExporter/distribution/) |
-| **Quick Animation Export** | One-click export of animation/action clips, game-engine ready | [docs](Blender/Addons/QuickAnimationExport/README.md) · [zip](Blender/Addons/QuickAnimationExport/distribution/) |
-| **Library Relink** | Bulk-relink a file's linked libraries to a new folder, with a dry-run preview | [docs](Blender/Addons/LibraryRelink/README.md) · [zip](Blender/Addons/LibraryRelink/distribution/) |
-| **Library Publisher** | Publish the ST3E asset library to a Google Shared Drive | [docs](Blender/Addons/LibraryPublisher/README.md) · [zip](Blender/Addons/LibraryPublisher/distribution/) |
-| **Smart Crease** | Context-sensitive edge/vertex crease with preset keys and modal mouse control | [docs](Blender/Addons/Smart%20Crease/README.md) · [zip](Blender/Addons/Smart%20Crease/distribution/) |
-| **Smart Collapse** | 3ds Max-style collapse — merge at center | [docs](Blender/Addons/Smart%20Collapse/README.md) · [zip](Blender/Addons/Smart%20Collapse/distribution/) |
-| **Smart Set Orientation** | Transform orientation from selection, Maya working-pivot style | [docs](Blender/Addons/Smart%20Set%20Orientation/README.md) · [zip](Blender/Addons/Smart%20Set%20Orientation/distribution/) |
-| **Center Edges / Loops** | Center edge loops or selections along their average position | [docs](Blender/Addons/Center%20Edges/README.md) · [zip](Blender/Addons/Center%20Edges/distribution/) |
-| **Geometry Constraint** | 3ds Max-style Edge / Face / Normal constraint toggle — every Move, Rotate and Scale stays on the mesh | [docs](Blender/Addons/GeometryConstraint/README.md) · [zip](Blender/Addons/GeometryConstraint/distribution/) |
-| **Synced Modifiers** | Keep modifiers in sync across objects, including Geometry Nodes inputs | [docs](Blender/Addons/SyncedModifiers/README.md) · [zip](Blender/Addons/SyncedModifiers/distribution/) |
-| **Modifier List (Stephko fork)** | Enhanced modifier-stack UI: list view, popup, sidebar | [docs](Blender/Addons/ModifierList_Stephko/README.md) · [zip](Blender/Addons/ModifierList_Stephko/distribution/) |
-| **Toggle Modifier Display** | Toggle modifier visibility in edit mode (D / Shift+D), 3ds Max "show end result" style | [docs](Blender/Addons/Toggle%20Modifier%20Display/README.md) · [zip](Blender/Addons/Toggle%20Modifier%20Display/distribution/) |
-| **Modifier Stack Actions** | Right-click a modifier: show or extract the stack up to it, add a modifier before / after it, move it to first / last | [docs](Blender/Addons/ModifierStackActions/README.md) · [tutorial](Blender/Addons/ModifierStackActions/TUTORIAL.md) · [zip](Blender/Addons/ModifierStackActions/distribution/) |
-| **Tile UV Projector** | Tile-based UV projection and placement for texture atlases | [docs](Blender/Addons/TileUVProjector/README.md) · [zip](Blender/Addons/TileUVProjector/distribution/) |
 | **Add Bounds To Name** | Rename objects from their bounding-box dimensions | [docs](Blender/Addons/AddBoundsToName/README.md) · [zip](Blender/Addons/AddBoundsToName/distribution/) |
-| **Skin Transfer Setup** | Per-part skinning: as-is, data transfer, or bind-to-bone | [docs](Blender/Addons/SkinTransferSetup/README.md) · [zip](Blender/Addons/SkinTransferSetup/distribution/) |
+| **Center Edges / Loops** | Center edge loops or selections along their average position | [docs](Blender/Addons/Center%20Edges/README.md) · [zip](Blender/Addons/Center%20Edges/distribution/) |
 | **Compositor Render Sets** | Manage multiple render setups in the compositor, with batch rendering | [docs](Blender/Addons/Compositor%20Render%20Sets/README.md) · [zip](Blender/Addons/Compositor%20Render%20Sets/distribution/) |
 | **Edit Mode Overlay** | Extra edit-mode viewport feedback and text overlay | [docs](Blender/Addons/Edit%20Mode%20Overlay/README.md) · [zip](Blender/Addons/Edit%20Mode%20Overlay/distribution/) |
+| **Geometry Constraint** | 3ds Max-style Edge / Face / Normal constraint toggle — every Move, Rotate and Scale stays on the mesh | [docs](Blender/Addons/GeometryConstraint/README.md) · [zip](Blender/Addons/GeometryConstraint/distribution/) |
+| **Library Publisher** | Publish the ST3E asset library to a Google Shared Drive | [docs](Blender/Addons/LibraryPublisher/README.md) · [zip](Blender/Addons/LibraryPublisher/distribution/) |
+| **Library Relink** | Bulk-relink a file's linked libraries to a new folder, with a dry-run preview | [docs](Blender/Addons/LibraryRelink/README.md) · [zip](Blender/Addons/LibraryRelink/distribution/) |
+| **Mass Collection Exporter** | Batch export collections/objects (FBX, OBJ, glTF) with suffix grouping and per-collection settings | [docs](Blender/Addons/MassExporter/README.md) · [tutorial](Blender/Addons/MassExporter/TUTORIAL.md) · [zip](Blender/Addons/MassExporter/distribution/) |
+| **Modifier List (Stephko fork)** | Enhanced modifier-stack UI: list view, popup, sidebar | [docs](Blender/Addons/ModifierList_Stephko/README.md) · [zip](Blender/Addons/ModifierList_Stephko/distribution/) |
+| **Modifier Stack Actions** | Right-click a modifier: show or extract the stack up to it, add or paste a modifier before / after it, move it up / down / to first / last | [docs](Blender/Addons/ModifierStackActions/README.md) · [tutorial](Blender/Addons/ModifierStackActions/TUTORIAL.md) · [zip](Blender/Addons/ModifierStackActions/distribution/) |
+| **Quick Animation Export** | One-click export of animation/action clips, game-engine ready | [docs](Blender/Addons/QuickAnimationExport/README.md) · [zip](Blender/Addons/QuickAnimationExport/distribution/) |
+| **Skin Transfer Setup** | Per-part skinning: as-is, data transfer, or bind-to-bone | [docs](Blender/Addons/SkinTransferSetup/README.md) · [zip](Blender/Addons/SkinTransferSetup/distribution/) |
+| **Smart Collapse** | 3ds Max-style collapse — merge at center | [docs](Blender/Addons/Smart%20Collapse/README.md) · [zip](Blender/Addons/Smart%20Collapse/distribution/) |
+| **Smart Crease** | Context-sensitive edge/vertex crease with preset keys and modal mouse control | [docs](Blender/Addons/Smart%20Crease/README.md) · [zip](Blender/Addons/Smart%20Crease/distribution/) |
 | **Smart Isolate** | 3ds Max Smart Isolate on Numpad / — nests deeper on a sub-selection, can keep cameras and lights | [docs](Blender/Addons/Smart%20Isolate/README.md) · [zip](Blender/Addons/Smart%20Isolate/distribution/) |
+| **Smart Set Orientation** | Transform orientation from selection, Maya working-pivot style | [docs](Blender/Addons/Smart%20Set%20Orientation/README.md) · [zip](Blender/Addons/Smart%20Set%20Orientation/distribution/) |
 | **Smart Wireframe View** | One hotkey (Shift+Alt+Z) cycles overlays off / overlays / overlays + wireframe | [docs](Blender/Addons/Smart%20Wireframe%20View/README.md) · [zip](Blender/Addons/Smart%20Wireframe%20View/distribution/) |
+| **Synced Modifiers** | Keep modifiers in sync across objects, including Geometry Nodes inputs | [docs](Blender/Addons/SyncedModifiers/README.md) · [zip](Blender/Addons/SyncedModifiers/distribution/) |
+| **Tile UV Projector** | Tile-based UV projection and placement for texture atlases | [docs](Blender/Addons/TileUVProjector/README.md) · [zip](Blender/Addons/TileUVProjector/distribution/) |
+| **Toggle Modifier Display** | Toggle modifier visibility in edit mode (D / Shift+D), 3ds Max "show end result" style | [docs](Blender/Addons/Toggle%20Modifier%20Display/README.md) · [zip](Blender/Addons/Toggle%20Modifier%20Display/distribution/) |
 
 **Install:** drag the zip from the tool's `distribution/` folder onto Blender, or
 *Edit → Preferences → Add-ons → Install from Disk…*, then enable it.

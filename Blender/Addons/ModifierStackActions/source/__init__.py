@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Modifier Stack Actions",
     "author": "Stephan Viranyi",
-    "version": (1, 0, 0),
+    "version": (1, 1, 0),
     "blender": (4, 5, 0),
     "location": "Properties > Modifiers > right-click a modifier",
     "description": (
