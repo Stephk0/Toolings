@@ -1,0 +1,105 @@
+---
+title: Modifier Stack Actions
+description: Right-click a modifier to preview the stack up to it, extract the mesh at that point, add a modifier before or after it, or move it to the top or bottom.
+tool:
+  name: ModifierStackActions
+  version: 1.0.0
+  status: active
+  category: Modifiers
+  blenderVersion: 4.5+
+  downloadUrl: https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ModifierStackActions/distribution/ModifierStackActions_v1.0.0.zip
+  sourcePath: Blender/Addons/ModifierStackActions/source/
+  detailLevel: detailed
+---
+
+import { Tabs, TabItem, Aside, Steps, LinkCard } from '@astrojs/starlight/components';
+import ToolMeta from '../../../components/ToolMeta.astro';
+import demoGif from '../../../assets/tools/modifier-stack-actions/modifier_stack_actions_demo.gif';
+import menuImg from '../../../assets/tools/modifier-stack-actions/context_menu.png';
+import showImg from '../../../assets/tools/modifier-stack-actions/show_up_to_here.png';
+import dialogImg from '../../../assets/tools/modifier-stack-actions/extract_dialog.png';
+import addImg from '../../../assets/tools/modifier-stack-actions/add_after_menu.png';
+import moveImg from '../../../assets/tools/modifier-stack-actions/move_to_last.png';
+
+<ToolMeta
+  name="Modifier Stack Actions"
+  version="1.0.0"
+  status="active"
+  category="Modifiers"
+  blenderVersion="4.5+"
+  downloadUrl="https://github.com/Stephk0/Toolings/raw/main/Blender/Addons/ModifierStackActions/distribution/ModifierStackActions_v1.0.0.zip"
+  sourcePath="Blender/Addons/ModifierStackActions/source/"
+/>
+
+## At a glance
+
+Right-click any modifier in the Properties editor. Below Blender's own entries you get **Show Up To Here** (hide everything after it, restorable), **Extract Up To Here** / **As...** (new mesh object from the stack at that point), **Add Modifier Before / After** (Blender's own Add Modifier menu, asset catalogs included, inserting next to the clicked modifier) and **Move to First / Last**.
+
+<img src={demoGif.src} alt="Demo: Show Up To Here, Extract As, Add Modifier After, Move to Last in the real Blender UI" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Real Blender 5.0 window · Show Up To Here, Extract As..., Add Modifier After, Move to Last</span>
+
+<img src={menuImg.src} alt="The modifier right-click menu with the Modifier Stack Actions entries" class="tool-screenshot" />
+<span class="tool-screenshot-caption">Right-click on a modifier header</span>
+
+## Install
+
+<Steps>
+1. Download `ModifierStackActions_v1.0.0.zip`.
+2. **Edit → Preferences → Add-ons → Install from Disk**, or drag the zip into Blender.
+3. Enable **Modifier Stack Actions**. Right-click any modifier panel to use it.
+</Steps>
+
+## Day-to-day vs Advanced
+
+<Tabs>
+<TabItem label="Day-to-day">
+
+1. **Show Up To Here** on a modifier hides everything after it in the viewport. A red banner in the Modifiers panel shows where the preview stops. **Restore** on the banner, or the same right-click again, brings the stack back.
+2. **Extract Up To Here** creates `<Object>_<Modifier>`: a plain mesh with everything up to and including that modifier applied. **As...** asks for the name first. The source stays untouched.
+3. **Add Modifier Before / After** opens the normal Add Modifier menu. Type to search. The pick lands next to the clicked modifier.
+4. **Move to First / Last** sends the modifier to the top or bottom of the stack.
+
+<img src={showImg.src} alt="Show Up To Here on Mirror: before and after" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Show Up To Here on Mirror · Subdivision and Array hidden, banner with Restore</span>
+
+<img src={dialogImg.src} alt="Extract Up To Here As dialog with the default name selected" class="tool-screenshot" />
+<span class="tool-screenshot-caption">Extract Up To Here As... · the default name is selected, type to replace it</span>
+
+<img src={addImg.src} alt="Add Modifier After submenu showing Blender's Add Modifier menu" class="tool-screenshot" />
+<span class="tool-screenshot-caption">Add Modifier After · Blender's own menu, asset catalogs included</span>
+
+<img src={moveImg.src} alt="Simple Deform after Subdivision bends each copy, moved to last it bends the whole tower" class="tool-screenshot tool-screenshot--wide" />
+<span class="tool-screenshot-caption">Add After Subdivision (left) · Move to Last (right)</span>
+
+</TabItem>
+<TabItem label="Advanced">
+
+### Details
+
+- Show Up To Here only touches the viewport toggle, and only on modifiers that were visible. Restore matches by name, and the preview is saved in the .blend.
+- Extract briefly switches the later modifiers off, evaluates, copies the mesh and switches them back. A disabled modifier before the clicked one stays off; the clicked one is always applied. Works on Mesh, Curve, Surface and Text, also in Edit Mode.
+- Add Before / After: Blender always adds new modifiers at the end, so the add-on moves the new one into place right after it appears. This also works for Geometry Nodes assets. Undo is two steps (move, then add).
+- Everything except Add Before / After is in F3 search and then acts on the active modifier.
+
+</TabItem>
+</Tabs>
+
+## Troubleshooting
+
+<Aside type="tip" title="The entries don't appear">
+Right-click on a modifier panel in the Properties editor. Right-clicks in the 3D viewport or the Outliner don't show them.
+</Aside>
+
+<Aside type="note" title="A new modifier landed at the end">
+The Before / After slot only applies to the next modifier added from that submenu. If the stack changed in another way first, the new modifier goes to the end as usual.
+</Aside>
+
+## Changelog
+
+- **v1.0.0**: Show Up To Here / Restore, Extract Up To Here (and As...), Add Modifier Before / After, Move to First / Last.
+
+<LinkCard
+  title="Source on GitHub"
+  href="https://github.com/Stephk0/Toolings/tree/main/Blender/Addons/ModifierStackActions"
+  description="Open the addon source directory."
+/>

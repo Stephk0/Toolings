@@ -47,3 +47,6 @@ Blender/Shading/ash_char_base_SSS.blend
 
 # per-machine Claude Code settings (local paths)
 **/.claude/settings.local.json
+
+# Local-only working files (GitHub social preview card)
+/_social_preview/

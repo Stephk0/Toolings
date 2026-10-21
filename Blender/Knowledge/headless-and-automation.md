@@ -10,6 +10,7 @@ Driving Blender from scripts: live MCP, --background runs, rendering, screenshot
 - [One .blend per process when diffing evaluated geometry](#feedback_blender_multifile_eval_contamination)
 - [Capturing addon UI screenshots via MCP](#feedback_blender_ui_screenshot_automation)
 - [Real-UI tests without a desktop: Xvfb + event_simulate](#finding_xvfb_event_simulate)
+- [Real-UI demo capture on Windows: screenshots, menus, typing](#finding_windows_real_ui_capture)
 - [`pip install bpy` gives a headless Blender 5.0 anywhere](#finding_pypi_bpy)
 - [Background transform ops ignore the Pivot Point without a 3D View](#finding_background_transform_pivot)
 
@@ -199,6 +200,40 @@ Also:
 
 **Why:** each trap gives a clean "nothing happened" run. Here they cost
 five debugging rounds.
+
+<a id="finding_windows_real_ui_capture"></a>
+
+## Real-UI demo capture on Windows: screenshots, menus, typing
+
+*On Windows the Xvfb recipe isn't needed: `screen.screenshot` reads the real framebuffer, popups included. But menus remember the last pick, letter keys hit accelerators, and text needs TEXTINPUT PRESS.*
+
+Measured on Blender 5.0, Windows 11, ui_scale 1.25, 2026-10-21. Recipe:
+`Blender/Addons/ModifierStackActions/source/tests/headless/ui_driver.py` + `demo_media.py`.
+
+```
+blender --factory-startup --enable-event-simulate --window-geometry 0 0 1920 1080 --python drive.py
+```
+
+- `bpy.ops.screen.screenshot(filepath=...)` under a `temp_override(window, screen, area)`
+  captures the whole window **with open menus and dialogs**. The OS cursor is not in it; draw
+  it afterwards from the positions you sent.
+- **Find panel positions by probing.** Append a draw function to `UI_MT_button_context_menu`
+  that records `context.button_pointer`, right-click down a column every 6-8 px, ESC after
+  each. Gives the y of every modifier header.
+- **Menus open with the last-clicked item under the cursor**, matched by label. Fixed offsets
+  from the click point break after the first pick. Track the last pick, and reset when its
+  label changes (e.g. "Show Up To Here" becomes "Restore Modifier Stack").
+- **Letter keys go to the menu under the cursor.** With a submenu open but the mouse still on
+  the parent item, typing `s` fires the parent's `S` accelerator. Move into the submenu along
+  the item's row first; then `SEARCH_ON_KEY_PRESS` opens the search.
+- **Text fields:** `event_simulate('TEXTINPUT', 'PRESS', unicode=ch)`. `value` must be
+  `'PRESS'` when `unicode` is set. In a props dialog, Enter once confirms the text, again
+  runs OK.
+- `preferences.view.show_tooltips = False`, or hover pauses put tooltips in the shots.
+- `os._exit()` drops buffered stdout when piped: flush first.
+
+**Why:** each of these produced a run that looked fine until you checked the screenshots.
+Clicks landed on the wrong menu entry, and typed text went to hotkeys.
 
 <a id="finding_pypi_bpy"></a>
 

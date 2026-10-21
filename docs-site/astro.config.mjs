@@ -27,6 +27,7 @@ export default defineConfig({
           items: [
             { label: 'Mass Exporter', slug: 'tools/mass-exporter' },
             { label: 'Geometry Constraint', slug: 'tools/geometry-constraint' },
+            { label: 'Modifier Stack Actions', slug: 'tools/modifier-stack-actions' },
             { label: 'Tile UV Projector', slug: 'tools/tile-uv-projector' },
             { label: 'Quick Animation Export', slug: 'tools/quick-animation-export' },
           ],

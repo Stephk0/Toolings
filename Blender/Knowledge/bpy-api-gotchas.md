@@ -12,6 +12,7 @@ Python-API traps that fail silently: stale wrappers, lazy data, modal lifecycle.
 - [Blender 5 links its essentials brushes into every .blend](#feedback_blender_bundled_essentials_false_deps)
 - [Constraining native transforms: post-process in depsgraph_update_post](#finding_native_transform_postprocess)
 - [links.new can return None for a socket taken off a removed link](#links_new_stale_socket)
+- [activate_init is ignored under use_property_split](#activate_init_property_split)
 
 <a id="feedback_blender_bmesh_invalidated_by_undo_push"></a>
 
@@ -321,3 +322,18 @@ connection (caught only because the pass compared `logical_links` before/after).
 to socket identifier)` keys, look sockets up from `ng.nodes[...]` after any removal, and
 check the return value of `links.new` — `None` means no link was made.
 
+<a id="activate_init_property_split"></a>
+
+## activate_init is ignored under use_property_split
+
+*A props dialog meant to open with its text field already editing does nothing when the layout uses property split.*
+
+Measured on Blender 5.0 with a real UI, 2026-10-21 (Modifier Stack Actions, Extract As dialog).
+`row = layout.row(); row.activate_init = True; row.prop(self, "name")` inside an
+`invoke_props_dialog` draw opens with the field in edit mode and its text selected, so typing
+replaces it. Set `layout.use_property_split = True` first and the field opens idle; typed keys
+go nowhere. Setting it on the layout instead of a row works too, but Blender's own scripts
+always use a row.
+
+**How to apply:** draw dialogs that need a focused text field without property split. Check it
+with a real UI run, because background mode never draws the dialog.

@@ -1,0 +1,11 @@
+schema_version = "1.0.0"
+
+id = "modifier_stack_actions"
+version = "1.0.0"
+name = "Modifier Stack Actions"
+tagline = "Right-click a modifier to preview or extract the stack up to it"
+maintainer = "Stephan Viranyi"
+type = "add-on"
+blender_version_min = "4.5.0"
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["Modeling", "Object"]

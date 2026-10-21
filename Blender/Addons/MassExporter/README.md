@@ -1,4 +1,4 @@
-# Mass Collection Exporter v13.7.0
+# Mass Collection Exporter v13.8.0
 
 A powerful Blender addon for batch exporting collections with advanced parent-child relationship handling, automatic joining, and flexible export options.
 Allows specifying a collection for export with subcollections (Main Collection Env_Buildings > SubCollections Building_01, Building_02, Building_03, etc)
@@ -6,6 +6,8 @@ Allows specifying a collection for export with subcollections (Main Collection E
 > 📘 **New:** Step-by-step tutorial with screenshots: [TUTORIAL.md](TUTORIAL.md)
 >
 > **Export flow diagrams:** [EXPORT_FLOW.md](EXPORT_FLOW.md) — mermaid charts of the mode priority order and the shared export tail
+>
+> **v13.8.0:** reliability release. Override Materials / M_ prefix no longer change your scene, joined exports keep every child's modifiers, shape-key meshes bake their modifiers, Whole Collection keeps its hierarchy with modifiers and honours Apply Transforms, OBJ export works again, quick exports inherit every collection setting. **Collada (DAE) was removed** (Blender 5.0 dropped it). See the [changelog](source/CHANGELOG.md).
 >
 > **v13.7.0:** new **Only Visible Modifiers** option (Modifier & Rig Options → Modifiers, **on by default**). Exports now bake only the modifiers that are enabled in the viewport, matching what you actually see. ⚠️ This changes export output for objects that carry viewport-disabled modifiers — see [Only Visible Modifiers](#only-visible-modifiers-v1370).
 >
@@ -30,7 +32,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 - **Quick Export from Selection**: Export selected object(s), collection, or sub-collections with one click (v12.1+)
 - **Smart Empty Handling**: Automatically process parent empties and their children
 - **On-Demand Joining**: Join mesh children during export without affecting your scene
-- **Multiple Export Formats**: FBX, OBJ, Collada (DAE), and glTF 2.0
+- **Multiple Export Formats**: FBX, OBJ and glTF 2.0 (binary `.glb`)
 - **Flexible Export Modes**: Individual objects, merged collections, or sub-collection based
 
 ### Advanced Features
@@ -45,7 +47,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 1: Direct Install (Recommended)
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.7.0.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.8.0.zip`)
 2. Open Blender
 3. Go to: **Edit → Preferences → Add-ons**
 4. Click **Install...** button
@@ -54,7 +56,7 @@ Allows specifying a collection for export with subcollections (Main Collection E
 
 ### Method 2: Manual Install
 
-1. Download the latest zip from `distribution/` (`MassExporter_v13.7.0.zip`)
+1. Download the latest zip from `distribution/` (`MassExporter_v13.8.0.zip`)
 2. Locate your Blender addons folder:
    - **Windows**: `%APPDATA%\Blender Foundation\Blender\[version]\scripts\addons\`
    - **macOS**: `~/Library/Application Support/Blender/[version]/scripts/addons/`
@@ -100,11 +102,10 @@ After installation, you should see a new **"Mass Exporter"** tab in the 3D Viewp
 **Add/Remove Collections**
 - Click `+` to add new collection slots
 - Click `-` to remove selected collection
-- Click refresh icon 🔄 to sync visibility
 
 **Per-Collection Settings**
 - **Export Enabled**: Toggle export on/off
-- **Visibility**: Control viewport visibility
+- **Visibility**: The eye icon mirrors the outliner eye of the collection
 - **Merge to Single**: Combine all objects into one file
 - **Export Path**: Individual export directory per collection
 
@@ -113,13 +114,14 @@ After installation, you should see a new **"Mass Exporter"** tab in the 3D Viewp
 When **"Use Parent Empties"** is enabled:
 
 **What it does:**
-- Searches for Empty objects with mesh children
-- Uses empty's location as the origin point
+- Searches for Empty objects with mesh children (grandchildren included — each mesh belongs to its nearest empty)
+- Uses the empty's world position as the origin point
 - Exports children relative to their parent empty
+- Meshes that sit under no empty are still exported: one file each, or merged into `<collection>.fbx` with **Merge** on
 
 **Options:**
-- **Center Parent Empties**: Move empties to (0,0,0) during export
-- **Move Empties to Origin on Export**: Auto-run move operation before export
+- **Center Each Empty**: Move each empty to world (0,0,0) during its export
+- **Move All Empties to Origin**: Move this collection's empties to world origin before export (other collections are not affected)
 - **Join Empty Children**: Combine all children into single mesh
 
 **Example Structure:**
@@ -135,7 +137,7 @@ Collection: "Buildings"
 ```
 
 **With Join Enabled** → Exports as:
-- `Buildings_joined.fbx` (single file, all buildings merged)
+- `Buildings.fbx` (single file, all buildings plus any loose meshes merged, origin at the first empty)
 
 **Without Join** → Exports as:
 - `Building_A.fbx` (Wall_01, Wall_02, Roof)
@@ -157,15 +159,15 @@ You have multiple empties with children, and you want to export everything as ON
 ```
 
 **Advanced Options:**
-- **Apply Modifiers Before Join**: Bakes all modifiers before joining
-- **Keep Joined Copy**: Optionally keep the joined result in your scene
+- Every child bakes its **own** modifier stack before the join when *Apply Modifiers* (here or the global one) is on; otherwise modifiers are left out
+- Viewport-disabled modifiers are skipped when the global *Only Visible Modifiers* is on, or when this collection's *Only Visible Modifiers* is ticked
 
 ### 4. Debug Tools
 
 Two powerful debug buttons for testing:
 
 **Move Empties to Origin**
-- Moves all empties (from enabled collections) to world origin (0,0,0)
+- Moves all empties (from enabled collections) to world origin (0,0,0), parented empties included
 - Useful for: Centering models, preparing for export, testing positions
 - Undoable with `Ctrl+Z`
 
@@ -180,15 +182,15 @@ Two powerful debug buttons for testing:
 
 ### Transform Options
 
-**Export at Origin**
+**Move to Center** (per collection)
 - Moves objects to (0,0,0) before export
 - Restores original position after export
 - Useful for: Centering models, Unity imports
 
 **Apply Transforms**
-- Applies location, rotation, scale to object data
-- **Warning**: Permanently modifies objects
-- Use for: Baking transforms, clean exports
+- Bakes location, rotation, scale into the exported mesh
+- Runs on temporary copies — your objects are not changed
+- Works in every mode, including *Whole Collection as One File* (children stay parented)
 
 **Axis Orientation**
 - **Forward Axis**: -Z (Unity default), Y, X, etc.
@@ -197,16 +199,18 @@ Two powerful debug buttons for testing:
 
 ### Material Options
 
+All material options only affect the exported file — your scene's materials and their names are restored right after each export.
+
 **Override Materials**
 - Replace all materials with a single material
 - Useful for: Placeholder exports, testing
 
 **Assign if No Material**
-- Only adds material to objects without one
+- Works on its own (Override Materials off): adds the chosen material only to objects without one
 - Preserves existing materials
 
 **Add M_ Prefix**
-- Automatically adds "M_" prefix to material names
+- Adds the "M_" prefix to the names of the exported objects' materials
 - Follows common game engine naming conventions
 
 ### Modifier Options
@@ -216,6 +220,7 @@ Panel: **Modifier & Rig Options → Modifiers**
 **Apply Modifiers**
 - Bakes object modifiers into the exported mesh
 - Always runs on a temporary copy — your source objects are never modified
+- Also works on meshes with shape keys (the shape keys are baked at their current values, as every exporter does once modifiers are applied)
 
 #### Only Visible Modifiers (v13.7.0)
 
@@ -249,9 +254,8 @@ the mesh from its rig in the FBX.
 **Turn it OFF** to restore the pre-v13.7 behaviour of baking every modifier
 regardless of visibility.
 
-> The per-collection **Only Visible Modifiers** checkbox under *Apply Modifiers
-> Before Join* is a separate, older setting that governs the **Join Empty
-> Children** path only. It still defaults to OFF.
+> The **Join Empty Children** path follows this setting too. Its per-collection
+> **Only Visible Modifiers** checkbox only matters when this global one is off.
 
 ---
 
@@ -264,13 +268,8 @@ regardless of visibility.
 
 **Apply Transform**
 - Bakes space transform into object data
-- **Enable for Unity** to avoid transform issues
-- Ensures clean imports without extra transform nodes
-
-**Custom FBX ASCII Exporter**
-- Experimental ASCII FBX format
-- More export options available
-- Use standard exporter unless needed
+- **Enable for Unity** static meshes to avoid the -90° rotation
+- Blender marks it experimental: turn it **off** for rigged or animated exports
 
 ---
 
@@ -394,14 +393,14 @@ Input:
   Empty_C → [Mesh5]
 
 Output:
-  CollectionName_joined.fbx (single mesh with Mesh1-5)
+  CollectionName.fbx (single mesh with Mesh1-5)
 ```
 
 ---
 
 ### Scenario 6: Quick Export - Selected Object(s) (v12.2)
 
-**Use Case**: Export the collections containing selected objects, using each collection's normal export settings
+**Use Case**: Export only the selected objects, using the settings of the collection they live in
 
 **Setup:**
 ```
@@ -412,9 +411,12 @@ Output:
 
 **What Happens:**
 ```
-1. Finds all unique collections from selected objects
-2. Exports each collection using its configured settings
-3. Respects merge_to_single, export_subcollections_as_single, and all other options
+1. Groups the selected meshes by the collection they live in
+2. Per collection, only the selected meshes are exported:
+   - Group by Suffix on (with an enabled suffix) → one file per base name
+   - Merge on (2+ selected) → one file `<collection>_selected`
+   - otherwise → one file per selected object
+3. If the parent collection has Sub-Collections as Single on, the whole sub-collection is exported instead
 4. Uses parent collection settings if collection not in export list
 ```
 
@@ -425,7 +427,7 @@ Collection: "Furniture" (merge_to_single: ON)
   ├─ Table  ← Selected
   └─ Lamp   ← Selected
 
-Result: Furniture.fbx (entire collection exported as one file)
+Result: Furniture_selected.fbx (Table + Lamp merged)
 ```
 
 **Example 2 - Objects from Different Collections:**
@@ -441,7 +443,7 @@ Collection: "Decorations" (merge_to_single: ON)
 Result:
   - Chair.fbx (individual object)
   - Table.fbx (individual object)
-  - Decorations.fbx (entire collection merged)
+  - Vase.fbx (only one object selected)
 ```
 
 **Example 3 - Sub-Collections Mode:**
@@ -603,7 +605,7 @@ Settings:
   ☑ Use Parent Empties
   ☑ Join Empty Children
   ☑ Apply Modifiers Before Join
-  → Result: Level_01_joined.fbx (everything merged)
+  → Result: Level_01.fbx (everything merged)
 ```
 
 ---

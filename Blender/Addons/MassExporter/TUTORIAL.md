@@ -1,6 +1,6 @@
 # Mass Collection Exporter — Tutorial
 
-*Applies to v13.6.3 · Blender 4.2+ (tested on Blender 5.0) · Format: FBX / OBJ / Collada / glTF*
+*Applies to v13.6.3 · Blender 4.2+ (tested on Blender 5.0) · Format: FBX / OBJ / glTF* — v13.8.0 removed Collada (DAE) and the list refresh button; screenshots still show them
 
 > **Confluence note:** attach the images from `MassExporter/assets/tutorial/` to the page, then the inline references below will resolve. All images are referenced by plain filename.
 
@@ -32,7 +32,7 @@ The panel stack, top to bottom:
 | **Transform Options** | Apply transforms, forward/up axis |
 | **Material Options** | Material override on export |
 | **Modifier & Rig Options** | Apply modifiers, armature handling |
-| **File Export Options** | Format (FBX/OBJ/DAE/glTF) + FBX-specific settings |
+| **File Export Options** | Format (FBX/OBJ/glTF) + FBX-specific settings |
 | **Suffix Grouping** | Define the suffixes used by "Group by Suffix" |
 | **Debug Controls** | Preview/diagnostic tools (collapsed by default) |
 
@@ -82,7 +82,6 @@ Anatomy of a list row, left to right:
 | Collection field | Which collection this row exports |
 | ✕ | Clear the collection assignment |
 | Path field + 📁 | Output folder for this row (folder icon opens a browser) |
-| 🔄 (right side) | Refresh the list's visibility sync |
 
 Two things worth internalizing:
 
@@ -275,8 +274,8 @@ Per-collection toggle (default **on**): during export, every **root object** of 
 ### File Export Options
 ![File Export Options + FBX options](assets/tutorial/07_file_export.png)
 
-- **Export Format** — FBX (default), OBJ, Collada (DAE), glTF 2.0.
-- FBX-only extras: **Apply Scaling** (default *FBX Units Scale*, recommended for Unity), **Apply Transform** (bake space transform — avoids the notorious ×100/rotation issues in Unity), bone axis settings, **Only Deform Bones**, **Add Leaf Bones**, and a collapsible *Unity Import Tips* note.
+- **Export Format** — FBX (default), OBJ, glTF 2.0 (written as binary `.glb`).
+- FBX-only extras: **Apply Scaling** (default *FBX Units Scale*, recommended for Unity), **Apply Transform** (bake space transform — avoids the notorious ×100/rotation issues in Unity; Blender marks it experimental, so turn it off for rigged or animated exports), bone axis settings, **Only Deform Bones**, **Add Leaf Bones**, and a collapsible *Unity Import Tips* note.
 - ⚠️ Axis/scale/armature settings apply to FBX (and partially OBJ). The glTF exporter is called with selection only and uses its own conventions.
 
 ### Export Hidden Collections
