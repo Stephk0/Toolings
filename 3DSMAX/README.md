@@ -7,6 +7,8 @@
 
 > Comprehensive collection of 50+ MaxScript tools and 24 custom modifiers for enhanced 3ds Max workflows
 
+📖 **Full documentation:** [ST3E Complete Documentation (Google Docs)](https://docs.google.com/document/d/1fIKEurSNeaazzYsPnCTYT7bVO4R4btWzTzvLRpjNutY/edit?usp=sharing): every tool and modifier with screenshots, workflows and tips
+
 ---
 
 ## 📢 Important Notice

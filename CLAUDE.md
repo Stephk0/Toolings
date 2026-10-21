@@ -62,6 +62,12 @@ trust `source/__init__.py` / `blender_manifest.toml`.
 - **READMEs are user/artist-facing.** Agent instructions, implementation notes, folder
   layouts and changelogs go in `CLAUDE.md`, `source/DEVELOPMENT.md` and `source/CHANGELOG.md`
   — see `DEVELOPMENT.md` at the repo root for the map.
+- **Keep the repo-level tool lists current.** Whenever an addon is added, released, renamed
+  or changes what it does, update in the same change: the root `README.md` (Blender Addons
+  table; the "✨ New" section for a new or headline addon), `DOCUMENTATION_INDEX.md` (version
+  row), `QUICK_REFERENCE.md` (roster version + access, a command section for new addons) and
+  the docs-site page / sidebar / home card if the tool has one. `release.py bump` only
+  rewrites version slots; it does not add rows or descriptions.
 
 ## Tooling
 

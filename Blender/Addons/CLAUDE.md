@@ -33,6 +33,8 @@ Prefer moving shared logic into plain functions (or `core/`) for new code.
 - Build the versioned zip with `python _release/release.py release <Tool> <part>` (bumps
   code, manifest and doc version lines, builds, verifies, archives the old zip), and add a
   `source/CHANGELOG.md` entry. `release.py check` lists anything out of step.
+- New addon, rename or changed feature set: update the root `README.md`,
+  `DOCUMENTATION_INDEX.md` and `QUICK_REFERENCE.md` rows (see the repo `CLAUDE.md` rule).
 
 ## Where documentation goes
 

@@ -50,7 +50,7 @@ Restart 3DS Max
 ### Full Addon Roster (versions)
 | Addon | Ver | Access |
 |-------|-----|--------|
-| Mass Collection Exporter | 13.7.0 | `N` Panel → Mass Exporter |
+| Mass Collection Exporter | 13.8.0 | `N` Panel → Mass Exporter |
 | Synced Modifiers | 2.5.0 | `N` Panel → Item |
 | Compositor Render Sets | 2.0.0 | Compositor → `N` Panel |
 | Modifier List (Stephko fork) | 1.9.89 | Properties → Modifiers / popup |
@@ -60,16 +60,19 @@ Restart 3DS Max
 | Skin Transfer Setup | 1.3.0 | `N` Panel |
 | Quick Animation Export | 1.0.9 | `N` Panel |
 | Library Relink | 1.0.0 | `N` Panel → Relink |
-| Library Publisher | 1.3.0 | Preferences / CLI |
+| Library Publisher | 1.3.1 | Preferences / CLI |
 | Smart Crease | 1.5.1 | `F3` → Smart Crease |
 | Smart Collapse | 1.0.0 | `F3` → Smart Collapse |
 | Smart Set Orientation | 1.5.0 | `F3` → Smart Orientation |
 | Center Edges/Loops | 1.5.1 | `F3` → Center Loops |
 | Edit Mode Overlay | 1.1.0 | `N` Panel → Overlay |
 | Toggle Modifier Display | 1.3.0 | `D` / `Shift+D` in Edit Mode |
+| Modifier Stack Actions | 1.0.0 | Right-click a modifier (Properties → Modifiers) |
+| Smart Isolate | 1.0.0 | `Numpad /` or `/` in the 3D Viewport |
+| Smart Wireframe View | 1.0.0 | `Shift+Alt+Z` / `Ctrl+Shift+Alt+Z` |
 | **ST3E Geometry Nodes** | 53 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
 
-### Mass Exporter v13.7
+### Mass Exporter v13.8
 
 **Location:** `N` Panel → Mass Exporter tab
 
@@ -169,6 +172,40 @@ Color Settings      → Customize appearance
 ```
 Toggle All          → Show/hide all modifiers in edit mode
 Toggle Selected     → Toggle only selected object's modifiers
+```
+
+### Modifier Stack Actions
+
+**Access:** right-click a modifier header or setting in Properties → Modifiers
+
+**Quick Commands:**
+```
+Show Up To Here            → Hide every modifier after this one (viewport only)
+Restore Modifier Stack     → Undo the preview (or Restore on the red banner)
+Extract Up To Here (As...) → New mesh object from the stack up to this modifier
+Add Modifier Before/After  → Blender's Add Modifier menu, inserted next to this one
+Move to First / Last       → Send this modifier to the top or bottom
+```
+
+### Smart Isolate
+
+**Access:** `Numpad /` or `/` in the 3D Viewport (replaces Local View)
+
+**Quick Commands:**
+```
+Isolate selection   → Hide everything else
+Sub-selection       → Isolate one level deeper
+Same selection      → Step back one level
+Nothing selected    → Exit isolation
+```
+
+### Smart Wireframe View
+
+**Access:** `Shift+Alt+Z` forward, `Ctrl+Shift+Alt+Z` backward
+
+**Cycle:**
+```
+Overlays Off → Overlays → Overlays + Wireframe
 ```
 
 ---

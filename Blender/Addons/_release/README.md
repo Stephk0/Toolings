@@ -53,6 +53,9 @@ warning. Add it to one of them.
 - Builds are deterministic: the same sources give a byte-identical zip.
 - Doc edits touch only version slots. History such as "since v1.2.0" is left alone.
 - `build` warns when the CHANGELOG has no entry for the version. Write that entry yourself.
+- A new addon, a rename or a changed feature set also needs its row and description in the
+  root `README.md`, `DOCUMENTATION_INDEX.md` and `QUICK_REFERENCE.md`. The CLI does not add
+  rows; do it by hand (rule in the repo `CLAUDE.md`).
 
 ## Tests
 
