@@ -89,10 +89,18 @@ def find_added(before, after):
     return new[0] if len(new) == 1 else None
 
 
-def move_index(count, position):
-    """Target index for moving a modifier ``'FIRST'`` or ``'LAST'`` in a stack of ``count``."""
+def move_index(count, position, index=0):
+    """Target index for moving the modifier at ``index`` in a stack of ``count``.
+
+    ``position`` is ``'FIRST'``, ``'LAST'``, ``'UP'`` or ``'DOWN'``; UP / DOWN move one slot
+    and stay put at the ends.
+    """
     if position == 'FIRST':
         return 0
     if position == 'LAST':
         return count - 1
-    raise ValueError(f"position must be 'FIRST' or 'LAST', not {position!r}")
+    if position == 'UP':
+        return max(index - 1, 0)
+    if position == 'DOWN':
+        return min(index + 1, count - 1)
+    raise ValueError(f"position must be 'FIRST', 'LAST', 'UP' or 'DOWN', not {position!r}")

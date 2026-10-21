@@ -1,6 +1,6 @@
 # Modifier Stack Actions — Tutorial
 
-*Applies to v1.0.0 · Blender 4.5+ (screenshots: Blender 5.0)*
+*Applies to v1.1.0 · Blender 4.5+ (screenshots: Blender 5.0)*
 
 This walkthrough follows the demo video
 ([GIF](assets/demo/modifier_stack_actions_demo.gif) ·
@@ -43,7 +43,9 @@ entries you get:
 | **Extract Up To Here** | New object from the stack up to this modifier |
 | **Extract Up To Here As...** | The same, with a name dialog first |
 | **Add Modifier Before ▸** / **After ▸** | Blender's Add Modifier menu, inserting next to this modifier |
-| **Move to First** / **Move to Last** | Send this modifier to the top or bottom |
+| **Copy Modifier** | Remember this modifier for pasting |
+| **Paste '<name>' Before** / **After** | Paste a copy of the copied modifier next to this one |
+| **Move to First** / **Move Up** / **Move Down** / **Move to Last** | Shift this modifier one slot, or send it to the top or bottom |
 
 ## 4. Show Up To Here
 
@@ -113,7 +115,11 @@ the whole tower:
 
 ![Simple Deform before Array (left) and moved to last (right)](assets/move_to_last.png)
 
-**Move to First** sends a modifier to the top. The entry that would do nothing is greyed out.
+**Move to First** sends a modifier to the top; **Move Up** and **Move Down** shift it one
+slot. Entries that would do nothing are greyed out.
+
+**Copy Modifier** and **Paste Before / After** (not in the video) copy a modifier with all
+its settings to a spot next to the one you right-click, on the same object or another one.
 
 ## 8. Quick reference
 
@@ -123,7 +129,8 @@ the whole tower:
 | go back to the full stack | **Restore Modifier Stack**, or **Restore** on the banner |
 | keep the result at this point as a mesh | **Extract Up To Here** / **As...** |
 | add a modifier right here | **Add Modifier Before ▸** / **After ▸** |
-| put this modifier at the top or bottom | **Move to First** / **Move to Last** |
+| move this modifier | **Move Up** / **Move Down** / **Move to First** / **Move to Last** |
+| copy this modifier next to another one | **Copy Modifier**, then **Paste ... Before** / **After** |
 
 Everything except Add Before / After is also in **F3** search, where it acts on the active
 modifier.

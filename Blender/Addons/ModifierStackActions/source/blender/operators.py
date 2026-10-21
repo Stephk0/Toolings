@@ -186,7 +186,7 @@ class OBJECT_OT_modifier_extract_up_to_here(_Target, bpy.types.Operator):
 
 
 class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
-    """Move this modifier to the top or bottom of the stack"""
+    """Move this modifier one slot up or down, or to the top or bottom of the stack"""
 
     bl_idname = "object.modifier_stack_move"
     bl_label = "Move Modifier"
@@ -197,13 +197,20 @@ class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
         items=(
             ('FIRST', "First", "Move to the top of the stack"),
             ('LAST', "Last", "Move to the bottom of the stack"),
+            ('UP', "Up", "Move one slot up the stack"),
+            ('DOWN', "Down", "Move one slot down the stack"),
         ),
         default='FIRST',
     )
 
     @classmethod
     def description(cls, _context, props):
-        return f"Move this modifier to the {'top' if props.position == 'FIRST' else 'bottom'} of the stack"
+        return {
+            'FIRST': "Move this modifier to the top of the stack",
+            'LAST': "Move this modifier to the bottom of the stack",
+            'UP': "Move this modifier one slot up the stack",
+            'DOWN': "Move this modifier one slot down the stack",
+        }[props.position]
 
     def execute(self, context):
         obj, idx = resolve(context, self.object_name, self.modifier_name)
@@ -211,7 +218,7 @@ class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
             self.report({'WARNING'}, "No modifier to move")
             return {'CANCELLED'}
         mods = obj.modifiers
-        target = stack.move_index(len(mods), self.position)
+        target = stack.move_index(len(mods), self.position, idx)
         if idx == target:
             return {'CANCELLED'}
         name = mods[idx].name

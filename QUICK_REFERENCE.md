@@ -67,7 +67,7 @@ Restart 3DS Max
 | Center Edges/Loops | 1.5.1 | `F3` → Center Loops |
 | Edit Mode Overlay | 1.1.0 | `N` Panel → Overlay |
 | Toggle Modifier Display | 1.3.0 | `D` / `Shift+D` in Edit Mode |
-| Modifier Stack Actions | 1.0.0 | Right-click a modifier (Properties → Modifiers) |
+| Modifier Stack Actions | 1.1.0 | Right-click a modifier (Properties → Modifiers) |
 | Smart Isolate | 1.0.0 | `Numpad /` or `/` in the 3D Viewport |
 | Smart Wireframe View | 1.0.0 | `Shift+Alt+Z` / `Ctrl+Shift+Alt+Z` |
 | **ST3E Geometry Nodes** | 53 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
@@ -184,6 +184,9 @@ Show Up To Here            → Hide every modifier after this one (viewport only
 Restore Modifier Stack     → Undo the preview (or Restore on the red banner)
 Extract Up To Here (As...) → New mesh object from the stack up to this modifier
 Add Modifier Before/After  → Blender's Add Modifier menu, inserted next to this one
+Copy Modifier              → Remember this modifier
+Paste Before / After       → Paste a copy next to the right-clicked modifier (any object)
+Move Up / Down             → Shift this modifier one slot
 Move to First / Last       → Send this modifier to the top or bottom
 ```
 

@@ -13,6 +13,7 @@ source/
 ├── blender/
 │   ├── properties.py      # Object.modifier_stack_actions_state (JSON string, saved in .blend)
 │   ├── insert.py          # Add Modifier Before/After: native menu wrapper + depsgraph move
+│   ├── clipboard.py       # object.modifier_stack_copy / _paste (Before/After)
 │   ├── operators.py       # object.modifier_up_to_here / _restore / modifier_extract_up_to_here / modifier_stack_move
 │   └── ui.py              # UI_MT_button_context_menu entries + DATA_PT_modifiers banner
 └── tests/

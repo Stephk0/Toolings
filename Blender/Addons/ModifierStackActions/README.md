@@ -1,10 +1,10 @@
 # Modifier Stack Actions
 
-**Version:** 1.0.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Object
+**Version:** 1.1.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Object
 
 Right-click any modifier in the Modifier Properties to see or grab the stack as it is at
-that modifier without touching the modifiers yourself, to add a new modifier right before
-or after it, or to send it to the top or bottom of the stack.
+that modifier without touching the modifiers yourself, to add or paste a modifier right
+before or after it, or to move it up, down, to the top or to the bottom of the stack.
 
 ![Demo: Show Up To Here, Extract As, Add Modifier After, Move to Last](assets/demo/modifier_stack_actions_demo.gif)
 
@@ -13,7 +13,7 @@ Full-resolution video: [assets/demo/modifier_stack_actions_demo.mp4](assets/demo
 
 ## Installation
 
-1. Grab `distribution/ModifierStackActions_v1.0.0.zip`
+1. Grab `distribution/ModifierStackActions_v1.1.0.zip`
 2. Drag the zip into the Blender window (or `Edit > Preferences > Add-ons > Install from Disk...`)
 3. Enable **Modifier Stack Actions**
 
@@ -70,10 +70,22 @@ instead of at the end of the stack. Type right away to search, like in the norma
 
 Undo takes two steps: the first puts the new modifier back at the end, the second removes it.
 
-### Move to First / Last
+### Copy and Paste Before / After
 
-Moves the right-clicked modifier to the top or bottom of the stack. The entry that would do
-nothing is greyed out.
+**Copy Modifier** remembers the right-clicked modifier. Then right-click any modifier, on the
+same object or another one, and pick **Paste '<name>' Before** or **After**: a copy with all
+its settings (Geometry Nodes inputs included) lands right there.
+
+- The paste uses the copied modifier as it is when you paste, so later changes to it come
+  along.
+- The paste entries are greyed out until something is copied, and again if the copied
+  modifier or its object is deleted. Opening another file clears the copy.
+
+### Move Up / Down, Move to First / Last
+
+**Move Up** and **Move Down** shift the right-clicked modifier one slot. **Move to First** and
+**Move to Last** send it to the top or bottom of the stack. Entries that would do nothing are
+greyed out.
 
 ![Simple Deform added after Subdivision bends each copy; moved to last it bends the whole tower](assets/move_to_last.png)
 
@@ -88,6 +100,7 @@ Run from there, they use the active modifier.
   Right-clicks in the 3D viewport or the Outliner don't show them.
 - **A new modifier still landed at the end:** the Add Before / After pick only applies to the
   next modifier added from that submenu. If anything else changed the stack in between, it is
-  added at the end as usual. Use **Move to First / Last** or drag it into place.
+  added at the end as usual. Use **Move Up / Down**, **Move to First / Last** or drag it
+  into place.
 
 Developer notes: [source/DEVELOPMENT.md](source/DEVELOPMENT.md) · History: [source/CHANGELOG.md](source/CHANGELOG.md)
