@@ -85,9 +85,6 @@ def repo(tmp_path):
           "| Tool | Ver |\n|---|---|\n"
           "| **Center Edges/Loops** | 1.5.0 | Centers loops | [README](Blender/Addons/Center%20Edges/README.md) |\n"
           "| **Render Sets** | 2.0.0 | Sets | [README](Blender/Addons/Render%20Sets/README.md) |\n")
-    write(tmp_path / "docs-site" / "src" / "content" / "docs" / "tools" / "render-sets.mdx",
-          "---\ntool:\n  version: 2.0.0\n  downloadUrl: https://x/RenderSets_v2.0.0.zip\n"
-          "  sourcePath: Blender/Addons/Render Sets/source/\n---\n")
     return tmp_path
 
 
@@ -271,8 +268,6 @@ def test_bump_updates_only_version_slots(repo):
     index = (repo / "DOCUMENTATION_INDEX.md").read_text(encoding="utf-8")
     assert "| **Render Sets** | 2.0.1 |" in index
     assert "| **Center Edges/Loops** | 1.5.0 |" in index  # other rows untouched
-    page = next((repo / "docs-site").rglob("render-sets.mdx")).read_text(encoding="utf-8")
-    assert "version: 2.0.1" in page and "RenderSets_v2.0.1.zip" in page
 
 
 def test_history_mentions_are_left_alone(repo):

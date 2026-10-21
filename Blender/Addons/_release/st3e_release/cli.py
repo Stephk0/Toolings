@@ -4,7 +4,7 @@
   check                   same, exit code 1 if anything needs attention (for hooks / CI)
   init <tool>|--all       write release.toml from the tool's current zip
   bump <tool> <part>      set the version (major|minor|patch|X.Y.Z) in code, manifest and docs
-  docs <tool>             re-sync README / index / docs-site to the code version
+  docs <tool>             re-sync README / index to the code version
   build <tool>            build the zip, verify it, move the previous one to archive/
   release <tool> <part>   bump + build
 """
@@ -76,7 +76,6 @@ def inspect(tool: Tool, repo_root: Path) -> Report:
 
     r.cells["readme"] = _doc_cell(docs.readme(tool)[0], expected, "README", r)
     r.cells["index"] = _doc_cell(docs.index(repo_root, tool)[0], expected, "DOCUMENTATION_INDEX", r)
-    r.cells["site"] = _doc_cell(docs.docsite(repo_root, tool)[0], expected, "docs-site", r)
 
     if not tool.spec:
         r.cells["spec"] = "no"
@@ -102,7 +101,7 @@ def inspect(tool: Tool, repo_root: Path) -> Report:
 
 
 def print_reports(reports: list[Report]) -> None:
-    cols = ["code", "manifest", "zip", "readme", "index", "site", "spec"]
+    cols = ["code", "manifest", "zip", "readme", "index", "spec"]
     name_w = max(len(r.tool.name) for r in reports)
     widths = {c: max(len(c), *(len(r.cells.get(c, "")) for r in reports)) for c in cols}
     print("  ".join(["tool".ljust(name_w)] + [c.ljust(widths[c]) for c in cols]))

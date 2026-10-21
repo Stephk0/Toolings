@@ -21,7 +21,6 @@ own project with its own scope; do not assume shared dependencies or architectur
 | `Blender/MCP/` | Legacy tree-generator MCP scripts |
 | `Unity/` | Unity tools (`ModelImportProcessor/`) |
 | `3DSMAX/` | MaxScript (ST3E), maintenance mode |
-| `docs-site/` | Astro/Starlight docs site |
 
 Addons were flattened on 2026-09-18 from `Blender/Addons/ClaudeVibe_WIPs/<Tool>` to
 `Blender/Addons/<Tool>`. Any path containing `ClaudeVibe_WIPs` is stale.
@@ -63,11 +62,11 @@ trust `source/__init__.py` / `blender_manifest.toml`.
   layouts and changelogs go in `CLAUDE.md`, `source/DEVELOPMENT.md` and `source/CHANGELOG.md`
   — see `DEVELOPMENT.md` at the repo root for the map.
 - **Keep the repo-level tool lists current.** Whenever an addon is added, released, renamed
-  or changes what it does, update in the same change: the root `README.md` (Blender Addons
-  table; the "✨ New" section for a new or headline addon), `DOCUMENTATION_INDEX.md` (version
-  row), `QUICK_REFERENCE.md` (roster version + access, a command section for new addons) and
-  the docs-site page / sidebar / home card if the tool has one. `release.py bump` only
-  rewrites version slots; it does not add rows or descriptions.
+  or changes what it does, update in the same change: the root `README.md` (the matching
+  category table under Blender Addons; the "✨ New" section for a new or headline addon),
+  `DOCUMENTATION_INDEX.md` (version row) and `QUICK_REFERENCE.md` (roster version + access,
+  a command section for new addons). `release.py bump` only rewrites version slots; it does
+  not add rows or descriptions.
 
 ## Tooling
 
