@@ -11,6 +11,7 @@ Node behaviour that differs from what the UI suggests. Verified on Blender 5.0.
 - [A material index is local to the geometry it sits on](#gn_material_index_is_local)
 - [Node properties that became Menu sockets](#gn_property_became_menu_socket)
 - [Face-domain Delete Geometry strips loose elements](#gn_delete_face_domain_strips_loose)
+- [Attributes ride along through a curve sweep](#gn_attributes_ride_curve_sweep)
 - [Small node facts](#gn_small_node_facts)
 
 <a id="feedback_gn_field_on_domain_is_source"></a>
@@ -141,6 +142,12 @@ remapped onto a new empty slot (GN_QuadCap: index 1 came out 0, and -1/0 came ou
 - Order: `Set Material Index` first, `Set Material` second, so an explicit material wins.
 - Evaluated `material_index` is clamped to the object's slot count — give a test mesh enough
   material slots or index checks read the clamp.
+- Join Geometry builds the result's slot list in input order (deduplicated), and the input
+  linked LAST sits on top of the multi-input, so it comes first. A generated part joined on
+  top renumbers the *main* mesh's indices — GN_SolidifyPlus's trim moved the jacket's index 1
+  to 2, and a later `GN_ExtrudeFace` (select by material index 1) then extruded the trim.
+  Link the generated part first so the main mesh stays first, and set its material after
+  the join.
 
 <a id="gn_property_became_menu_socket"></a>
 
@@ -177,6 +184,25 @@ averages over the vertex's faces, so "all adjacent faces flagged" = avg `> 0.999
 `VertexNeighbors.Face Count > 0` to spare standalone verts. Deleting any vert of a face removes
 it. Order cleanup passes islands → faces → edges (EDGE_FACE keeps verts) → loose verts.
 
+<a id="gn_attributes_ride_curve_sweep"></a>
+
+## Attributes ride along through a curve sweep
+
+*Mesh to Curve → Curve to Mesh carries every source attribute onto the swept mesh — on the POINT domain — and joining it back smears the main mesh's face attributes*
+
+GN_SolidifyPlus's trim is GN_CurveFromSurface run on the selected faces. The swept trim came
+out with the jacket's face attributes (`Face_Trim_Slimmer`, the modifier's own output
+attributes) as POINT attributes. Joined into the jacket, the same name on two domains made
+Join Geometry convert, and six jacket faces next to the trim picked up `is_trim` — a second
+Solidify Plus then solidified them.
+
+**How to apply:** before a sweep whose result is joined back, cut the source to the faces
+needed, capture the attributes the sweep reads (`crease_vert`, `crease_edge`,
+`sharp_edge`), Remove Named Attribute with Wildcard `*`, and store the captures back —
+anonymous captures survive the wildcard. A selection field read inside the sweep needs its
+attribute, so delete unselected faces first (Delete Geometry, FACE / ALL, keeps the vertex
+order a CurveFromSurface object would see).
+
 <a id="gn_small_node_facts"></a>
 
 ## Small node facts
@@ -196,4 +222,17 @@ it. Order cleanup passes islands → faces → edges (EDGE_FACE keeps verts) →
   checkerboard needs two selective Triangulate passes.
 - An existing NODES modifier keeps the input values it captured — interface `default_value`
   changes reach only newly added modifiers.
+- Remove Named Attribute with the name `""` removes nothing: a String Switch on its Name
+  replaces a Geometry Switch around it (one wire fewer — it cleared an R12 collinear pair).
+- A closed curve's minimum-twist normals depend on its first point, i.e. on vertex order: the
+  same border swept from a mesh with a different vertex order (a modifier earlier in the
+  stack renumbers) comes out with its profile rotated.
+- Merge by Distance `Connected` only merges vertices joined by an edge — split seams (Split
+  Edges) need `All` with a selection.
+- Do not weld a modifier's input to "fix" its topology. A modifier does not know how its input
+  was built: GN_SolidifyPlus once welded the selected faces (Merge by Distance All) before
+  sweeping the trim, assuming the jacket's split seams had to be closed, and it broke the
+  jacket's trim. Trim Weld Distance is now 0 = off by default; the jacket uses 0. A face-count
+  mismatch against a reference object is not proof that the input needs merging — look at the
+  result before adding a merge.
 
