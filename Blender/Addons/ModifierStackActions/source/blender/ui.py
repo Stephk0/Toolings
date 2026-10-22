@@ -2,6 +2,7 @@
 
 import bpy
 
+from ..core import stack
 from . import clipboard, insert, operators, properties
 
 
@@ -51,21 +52,46 @@ def draw_button_context_menu(self, context):
         _target(op, obj, mod)
         op.ask_name = True
 
+    index = obj.modifiers.find(mod.name)
+    col = layout.column()
+    col.enabled = index > 0
+    col.operator_context = 'INVOKE_DEFAULT'  # shared data asks before applying
+    _target(col.operator(operators.OBJECT_OT_modifier_apply_above.bl_idname,
+                         icon='CHECKMARK'), obj, mod)
+
     layout.separator()
     insert.draw_menu_entries(layout, obj, mod)
     layout.separator()
     clipboard.draw_menu_entries(layout, obj, mod)
     layout.separator()
 
-    index = obj.modifiers.find(mod.name)
-    for position, text, icon, enabled in (
-        ('FIRST', "Move to First", 'TRIA_UP_BAR', index > 0),
-        ('UP', "Move Up", 'TRIA_UP', index > 0),
-        ('DOWN', "Move Down", 'TRIA_DOWN', index < len(obj.modifiers) - 1),
-        ('LAST', "Move to Last", 'TRIA_DOWN_BAR', index < len(obj.modifiers) - 1),
-    ):
+    pinned = operators.pin_flags(obj.modifiers)
+    if not any(pinned):
+        entries = (
+            ('FIRST', "Move to First", 'TRIA_UP_BAR'),
+            ('UP', "Move Up", 'TRIA_UP'),
+            ('DOWN', "Move Down", 'TRIA_DOWN'),
+            ('LAST', "Move to Last", 'TRIA_DOWN_BAR'),
+        )
+    elif pinned[index]:
+        entries = (
+            ('FIRST', "Move to First (Unpin)", 'TRIA_UP_BAR'),
+            ('UP', "Move Up", 'TRIA_UP'),
+            ('DOWN', "Move Down", 'TRIA_DOWN'),
+            ('BEFORE_PINNED', "Move Before Pinned (Unpin)", 'UNPINNED'),
+            ('LAST', "Move to Last", 'TRIA_DOWN_BAR'),
+        )
+    else:
+        entries = (
+            ('FIRST', "Move to First", 'TRIA_UP_BAR'),
+            ('UP', "Move Up", 'TRIA_UP'),
+            ('DOWN', "Move Down", 'TRIA_DOWN'),
+            ('LAST', "Move to Last (Before Pinned)", 'TRIA_DOWN_BAR'),
+            ('AFTER_PINNED', "Move After Pinned (Pin)", 'PINNED'),
+        )
+    for position, text, icon in entries:
         row = layout.row()
-        row.enabled = enabled
+        row.enabled = stack.move_changes(pinned, index, position)
         op = row.operator(operators.OBJECT_OT_modifier_stack_move.bl_idname, text=text, icon=icon)
         _target(op, obj, mod)
         op.position = position

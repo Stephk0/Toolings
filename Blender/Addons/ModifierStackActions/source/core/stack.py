@@ -60,6 +60,20 @@ def extract_plan(visible, index):
     return changes
 
 
+def apply_plan(visible, index):
+    """``(apply, skip)``: indices above ``index`` to apply top to bottom, and the
+    switched-off ones to leave in place.
+
+    Blender applies a modifier even when it is off in the viewport, which would
+    bake in something the stack doesn't show, so those are skipped.
+    """
+    if not 0 <= index < len(visible):
+        raise IndexError(f"modifier index {index} out of range ({len(visible)})")
+    apply = [i for i in range(index) if visible[i]]
+    skip = [i for i in range(index) if not visible[i]]
+    return apply, skip
+
+
 def extract_name(object_name, modifier_name):
     """Name for the extracted object/mesh."""
     return f"{object_name}_{modifier_name}"
@@ -89,18 +103,58 @@ def find_added(before, after):
     return new[0] if len(new) == 1 else None
 
 
-def move_index(count, position, index=0):
-    """Target index for moving the modifier at ``index`` in a stack of ``count``.
+def insert_target(names, new, anchor, position):
+    """Final index for moving ``new`` directly ``'BEFORE'`` or ``'AFTER'`` ``anchor``.
 
-    ``position`` is ``'FIRST'``, ``'LAST'``, ``'UP'`` or ``'DOWN'``; UP / DOWN move one slot
-    and stay put at the ends.
+    ``names`` is the current stack, already holding ``new``.
     """
+    rest = [n for n in names if n != new]
+    return insert_index(rest.index(anchor), position)
+
+
+MOVE_POSITIONS = ('FIRST', 'LAST', 'UP', 'DOWN', 'BEFORE_PINNED', 'AFTER_PINNED')
+
+
+def move_plan(pinned, index, position):
+    """``(target index, new pin state or None)`` for moving the modifier at ``index``.
+
+    ``pinned`` holds each modifier's Pin to Last flag. Blender keeps pinned
+    modifiers as a block at the end of the stack and refuses (silently) any
+    move across that block, so plain moves stay inside the modifier's own
+    block. Crossing it changes the pin:
+
+    - ``'FIRST'`` on a pinned modifier unpins it and moves it to the top.
+    - ``'BEFORE_PINNED'`` unpins it and puts it right above the pinned block.
+    - ``'AFTER_PINNED'`` pins an unpinned modifier and puts it at the very end.
+
+    ``'LAST'`` on an unpinned modifier is the slot right above the pinned block.
+    UP / DOWN stay put at the ends of the block.
+    """
+    count = len(pinned)
+    if not 0 <= index < count:
+        raise IndexError(f"modifier index {index} out of range ({count})")
+    if position not in MOVE_POSITIONS:
+        raise ValueError(f"position must be one of {MOVE_POSITIONS}, not {position!r}")
+    first_pinned = count - sum(1 for p in pinned if p)
+    is_pinned = bool(pinned[index])
+    low, high = (first_pinned, count - 1) if is_pinned else (0, first_pinned - 1)
+
     if position == 'FIRST':
-        return 0
+        return (0, False) if is_pinned else (0, None)
     if position == 'LAST':
-        return count - 1
+        return high, None
     if position == 'UP':
-        return max(index - 1, 0)
+        return max(index - 1, low), None
     if position == 'DOWN':
-        return min(index + 1, count - 1)
-    raise ValueError(f"position must be 'FIRST', 'LAST', 'UP' or 'DOWN', not {position!r}")
+        return min(index + 1, high), None
+    if position == 'BEFORE_PINNED':
+        # Unpinning grows the unpinned block by one; its last slot is first_pinned.
+        return (first_pinned, False) if is_pinned else (high, None)
+    # AFTER_PINNED
+    return (count - 1, None) if is_pinned else (count - 1, True)
+
+
+def move_changes(pinned, index, position):
+    """True when :func:`move_plan` would change anything (used to grey out menu entries)."""
+    target, pin = move_plan(pinned, index, position)
+    return target != index or pin is not None

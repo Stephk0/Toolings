@@ -1,5 +1,20 @@
 # Changelog — Modifier Stack Actions
 
+## 1.2.0 — 2026-10-22
+
+- **Fix:** **Move to Last** (and Move Down) did nothing, without a warning, when the stack had
+  modifiers with **Pin to Last** on. It now stops right above the pinned modifiers, and the
+  entries name that: **Move to Last (Before Pinned)**.
+- **New:** **Move After Pinned (Pin)** on a normal modifier and **Move Before Pinned (Unpin)** /
+  **Move to First (Unpin)** on a pinned one, shown when the stack has pinned modifiers.
+- **New:** **Duplicate Modifier** in the right-click menu: a copy directly below the modifier.
+- **New:** **Apply Modifiers Above**: applies every modifier above the clicked one into the
+  mesh, top to bottom. Switched-off modifiers are skipped and kept; shared meshes ask to be
+  made single user first.
+- **Fix:** Add Modifier Before / After and Paste Before / After next to a pinned modifier left
+  the new modifier at the end of its block; it now takes the anchor's pin setting and lands
+  next to it.
+
 ## 1.1.0 — 2026-10-21
 
 - **New:** **Move Up / Move Down** in the right-click menu, next to Move to First / Last.

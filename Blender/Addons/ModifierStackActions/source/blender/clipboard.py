@@ -1,4 +1,4 @@
-"""Copy Modifier / Paste Modifier Before / After.
+"""Copy Modifier / Paste Modifier Before / After / Duplicate Modifier.
 
 The clipboard holds a reference (object name + modifier name), not a snapshot:
 the paste copies the modifier as it is at paste time. Blender does the copy
@@ -13,7 +13,7 @@ from bpy.props import EnumProperty
 
 from ..core import stack
 from . import insert
-from .operators import _Target, resolve
+from .operators import _Target, move_to, resolve
 
 _clipboard = {"object": "", "modifier": ""}
 
@@ -106,21 +106,49 @@ class OBJECT_OT_modifier_stack_paste(_Target, bpy.types.Operator):
             return {'CANCELLED'}
 
         if anchor is not None:
-            # Park the copy at the end (modifier_copy puts it after its source),
-            # then insert it next to the anchor.
-            mods.move(mods.find(new), len(mods) - 1)
-            target = stack.insert_index(mods.find(anchor), self.position)
-            try:
-                mods.move(len(mods) - 1, target)
-            except RuntimeError as exc:
-                self.report({'WARNING'}, "Pasted at the end: "
-                            + str(exc).strip().removeprefix("Error: "))
+            # Match the anchor's Pin to Last, else Blender won't let the copy
+            # sit next to it (pinned modifiers stay a block at the end).
+            mods[new].use_pin_to_last = mods[anchor].use_pin_to_last
+            target = stack.insert_target([m.name for m in mods], new, anchor, self.position)
+            if not move_to(mods, new, target):
+                self.report({'WARNING'}, f"Couldn't move '{new}' next to '{anchor}'")
+        mods.active = mods[new]
+        return {'FINISHED'}
+
+
+class OBJECT_OT_modifier_stack_duplicate(_Target, bpy.types.Operator):
+    """Duplicate this modifier with all its settings, directly below it"""
+
+    bl_idname = "object.modifier_stack_duplicate"
+    bl_label = "Duplicate Modifier"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        obj, idx = resolve(context, self.object_name, self.modifier_name)
+        if idx < 0:
+            self.report({'WARNING'}, "No modifier to duplicate")
+            return {'CANCELLED'}
+        # A pending Add Before/After would grab the copy as its insert.
+        insert.disarm()
+        mods = obj.modifiers
+        src = mods[idx].name
+        before = [m.name for m in mods]
+        with context.temp_override(object=obj, active_object=obj):
+            bpy.ops.object.modifier_copy(modifier=src)
+        new = stack.find_added(before, [m.name for m in mods])
+        if new is None:
+            self.report({'WARNING'}, f"Couldn't duplicate '{src}'")
+            return {'CANCELLED'}
+        # modifier_copy puts it right after the source (same pin); keep that explicit.
+        move_to(mods, new, stack.insert_target([m.name for m in mods], new, src, 'AFTER'))
         mods.active = mods[new]
         return {'FINISHED'}
 
 
 def draw_menu_entries(layout, obj, mod):
-    """Copy + Paste Before / After, for the modifier right-click menu."""
+    """Duplicate + Copy + Paste Before / After, for the modifier right-click menu."""
+    op = layout.operator(OBJECT_OT_modifier_stack_duplicate.bl_idname, icon='COPY_ID')
+    op.object_name, op.modifier_name = obj.name, mod.name
     op = layout.operator(OBJECT_OT_modifier_stack_copy.bl_idname, icon='COPYDOWN')
     op.object_name, op.modifier_name = obj.name, mod.name
     _src_obj, src_mod = copied()
@@ -133,6 +161,7 @@ def draw_menu_entries(layout, obj, mod):
 
 
 classes = (
+    OBJECT_OT_modifier_stack_duplicate,
     OBJECT_OT_modifier_stack_copy,
     OBJECT_OT_modifier_stack_paste,
 )

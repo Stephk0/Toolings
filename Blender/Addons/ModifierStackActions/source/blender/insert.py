@@ -66,12 +66,18 @@ def _on_depsgraph_update(_scene, _depsgraph):
     added = stack.find_added(pending["names"], names)
     if added is None or pending["anchor"] not in names:
         return
-    target = stack.insert_index(names.index(pending["anchor"]), pending["position"])
-    source = names.index(added)
-    if source == target:
+    mods = obj.modifiers
+    # Match the anchor's Pin to Last, else Blender won't let the new modifier
+    # sit next to it (pinned modifiers stay a block at the end).
+    pin = mods[pending["anchor"]].use_pin_to_last
+    if mods[added].use_pin_to_last != pin:
+        mods[added].use_pin_to_last = pin
+    names = [m.name for m in mods]
+    target = stack.insert_target(names, added, pending["anchor"], pending["position"])
+    if names.index(added) == target:
         return
-    obj.modifiers.move(source, target)
-    obj.modifiers.active = obj.modifiers[added]
+    mods.move(names.index(added), target)
+    mods.active = mods[added]
     # The add operator already pushed its undo step with the modifier at the
     # end; record the moved state too, so undo/redo never lands in between.
     if not bpy.app.background:

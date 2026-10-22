@@ -1,10 +1,10 @@
 # Modifier Stack Actions
 
-**Version:** 1.1.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Object
+**Version:** 1.2.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Object
 
 Right-click any modifier in the Modifier Properties to see or grab the stack as it is at
-that modifier without touching the modifiers yourself, to add or paste a modifier right
-before or after it, or to move it up, down, to the top or to the bottom of the stack.
+that modifier without touching the modifiers yourself, to apply everything above it, to add, paste or duplicate a modifier
+right before or after it, or to move it up, down, to the top or to the bottom of the stack.
 
 ![Demo: Show Up To Here, Extract As, Add Modifier After, Move to Last](assets/demo/modifier_stack_actions_demo.gif)
 
@@ -13,7 +13,7 @@ Full-resolution video: [assets/demo/modifier_stack_actions_demo.mp4](assets/demo
 
 ## Installation
 
-1. Grab `distribution/ModifierStackActions_v1.1.0.zip`
+1. Grab `distribution/ModifierStackActions_v1.2.0.zip`
 2. Drag the zip into the Blender window (or `Edit > Preferences > Add-ons > Install from Disk...`)
 3. Enable **Modifier Stack Actions**
 
@@ -59,6 +59,23 @@ stack, extracting at Subdivision gives you one smooth, mirrored mesh without the
 
 ![Extract Up To Here As... dialog with the default name selected](assets/extract_dialog.png)
 
+### Apply Modifiers Above
+
+Applies every modifier **above** the clicked one into the mesh, one by one from the top. The
+clicked modifier and everything below it stay as live modifiers. Example: on a Mirror →
+Subdivision → Bevel → Array stack, Apply Modifiers Above on Bevel bakes Mirror and Subdivision
+into the mesh and leaves Bevel → Array.
+
+- This changes the object itself. **Ctrl+Z** undoes the whole apply in one step.
+- Modifiers switched off in the viewport are skipped and stay in the stack, so the mesh ends
+  up the way the viewport showed it.
+- A running **Show Up To Here** preview is restored first if it hid any of those modifiers.
+- If the mesh is shared with other objects, you are asked first: the object gets its own copy
+  of the mesh, the other objects keep the original.
+- If Blender can't apply one (shape keys, Edit Mode), it stops there and tells you which one;
+  the ones above it are already applied.
+- Greyed out on the first modifier.
+
 ### Add Modifier Before / After
 
 **Add Modifier Before** and **Add Modifier After** open Blender's regular Add Modifier menu
@@ -81,11 +98,29 @@ its settings (Geometry Nodes inputs included) lands right there.
 - The paste entries are greyed out until something is copied, and again if the copied
   modifier or its object is deleted. Opening another file clears the copy.
 
+### Duplicate Modifier
+
+**Duplicate Modifier** adds a copy with all its settings directly below the right-clicked
+modifier. A copy of a modifier pinned to last stays pinned.
+
 ### Move Up / Down, Move to First / Last
 
 **Move Up** and **Move Down** shift the right-clicked modifier one slot. **Move to First** and
 **Move to Last** send it to the top or bottom of the stack. Entries that would do nothing are
 greyed out.
+
+**Pinned modifiers.** Modifiers with **Pin to Last** on always stay together at the bottom of
+the stack, and nothing else can move below them. When the stack has pinned modifiers, the move
+entries change to say where the modifier ends up:
+
+- On a normal modifier: **Move to Last (Before Pinned)** puts it right above the pinned ones.
+  **Move After Pinned (Pin)** pins it too and puts it at the very bottom.
+- On a pinned modifier: **Move Up / Down** and **Move to Last** move it among the pinned
+  ones. **Move Before Pinned (Unpin)** and **Move to First (Unpin)** switch Pin to Last off and
+  move it above the pinned ones or to the top.
+
+Add, Paste and Duplicate next to a pinned modifier give the new modifier the same pin setting,
+so it can sit right where you asked.
 
 ![Simple Deform added after Subdivision bends each copy; moved to last it bends the whole tower](assets/move_to_last.png)
 
@@ -102,5 +137,7 @@ Run from there, they use the active modifier.
   next modifier added from that submenu. If anything else changed the stack in between, it is
   added at the end as usual. Use **Move Up / Down**, **Move to First / Last** or drag it
   into place.
+- **Move to Last doesn't reach the bottom:** the stack has modifiers pinned to last. Use
+  **Move After Pinned (Pin)**, or turn off Pin to Last on the others.
 
 Developer notes: [source/DEVELOPMENT.md](source/DEVELOPMENT.md) · History: [source/CHANGELOG.md](source/CHANGELOG.md)

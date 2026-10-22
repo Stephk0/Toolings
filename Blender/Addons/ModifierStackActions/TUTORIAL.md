@@ -42,10 +42,12 @@ entries you get:
 | **Show Up To Here** | Hide everything after this modifier in the viewport |
 | **Extract Up To Here** | New object from the stack up to this modifier |
 | **Extract Up To Here As...** | The same, with a name dialog first |
+| **Apply Modifiers Above** | Apply every modifier above this one into the mesh, top to bottom |
 | **Add Modifier Before ▸** / **After ▸** | Blender's Add Modifier menu, inserting next to this modifier |
+| **Duplicate Modifier** | Copy this modifier with all its settings, directly below it |
 | **Copy Modifier** | Remember this modifier for pasting |
 | **Paste '<name>' Before** / **After** | Paste a copy of the copied modifier next to this one |
-| **Move to First** / **Move Up** / **Move Down** / **Move to Last** | Shift this modifier one slot, or send it to the top or bottom |
+| **Move to First** / **Move Up** / **Move Down** / **Move to Last** | Shift this modifier one slot, or send it to the top or bottom. With pinned modifiers in the stack, extra **Move After Pinned** / **Move Before Pinned** entries pin or unpin it |
 
 ## 4. Show Up To Here
 

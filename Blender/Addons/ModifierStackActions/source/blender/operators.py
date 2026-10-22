@@ -1,10 +1,10 @@
-"""Show Up To Here / Restore / Extract Up To Here operators."""
+"""Show Up To Here / Restore / Extract Up To Here / Apply Above / Move operators."""
 
 import bpy
 from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core import stack
-from . import properties
+from . import insert, properties
 
 EXTRACT_TYPES = {'MESH', 'CURVE', 'SURFACE', 'FONT'}
 
@@ -185,8 +185,100 @@ class OBJECT_OT_modifier_extract_up_to_here(_Target, bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OBJECT_OT_modifier_apply_above(_Target, bpy.types.Operator):
+    """Apply every modifier above this one into the mesh, top to bottom.
+    This modifier and the ones below it stay"""
+
+    bl_idname = "object.modifier_apply_above"
+    bl_label = "Apply Modifiers Above"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    single_user: BoolProperty(
+        name="Make Single User",
+        description="The object data is shared with other objects: give this object its own "
+                    "copy before applying, the others keep the original",
+        options={'SKIP_SAVE'},
+    )
+
+    def invoke(self, context, event):
+        obj, idx = resolve(context, self.object_name, self.modifier_name)
+        data = getattr(obj, "data", None) if idx >= 0 else None
+        if data is not None and data.users > 1 and not self.single_user:
+            # Same question as Blender's own Apply on shared data.
+            self.single_user = True
+            return context.window_manager.invoke_confirm(
+                self, event, title="Apply Modifiers Above",
+                message=f"'{data.name}' is used by {data.users} objects. "
+                        "Make it single user and apply?",
+                confirm_text="Make Single User and Apply")
+        return self.execute(context)
+
+    def execute(self, context):
+        obj, idx = resolve(context, self.object_name, self.modifier_name)
+        if idx < 0:
+            self.report({'WARNING'}, "No modifier to apply up to")
+            return {'CANCELLED'}
+        mods = obj.modifiers
+        target = mods[idx].name
+
+        # A Show Up To Here preview hid these; applying would skip them as off.
+        state = properties.get_state(obj)
+        if state is not None and set(state["hidden"]) & {m.name for m in mods[:idx]}:
+            restore_stack(obj)
+
+        apply, skip = stack.apply_plan([m.show_viewport for m in mods], idx)
+        if not apply:
+            self.report({'INFO'}, f"Nothing to apply above '{target}'")
+            return {'CANCELLED'}
+        # A pending Add Before/After would take the stack change for its insert.
+        insert.disarm()
+        names = [mods[i].name for i in apply]
+        applied = 0
+        error = ""
+        with context.temp_override(object=obj, active_object=obj):
+            for name in names:
+                try:
+                    bpy.ops.object.modifier_apply(modifier=name, single_user=self.single_user)
+                except RuntimeError as exc:
+                    error = f"'{name}': " + str(exc).strip().removeprefix("Error: ")
+                    break
+                applied += 1
+
+        if target in mods:
+            mods.active = mods[target]
+        if not applied:
+            self.report({'WARNING'}, f"Couldn't apply {error}")
+            return {'CANCELLED'}
+        msg = f"Applied {applied} modifier(s) above '{target}'"
+        if skip:
+            msg += f", left {len(skip)} switched-off one(s) in place"
+        if error:
+            self.report({'WARNING'}, f"{msg}; stopped at {error}")
+        else:
+            self.report({'INFO'}, msg)
+        return {'FINISHED'}
+
+
+def pin_flags(mods):
+    """Pin to Last flag of every modifier, in stack order."""
+    return [m.use_pin_to_last for m in mods]
+
+
+def move_to(mods, name, target):
+    """Move modifier ``name`` to ``target``. False when Blender didn't move it.
+
+    ``ObjectModifiers.move`` does nothing, without an error, for a move across
+    the pinned block.
+    """
+    source = mods.find(name)
+    if source != target:
+        mods.move(source, target)
+    return mods.find(name) == target
+
+
 class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
-    """Move this modifier one slot up or down, or to the top or bottom of the stack"""
+    """Move this modifier one slot up or down, to the top or bottom of the stack,
+    or before or after the modifiers pinned to last"""
 
     bl_idname = "object.modifier_stack_move"
     bl_label = "Move Modifier"
@@ -199,6 +291,8 @@ class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
             ('LAST', "Last", "Move to the bottom of the stack"),
             ('UP', "Up", "Move one slot up the stack"),
             ('DOWN', "Down", "Move one slot down the stack"),
+            ('BEFORE_PINNED', "Before Pinned", "Unpin and move right above the pinned modifiers"),
+            ('AFTER_PINNED', "After Pinned", "Pin to last, below the pinned modifiers"),
         ),
         default='FIRST',
     )
@@ -206,10 +300,14 @@ class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
     @classmethod
     def description(cls, _context, props):
         return {
-            'FIRST': "Move this modifier to the top of the stack",
-            'LAST': "Move this modifier to the bottom of the stack",
+            'FIRST': "Move this modifier to the top of the stack. A pinned modifier is unpinned",
+            'LAST': "Move this modifier to the bottom of the stack, above any modifiers "
+                    "pinned to last",
             'UP': "Move this modifier one slot up the stack",
             'DOWN': "Move this modifier one slot down the stack",
+            'BEFORE_PINNED': "Unpin this modifier and move it right above the modifiers "
+                             "pinned to last",
+            'AFTER_PINNED': "Pin this modifier to last, below the modifiers already pinned",
         }[props.position]
 
     def execute(self, context):
@@ -218,17 +316,24 @@ class OBJECT_OT_modifier_stack_move(_Target, bpy.types.Operator):
             self.report({'WARNING'}, "No modifier to move")
             return {'CANCELLED'}
         mods = obj.modifiers
-        target = stack.move_index(len(mods), self.position, idx)
-        if idx == target:
+        target, pin = stack.move_plan(pin_flags(mods), idx, self.position)
+        if idx == target and pin is None:
             return {'CANCELLED'}
         name = mods[idx].name
+        if pin is not None:
+            # Blender re-slots it at the pinned-block boundary; move_to places it.
+            mods[name].use_pin_to_last = pin
         try:
-            # Same rules as the header menu's Move to First/Last; Blender raises
-            # when a move is not allowed.
-            mods.move(idx, target)
+            # Blender raises for some moves it refuses and silently ignores others.
+            moved = move_to(mods, name, target)
         except RuntimeError as exc:
             self.report({'WARNING'}, str(exc).strip().removeprefix("Error: "))
-            return {'CANCELLED'}
+            moved = False
+        if not moved:
+            if pin is None:
+                self.report({'WARNING'}, f"Blender didn't allow moving '{name}' there")
+                return {'CANCELLED'}
+            self.report({'WARNING'}, f"'{name}' was re-pinned but couldn't be moved")
         mods.active = mods[name]
         return {'FINISHED'}
 
@@ -237,6 +342,7 @@ classes = (
     OBJECT_OT_modifier_up_to_here,
     OBJECT_OT_modifier_up_to_here_restore,
     OBJECT_OT_modifier_extract_up_to_here,
+    OBJECT_OT_modifier_apply_above,
     OBJECT_OT_modifier_stack_move,
 )
 
