@@ -144,7 +144,7 @@ remapped onto a new empty slot (GN_QuadCap: index 1 came out 0, and -1/0 came ou
   material slots or index checks read the clamp.
 - Join Geometry builds the result's slot list in input order (deduplicated), and the input
   linked LAST sits on top of the multi-input, so it comes first. A generated part joined on
-  top renumbers the *main* mesh's indices — GN_SolidifyPlus's trim moved the jacket's index 1
+  top renumbers the *main* mesh's indices — GN_SolidifyExtended's trim moved the jacket's index 1
   to 2, and a later `GN_ExtrudeFace` (select by material index 1) then extruded the trim.
   Link the generated part first so the main mesh stays first, and set its material after
   the join.
@@ -190,11 +190,11 @@ it. Order cleanup passes islands → faces → edges (EDGE_FACE keeps verts) →
 
 *Mesh to Curve → Curve to Mesh carries every source attribute onto the swept mesh — on the POINT domain — and joining it back smears the main mesh's face attributes*
 
-GN_SolidifyPlus's trim is GN_CurveFromSurface run on the selected faces. The swept trim came
+GN_SolidifyExtended's trim is GN_CurveFromSurface run on the selected faces. The swept trim came
 out with the jacket's face attributes (`Face_Trim_Slimmer`, the modifier's own output
 attributes) as POINT attributes. Joined into the jacket, the same name on two domains made
 Join Geometry convert, and six jacket faces next to the trim picked up `is_trim` — a second
-Solidify Plus then solidified them.
+Solidify Extended then solidified them.
 
 **How to apply:** before a sweep whose result is joined back, cut the source to the faces
 needed, capture the attributes the sweep reads (`crease_vert`, `crease_edge`,
@@ -230,7 +230,7 @@ order a CurveFromSurface object would see).
 - Merge by Distance `Connected` only merges vertices joined by an edge — split seams (Split
   Edges) need `All` with a selection.
 - Do not weld a modifier's input to "fix" its topology. A modifier does not know how its input
-  was built: GN_SolidifyPlus once welded the selected faces (Merge by Distance All) before
+  was built: GN_SolidifyExtended once welded the selected faces (Merge by Distance All) before
   sweeping the trim, assuming the jacket's split seams had to be closed, and it broke the
   jacket's trim. Trim Weld Distance is now 0 = off by default; the jacket uses 0. A face-count
   mismatch against a reference object is not proof that the input needs merging — look at the

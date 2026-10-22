@@ -101,8 +101,8 @@ Special cases (rollout: `_build/patch_gn_selection_gate_special.py`):
   other inputs moved into `Source` and `Mask` panels. Rollout: `_build/patch_gn_selection_gate_new.py`
   (also `GN_InsetFaces`, whose bare `Selection` is read on FACE; its `Offset` went into an
   `Inset` panel).
-- `GN_SolidifyPlus` got the material trio and panel through the v2 rollout; its builder
-  (`build_gn_solidify_plus.py`) now emits them too.
+- `GN_SolidifyExtended` got the material trio and panel through the v2 rollout; its builder
+  (`build_gn_solidify_extended.py`) now emits them too.
 - Not on the gate, on purpose: `GN_GrowSelection` (a selection utility — it outputs a grown
   selection and has its own domain-aware grow; a gate in front would duplicate it) and
   `GN_MaterialOverride` (`On` / `Invert` is a whole-object switch, not a selection). Tools with
@@ -116,7 +116,7 @@ Modifiers with the pair: `GN_Inflate`, `GN_Twist`, `GN_Taper`, `GN_Stretch`, `GN
 `GN_SimpleTransformMesh`, `GN_Triangulate`, `GN_PointsToSpheres`, `GN_Scatter`, `GN_Mosaic`,
 `GN_FlipFaces`, `GN_SetMaterial`, `GN_Weld`, `GN_ExtrudeFace`, `GN_MirrorGroup`,
 `GN_AmbientOcclusion`, `GN_VertexDataComposer`, `GN_AttributeTransfer`, `GN_QuadCap`,
-`GN_SolidifyPlus`, `GN_InsetFaces` — plus
+`GN_SolidifyExtended`, `GN_InsetFaces` — plus
 `GN_Delete` and `GN_SetAttribute`, which already had one.
 
 Nine gained the whole gate (a `Selection` defaulting to on, plus its invert) where they

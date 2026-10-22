@@ -48,7 +48,7 @@ the layout and interface rules are `Blender/Addons/LLMGeonodePipeline/GEONODE_CR
     is connected) before and after, and judge them by eye. Vertex / face counts and distances
     are not enough: a reference built as a separate object has different topology from the
     same feature inside the modifier stack, so counts differ even when the result is right
-    (GN_SolidifyPlus's trim: 1720 vs 288 faces, and welding to "fix" that broke the trim).
+    (GN_SolidifyExtended's trim: 1720 vs 288 faces, and welding to "fix" that broke the trim).
 
 **How to apply:** follow the steps in order. Once a file has been tidied or holds user test
 objects, change it with a metadata-only or patch script (`_build/publish_gn_mosaic.py`,
