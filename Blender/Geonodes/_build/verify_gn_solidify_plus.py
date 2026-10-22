@@ -177,6 +177,90 @@ def mats(set_mode):
 check(mats(False) == [(1, 16), (2, 16), (3, 16)], f"offset mode adds {mats(False)}")
 check(mats(True) == [(1, 32), (2, 16)], f"Set Material Index sets {mats(True)}")
 
+print("== sharp edges")
+def n_sharp(me):
+    at = me.attributes.get("sharp_edge")
+    return sum(1 for d in at.data if d.value) if at else None
+check(n_sharp(run('flat', {})) is None, "defaults add no sharp_edge attribute")
+check(n_sharp(run('flat', {"Outer Sharp": True})) == 16, "Outer Sharp marks the 16 border edges")
+check(n_sharp(run('flat', {"Rim Sharp": True, "Rim Sharp By": 0})) == 16,
+      "Rim Sharp (All) marks the 16 rim edges")
+
+# flat 2 x 2 m grid, UV = xy / 2 + 0.5 (0.5 UV per metre), shell 0.1 behind the surface
+def with_uv(md):
+    me = md.id_data.data
+    uv = me.uv_layers.new(name="UVMap")
+    for lp in me.loops:
+        co = me.vertices[lp.vertex_index].co
+        uv.data[lp.index].uv = (co.x * 0.5 + 0.5, co.y * 0.5 + 0.5)
+SHELL = {"Thickness": 0.1, "Offset": -1.0}
+
+def rim_corners(me):
+    out = []
+    uv = me.uv_layers["UVMap"].data
+    for p in me.polygons:
+        if abs(p.normal.z) < 0.5:
+            for li in p.loop_indices:
+                out.append((me.vertices[me.loops[li].vertex_index].co.copy(), uv[li].uv.copy(), p))
+    return out
+
+print("== rim UVs")
+me = run('flat', dict(SHELL, **{"Rim UVs": 1}), extra=with_uv)
+rc = rim_corners(me)
+outside = lambda u: max(u.x - 1, -u.x, u.y - 1, -u.y, 0.0)
+check(len(rc) == 64 and all(abs(outside(u) - (-co.z) * 0.5) < 1e-4 for co, u, _ in rc),
+      "Expand: rim continues the island outward at its texel density (0.05 UV for 0.1 m)")
+me = run('flat', dict(SHELL, **{"Rim UVs": 1, "Expand Offset": 0.02}), extra=with_uv)
+check(all(abs(outside(u) - ((-co.z) * 0.5 + 0.02)) < 1e-4 for co, u, _ in rim_corners(me)),
+      "Expand Offset leaves a 0.02 UV gap")
+me = run('flat', dict(SHELL, **{"Rim UVs": 2}), extra=with_uv)
+rc = rim_corners(me)
+spans = {}
+for co, u, p in rc:
+    spans.setdefault(p.index, []).append(u.x)
+check(all(abs(u.y - (-co.z)) < 1e-4 for co, u, _ in rc)
+      and min(u.x for _, u, _ in rc) > -1e-4 and max(u.x for _, u, _ in rc) < 8 + 1e-4
+      and all(abs(max(s) - min(s) - 0.5) < 1e-4 for s in spans.values()),
+      "Strip: U = border length (0..8 m, 0.5 per face, closing face wrapped), V = depth")
+
+print("== fix normals")
+def shell_dev(me):
+    worst = 0.0
+    for p in me.polygons:
+        if abs(p.normal.z) > 0.5:
+            for li in p.loop_indices:
+                worst = max(worst, 1 - me.corner_normals[li].vector.dot(p.normal))
+    return worst
+def smooth(md):
+    for p in md.id_data.data.polygons: p.use_smooth = True
+check(shell_dev(run('flat', SHELL, extra=smooth)) > 1e-3,
+      "smooth shaded, without Fix Normals the rim bends the shell border")
+me = run('flat', dict(SHELL, **{"Fix Normals": True}), extra=smooth)
+rim_ok = all(abs(me.corner_normals[li].vector.z) < 1e-4
+             for p in me.polygons if abs(p.normal.z) < 0.5 for li in p.loop_indices)
+check(shell_dev(me) < 1e-5 and rim_ok, "Fix Normals: flat shells, rim shaded on its own")
+
+print("== trim")
+me = run('flat', {"Add Trim": True, "Trim Radius": 0.05})
+base = run('flat', {})
+check(len(me.polygons) > len(base.polygons) and no_nan(me), "Add Trim joins a trim")
+TRIM_OUT = next(it.identifier for it in NG.interface.items_tree
+                if it.item_type == 'SOCKET' and it.in_out == 'OUTPUT' and it.name == "Trim")
+def trim_z(weight):
+    def prep(md):
+        me_ = md.id_data.data
+        at = me_.attributes.new("w", 'FLOAT', 'POINT')
+        for d_ in at.data: d_.value = weight
+        md[TRIM_OUT + "_attribute_name"] = "trim"
+    me = run('flat', dict(SHELL, **{"Add Trim": True, "Trim Radius": 0.01}),
+             {"Thickness Weight": "w"}, extra=prep)
+    at = me.attributes["trim"]
+    vs = {v for p in me.polygons if at.data[p.index].value for v in p.vertices}
+    return sum(me.vertices[v].co.z for v in vs) / len(vs)
+z1, z5 = trim_z(1.0), trim_z(0.5)
+check(abs(z1 + 0.05) < 2e-3 and abs(z5 + 0.025) < 2e-3,
+      f"trim mid-rim follows the thickness weight (z {z1:.4f} at 1, {z5:.4f} at 0.5)")
+
 print(f"\n{len(FAILS)} failure(s)")
 sys.stdout.flush()
 os._exit(1 if FAILS else 0)

@@ -36,12 +36,12 @@ class SmartIsolatePreferences(bpy.types.AddonPreferences):
     keep_cameras: bpy.props.BoolProperty(
         name="Keep Cameras",
         description="Cameras stay visible in isolation",
-        default=False,
+        default=True,
     )
     keep_lights: bpy.props.BoolProperty(
         name="Keep Lights",
         description="Lights stay visible and keep lighting the isolated objects",
-        default=False,
+        default=True,
     )
     frame_selected: bpy.props.BoolProperty(
         name="Frame Selection",

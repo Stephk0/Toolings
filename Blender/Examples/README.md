@@ -15,7 +15,7 @@ part is a low-poly base mesh with a stack of ST3E modifiers (`GN_Delete`,
 | Collection | Contents |
 |---|---|
 | `Character/Head` | Head retopo, eyes, brows, hair curves. `Original_Sculpt` holds the ZBrush head that the retopo shrinkwraps to. The `Junk_*` collections are old sculpt passes |
-| `Character/Jacket` | Jacket, its trims, zipper, strings, eyelets, pins, and two design variants (`_VarA`, `_VarB`) placed beside the character |
+| `Character/Jacket` | Jacket, zipper, strings, eyelets, pins, and two design variants (`_VarA`, `_VarB`) placed beside the character. The jacket's piping is made by its two `GN_SolidifyPlus` modifiers (**Add Trim**); the separate trim objects that made it before (`SM_Char_Jacket_Trim`, `SM_Char_Jacket_PocketTrim`) are kept hidden for comparison |
 | `Character/Backpack` | Backpack, seams, zipper, straps |
 | `Character/Shoes` | Croc (with a studded copy), sneaker (hidden), shoe charm |
 | `Character/Body` | Legs / feet (one mesh, two modifier stacks) and the skinned arms |

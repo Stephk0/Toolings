@@ -43,6 +43,12 @@ the layout and interface rules are `Blender/Addons/LLMGeonodePipeline/GEONODE_CR
     [icon pipeline](asset-files.md#project_geonode_icon_pipeline)
 11. **Verify:** effect happens, identity at neutral parameters, no NaN, gizmo on/off vert count
     equal, a top-down render of the demo file. Delete throwaway `_*.py`.
+12. **Swapping or adding a modifier on a production asset:** take screenshots of the actual
+    viewport (live MCP `look`, or a headless Workbench render of the viewport stack when none
+    is connected) before and after, and judge them by eye. Vertex / face counts and distances
+    are not enough: a reference built as a separate object has different topology from the
+    same feature inside the modifier stack, so counts differ even when the result is right
+    (GN_SolidifyPlus's trim: 1720 vs 288 faces, and welding to "fix" that broke the trim).
 
 **How to apply:** follow the steps in order. Once a file has been tidied or holds user test
 objects, change it with a metadata-only or patch script (`_build/publish_gn_mosaic.py`,

@@ -68,7 +68,7 @@ Restart 3DS Max
 | Edit Mode Overlay | 1.1.0 | `N` Panel → Overlay |
 | Toggle Modifier Display | 1.3.0 | `D` / `Shift+D` in Edit Mode |
 | Modifier Stack Actions | 1.1.0 | Right-click a modifier (Properties → Modifiers) |
-| Smart Isolate | 1.0.0 | `Numpad /` or `/` in the 3D Viewport |
+| Smart Isolate | 1.0.1 | `Numpad /` or `/` in the 3D Viewport |
 | Smart Wireframe View | 1.0.0 | `Shift+Alt+Z` / `Ctrl+Shift+Alt+Z` |
 | **ST3E Geometry Nodes** | 53 mods | Add Modifier → **ST3E** ([library](Blender/Geonodes/README.md)) |
 

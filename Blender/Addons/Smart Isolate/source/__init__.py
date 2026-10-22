@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Smart Isolate",
     "author": "Stephan Viranyi",
-    "version": (1, 0, 0),
+    "version": (1, 0, 1),
     "blender": (4, 5, 0),
     "location": "3D Viewport > Numpad / (replaces Local View)",
     "description": (
