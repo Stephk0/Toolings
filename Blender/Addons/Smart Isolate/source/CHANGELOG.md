@@ -1,5 +1,10 @@
 # Changelog — Smart Isolate
 
+## 1.0.1 — 2026-10-22
+
+- **Changed:** Keep Cameras and Keep Lights are on by default. Existing
+  installs keep the value already saved in their preferences.
+
 ## 1.0.0 — 2026-10-20
 
 - First release. Port of the ST3E 3ds Max Smart Isolate, replacing Local View

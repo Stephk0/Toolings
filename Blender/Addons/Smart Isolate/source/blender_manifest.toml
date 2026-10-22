@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "smart_isolate"
-version = "1.0.0"
+version = "1.0.1"
 name = "Smart Isolate"
 tagline = "Local View that toggles, nests and can keep cameras and lights"
 maintainer = "Stephan Viranyi"

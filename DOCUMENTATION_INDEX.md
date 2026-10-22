@@ -81,7 +81,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 |------|-----|-------------|------|
 | **Edit Mode Overlay** | 1.1.0 | Enhanced edit-mode viewport feedback / text overlay | [README](Blender/Addons/Edit%20Mode%20Overlay/README.md) |
 | **Compositor Render Sets** | 2.0.0 | Multi-render-setup management for compositor workflows with batch rendering | [README](Blender/Addons/Compositor%20Render%20Sets/README.md) |
-| **Smart Isolate** | 1.0.0 | Local View replacement: toggles, nests deeper on a sub-selection, can keep cameras/lights (3ds Max Smart Isolate port) | [README](Blender/Addons/Smart%20Isolate/README.md) |
+| **Smart Isolate** | 1.0.1 | Local View replacement: toggles, nests deeper on a sub-selection, can keep cameras/lights (3ds Max Smart Isolate port) | [README](Blender/Addons/Smart%20Isolate/README.md) |
 | **Smart Wireframe View** | 1.0.0 | One hotkey cycles overlays off / overlays / overlays + wireframe (3ds Max WireframeEdgeFaceOff port) | [README](Blender/Addons/Smart%20Wireframe%20View/README.md) |
 
 ### Internal Tooling

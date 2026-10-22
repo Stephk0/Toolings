@@ -1,6 +1,6 @@
 # Smart Isolate
 
-**Version:** 1.0.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** 3D View
+**Version:** 1.0.1 · **Blender:** 4.5+ (built for 5.0) · **Category:** 3D View
 
 Local View that works like the ST3E Smart Isolate for 3ds Max. It takes over
 Blender's Local View keys (**Numpad /** and **/**), so you keep your muscle
@@ -27,8 +27,8 @@ leave isolation at once.
 | Nested Isolation | On | Selecting part of the isolated objects isolates deeper. Off: the new selection replaces the isolation, like 3ds Max. |
 | Same Selection | Step Back One Level | What pressing with an unchanged selection does. Or: Exit Isolation. |
 | Nothing Selected | Exit Isolation | What pressing with nothing selected does. Or: Step Back One Level. |
-| Keep Cameras | Off | Cameras stay visible while isolated. |
-| Keep Lights | Off | Lights stay visible and keep lighting the isolated objects in Material Preview and Rendered shading. |
+| Keep Cameras | On | Cameras stay visible while isolated. |
+| Keep Lights | On | Lights stay visible and keep lighting the isolated objects in Material Preview and Rendered shading. |
 | Frame Selection | Off | Zoom to the isolated objects when isolating. |
 | Keep View on Exit | On | Leaving isolation keeps your current view. Off: jump back to the view from before isolating (Blender's default). |
 | Header Indicator | On | Show the isolation level in the 3D Viewport header. |
