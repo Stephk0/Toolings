@@ -8,14 +8,14 @@ with Git LFS — run `git lfs pull` after cloning.
 A stylized character: jacket, backpack, crocs, head and hair, rigged with Rigify. Almost every
 part is a low-poly base mesh with a stack of ST3E modifiers (`GN_Delete`,
 `GN_SplitEdgeByAttribute`, `GN_ExtrudeFace`, `GN_InsetFaces`, `GN_CurveFromSurface`,
-`GN_SetAttribute`, `GN_AttributeTransfer`, …) followed by `GN_SolidifyPlus` (or Solidify) and Subdivision.
+`GN_SetAttribute`, `GN_AttributeTransfer`, …) followed by `GN_SolidifyExtended` (or Solidify) and Subdivision.
 
 ### Collections
 
 | Collection | Contents |
 |---|---|
 | `Character/Head` | Head retopo, eyes, brows, hair curves. `Original_Sculpt` holds the ZBrush head that the retopo shrinkwraps to. The `Junk_*` collections are old sculpt passes |
-| `Character/Jacket` | Jacket, zipper, strings, eyelets, pins, and two design variants (`_VarA`, `_VarB`) placed beside the character. The jacket's piping is made by its two `GN_SolidifyPlus` modifiers (**Add Trim**); the separate trim objects that made it before (`SM_Char_Jacket_Trim`, `SM_Char_Jacket_PocketTrim`) are kept hidden for comparison |
+| `Character/Jacket` | Jacket, zipper, strings, eyelets, pins, and two design variants (`_VarA`, `_VarB`) placed beside the character. The jacket's piping is made by its two `GN_SolidifyExtended` modifiers (**Add Trim**); the separate trim objects that made it before (`SM_Char_Jacket_Trim`, `SM_Char_Jacket_PocketTrim`) are kept hidden for comparison |
 | `Character/Backpack` | Backpack, seams, zipper, straps |
 | `Character/Shoes` | Croc (with a studded copy), sneaker (hidden), shoe charm |
 | `Character/Body` | Legs / feet (one mesh, two modifier stacks) and the skinned arms |

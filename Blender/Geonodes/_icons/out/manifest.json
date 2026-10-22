@@ -624,16 +624,16 @@
     "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_Solidify2.png"
   },
   {
-    "group": "GN_SolidifyPlus",
+    "group": "GN_SolidifyExtended",
     "catalog": "Generate",
-    "file": "GN_SolidifyPlus.blend",
+    "file": "GN_SolidifyExtended.blend",
     "expect": "topology",
     "effect_ok": true,
     "effect": "verts 389->986, polys 346->1004, hash changed",
     "cage": false,
     "ghost_wire": false,
     "ortho_scale": 3.587,
-    "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_SolidifyPlus.png"
+    "png": "D:\\Stephko_Tooling\\Toolings\\Blender\\Geonodes\\_icons\\out\\GN_SolidifyExtended.png"
   },
   {
     "group": "GN_SpawnObjectsAlong",

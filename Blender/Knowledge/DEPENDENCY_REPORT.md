@@ -3,7 +3,7 @@
 > Snapshot audit of the `.blend` files in `Blender/Geonodes/` for external dependencies
 > (linked libraries, images, fonts, sounds, caches), headless Blender 5.0, **2026-07-17**,
 > 59 files. Files added since (GN_AmbientOcclusion, GN_CurveFromSurface, GN_Mosaic,
-> GN_QuadCap, GN_SolidifyPlus, GN_TileableMeshNoise, GN_VertexDataComposer, …) were not
+> GN_QuadCap, GN_SolidifyExtended, GN_TileableMeshNoise, GN_VertexDataComposer, …) were not
 > scanned; GN_Spherify has been deleted.
 >
 > **Live check:** LibraryPublisher's `no_external_deps` criterion runs the same inspection

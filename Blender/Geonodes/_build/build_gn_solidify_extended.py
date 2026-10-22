@@ -1,13 +1,13 @@
-"""Build GN_SolidifyPlus.blend -- a Geometry Nodes MODIFIER that solidifies a surface like
+"""Build GN_SolidifyExtended.blend -- a Geometry Nodes MODIFIER that solidifies a surface like
 Blender's Solidify modifier, with the extras a production character mesh needs:
 
-  * rim loops (edge loops around the rim) and a rim shape (Push bulge, or a profile
-    curve that can also set the number of rim loops)
+  * rim segments (edge loops around the rim) and a rim contour (Rim Bulge, or a profile
+    curve that can also set the number of rim segments)
   * crease and bevel weight per edge group: inner border, outer border, rim loops and
     rim edges, where the rim edges can be picked by corner type, by angle, or by the
     input's VERTEX CREASE (a creased border vertex creases its rim edge -- the
     "vertex crease fix": the vertex creases are consumed, so they don't pinch the
-    subdivided result, unless Keep Vertex Crease is on)
+    subdivided result, unless Preserve Vertex Crease is on)
   * face selection (unselected faces pass through untouched), thickness weight (vertex
     group) with zero-weight factor, inset of the outer border, material offsets,
     custom thickness direction.
@@ -20,37 +20,37 @@ How it is built
 Topology first, positions last. The selected part S is copied twice (inner + outer
 shell); the rim is extruded off the inner shell's border edges (one Extrude Mesh per
 rim segment, zero offset), and its last ring is welded onto the outer shell's border
-by source-vertex index (GNG_SolidifyPlus_IndexWeld -- exact, never merges unrelated
+by source-vertex index (GNG_SolidifyExtended_IndexWeld -- exact, never merges unrelated
 vertices the way a distance merge would). Every vertex carries its source data
 (position, inner/outer offset, rim direction, layer k) as attributes, and ONE Set
 Position computes the final shape from them. Edge kinds (inner border / outer border /
 rim loop / rim edge) are tagged while building, so crease and bevel weight are a
-lookup (GNG_SolidifyPlus_EdgeWeight, used twice).
+lookup (GNG_SolidifyExtended_EdgeWeight, used twice).
 
 Run headless:
   "C:\\Program Files\\Blender Foundation\\Blender 5.0\\blender.exe" --background \
-      --factory-startup --python build_gn_solidify_plus.py
+      --factory-startup --python build_gn_solidify_extended.py
 """
 import bpy, bmesh, sys, os, math
 from mathutils import Matrix
 
 GEO  = r"D:\Stephko_Tooling\Toolings\Blender\Geonodes"
-NAME = "GN_SolidifyPlus"
+NAME = "GN_SolidifyExtended"
 PATH = os.path.join(GEO, NAME + ".blend")
 CAT  = "8872522f-45b7-4541-a557-5b69bcbfcee2"   # ST3E/Generate (adds geometry)
 
 sys.path.append(os.path.join(GEO, "_build"))
 import gng_selection_gate as gate
 
-W_NAME = "GNG_SolidifyPlus_IndexWeld"
-E_NAME = "GNG_SolidifyPlus_EdgeWeight"
-D_NAME = "GNG_SolidifyPlus_SourceData"
-R_NAME = "GNG_SolidifyPlus_Rim"
-P_NAME = "GNG_SolidifyPlus_Shape"
-X_NAME = "GNG_SolidifyPlus_SourceExtras"
-U_NAME = "GNG_SolidifyPlus_RimUV"
-N_NAME = "GNG_SolidifyPlus_FixNormals"
-S_NAME = "GNG_SolidifyPlus_TrimSurface"
+W_NAME = "GNG_SolidifyExtended_IndexWeld"
+E_NAME = "GNG_SolidifyExtended_EdgeWeight"
+D_NAME = "GNG_SolidifyExtended_SourceData"
+R_NAME = "GNG_SolidifyExtended_Rim"
+P_NAME = "GNG_SolidifyExtended_Shape"
+X_NAME = "GNG_SolidifyExtended_SourceExtras"
+U_NAME = "GNG_SolidifyExtended_RimUV"
+N_NAME = "GNG_SolidifyExtended_RimShading"
+S_NAME = "GNG_SolidifyExtended_TrimSurface"
 
 RIM_MODES = ["All", "Convex & Concave", "Convex", "Concave", "Angle Threshold",
              "Vertex Crease"]
@@ -61,18 +61,18 @@ A_P, A_LO, A_HI = "__sp_p", "__sp_lo", "__sp_hi"
 A_RD, A_MIT, A_TURN, A_NB = "__sp_rd", "__sp_mit", "__sp_turn", "__sp_nb"
 A_BND, A_SRC, A_K = "__sp_bnd", "__sp_src", "__sp_k"
 A_EK, A_FRONT, A_PART = "__sp_ek", "__sp_front", "__sp_part"
-A_CN, A_UVC = "__sp_cn", "__sp_uvc"                    # Fix Normals, Expand UVs
-A_ARC, A_LOOP, A_CI = "__sp_arc", "__sp_loop", "__sp_ci"  # Strip UVs
+A_CN, A_UVC = "__sp_cn", "__sp_uvc"                    # Separate Rim Shading, Extend UVs
+A_ARC, A_LOOP, A_CI = "__sp_arc", "__sp_loop", "__sp_ci"  # Unroll UVs
 A_SHARP = "__sp_sharp"
 A_TDEPTH = "__sp_tdepth"                 # trim depth between the shells, per vertex
-# kept on the output: a later GN_SolidifyPlus never selects an earlier one's trim (the
+# kept on the output: a later GN_SolidifyExtended never selects an earlier one's trim (the
 # trim carries the surface's attributes over, selection attributes included)
-A_TRIM_TAG = ".solidify_plus_trim"
+A_TRIM_TAG = ".solidify_extended_trim"
 # edge kinds (A_EK) and face parts (A_PART)
 EK_INNER, EK_OUTER, EK_LOOP, EK_RIM = 1, 2, 3, 4
 PART_INNER, PART_OUTER, PART_RIM, PART_TRIM = 1, 2, 3, 4
-UV_MODES = ["Off", "Expand", "Strip"]
-T_NAME = "GNG_SolidifyPlus_Trim"          # local copy of GN_CurveFromSurface
+UV_MODES = ["Off", "Extend", "Unroll"]
+T_NAME = "GNG_SolidifyExtended_Trim"          # local copy of GN_CurveFromSurface
 CFS_PATH = os.path.join(GEO, "GN_CurveFromSurface.blend")
 
 
@@ -300,10 +300,10 @@ def build_index_weld():
 # ============================================================================= HELPER: EDGE WEIGHT
 def build_edge_weight():
     """Write one edge weight attribute (crease_edge or bevel_weight_edge) from the edge
-    kinds GN_SolidifyPlus tagged: inner border, outer border, rim loop, rim edge --
+    kinds GN_SolidifyExtended tagged: inner border, outer border, rim loop, rim edge --
     rim edges filtered by the Rim Mode."""
     ng = fresh_group(E_NAME)
-    ng.description = ("GN_SolidifyPlus: write an edge weight (crease / bevel weight) on the "
+    ng.description = ("GN_SolidifyExtended: write an edge weight (crease / bevel weight) on the "
                       "inner border, outer border, rim loop and rim edges")
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry', desc="Solidified mesh")
@@ -311,7 +311,7 @@ def build_edge_weight():
                desc="Edge attribute to write, e.g. crease_edge or bevel_weight_edge")
     for nm, d in (("Inner Border", "Weight of the inner shell's border edges"),
                   ("Outer Border", "Weight of the outer shell's border edges"),
-                  ("Rim Loops", "Weight of the loops running around the rim"),
+                  ("Rim Segments", "Weight of the loops running around the rim"),
                   ("Rim Edges", "Weight of the edges running across the rim, picked by "
                                 "Rim Mode")):
         iface_sock(it, nm, 'INPUT', 'NodeSocketFloat', default=0.0, mn=0.0, mx=1.0,
@@ -348,7 +348,7 @@ def build_edge_weight():
                           label="Vertex Creased  (crease_vert > 0)"))
 
     # ---- value per kind
-    g2 = G.gi(F_val, "Inner Border", "Outer Border", "Rim Loops", "Rim Edges")
+    g2 = G.gi(F_val, "Inner Border", "Outer Border", "Rim Segments", "Rim Edges")
     kind = G.named('INT', A_EK, F_val)
     val = G.mk("GeometryNodeIndexSwitch", F_val, data_type='FLOAT', label="Weight By Kind")
     while len([s for s in val.inputs if s.name.isdigit()]) < 5:
@@ -356,7 +356,7 @@ def build_edge_weight():
     G.feed(val, "Index", kind)
     G.feed(val, "0", 0.0)
     G.feed(val, "1", (g2, "Inner Border")); G.feed(val, "2", (g2, "Outer Border"))
-    G.feed(val, "3", (g2, "Rim Loops")); G.feed(val, "4", (g2, "Rim Edges"))
+    G.feed(val, "3", (g2, "Rim Segments")); G.feed(val, "4", (g2, "Rim Edges"))
 
     is_border_or_loop = G.bmath('AND', G.cmp('INT', 'GREATER_EQUAL', kind, EK_INNER, F_val),
                                 G.cmp('INT', 'LESS_EQUAL', kind, EK_LOOP, F_val), F_val,
@@ -382,7 +382,7 @@ def build_source_data():
     direction, weighted inner/outer offsets, rim direction, mitre, corner turn,
     border flags and the source index."""
     ng = fresh_group(D_NAME)
-    ng.description = ("GN_SolidifyPlus: measure the source surface once -- thickness "
+    ng.description = ("GN_SolidifyExtended: measure the source surface once -- thickness "
                       "direction and offsets, rim direction, mitre, corner turn -- and store "
                       "it on the vertices and edges")
     it = ng.interface
@@ -526,14 +526,14 @@ def build_rim():
     rim segment, tagging each new layer (vertex layer k, loop / outer-border edges,
     rim faces). Positions are placed later from the stored source data."""
     ng = fresh_group(R_NAME)
-    ng.description = ("GN_SolidifyPlus: grow the rim off the inner shell's border, one "
+    ng.description = ("GN_SolidifyExtended: grow the rim off the inner shell's border, one "
                       "tagged edge extrusion per rim segment")
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry',
                desc="Inner shell with the source data stored")
     p = it.new_panel("Rim")
     iface_sock(it, "Segments", 'INPUT', 'NodeSocketInt', p, default=1, mn=1,
-               desc="Rim segments from shell to shell (Rim Loops + 1)", single=True)
+               desc="Rim segments from shell to shell (Rim Segments + 1)", single=True)
     iface_sock(it, "Extrusions", 'INPUT', 'NodeSocketInt', p, default=1, mn=0,
                desc="Segments to grow: Segments, or 0 for no rim", single=True)
     iface_sock(it, "Geometry", 'OUTPUT', 'NodeSocketGeometry',
@@ -583,9 +583,9 @@ def build_rim():
 def build_shape():
     """Place every vertex from its stored source data: inner -> outer offset by the rim
     parameter u, outer border inset, rim pushed out along the rim direction by the
-    Push bulge and the profile curve."""
+    Rim Bulge and the profile curve."""
     ng = fresh_group(P_NAME)
-    ng.description = ("GN_SolidifyPlus: place every vertex -- shell offsets, inset, push "
+    ng.description = ("GN_SolidifyExtended: place every vertex -- shell offsets, inset, push "
                       "and profile curve -- from the stored source data")
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry',
@@ -595,14 +595,14 @@ def build_shape():
                desc="Profile curve geometry, in its own local space")
     iface_sock(it, "Segments", 'INPUT', 'NodeSocketInt', p, default=1, mn=1,
                desc="Rim segments from shell to shell", single=True)
-    iface_sock(it, "Profile Sets Rim Loops", 'INPUT', 'NodeSocketBool', p, default=False,
+    iface_sock(it, "Segments From Profile", 'INPUT', 'NodeSocketBool', p, default=False,
                desc="Rim layer k sits on profile point k instead of at k / Segments")
-    p = it.new_panel("Rim Shape")
-    iface_sock(it, "Inset", 'INPUT', 'NodeSocketFloat', p, default=0.0, subtype='DISTANCE',
+    p = it.new_panel("Rim Contour")
+    iface_sock(it, "Border Inset", 'INPUT', 'NodeSocketFloat', p, default=0.0, subtype='DISTANCE',
                desc="Pull the outer border inward", single=True)
-    iface_sock(it, "Push", 'INPUT', 'NodeSocketFloat', p, default=0.0, subtype='DISTANCE',
+    iface_sock(it, "Rim Bulge", 'INPUT', 'NodeSocketFloat', p, default=0.0, subtype='DISTANCE',
                desc="Bulge the rim out at its middle", single=True)
-    iface_sock(it, "Even Rim Offset", 'INPUT', 'NodeSocketBool', p, default=True,
+    iface_sock(it, "Mitre Rim Corners", 'INPUT', 'NodeSocketBool', p, default=True,
                desc="Mitre push and profile at border corners")
     iface_sock(it, "Geometry", 'OUTPUT', 'NodeSocketGeometry', desc="Placed mesh")
     G = Graph(ng)
@@ -612,14 +612,14 @@ def build_shape():
     F_pos = G.frame("Final Position  (shell offsets, inset, push, profile)")
 
     # ---- profile points
-    g = gi(F_pts, "Profile", "Profile Sets Rim Loops")
+    g = gi(F_pts, "Profile", "Segments From Profile")
     c2p = mk("GeometryNodeCurveToPoints", F_pts, mode='EVALUATED', label="Profile Points")
     link(g, "Profile", c2p, "Curve")
     psize = mk("GeometryNodeAttributeDomainSize", F_pts, component='POINTCLOUD')
     link(c2p, "Points", psize, "Geometry")
     pcount = (psize, "Point Count")
     has_prof = G.cmp('INT', 'GREATER_EQUAL', pcount, 2, F_pts, label="Has Profile")
-    use_pts = G.bmath('AND', (g, "Profile Sets Rim Loops"), has_prof, F_pts,
+    use_pts = G.bmath('AND', (g, "Segments From Profile"), has_prof, F_pts,
                       label="Layer On Point")
 
     # ---- profile sample per vertex
@@ -654,14 +654,14 @@ def build_shape():
     v = G.switch('FLOAT', has_prof, 0.0, v_prof, F_prof, label="v")
 
     # ---- final position
-    g = gi(F_pos, "Geometry", "Inset", "Push", "Even Rim Offset")
+    g = gi(F_pos, "Geometry", "Border Inset", "Rim Bulge", "Mitre Rim Corners")
     P = G.named('FLOAT_VECTOR', A_P, F_pos)
     LO = G.named('FLOAT_VECTOR', A_LO, F_pos)
     HI = G.named('FLOAT_VECTOR', A_HI, F_pos)
     RD = G.named('FLOAT_VECTOR', A_RD, F_pos)
     MIT = G.named('FLOAT', A_MIT, F_pos)
     BND = G.named('BOOLEAN', A_BND, F_pos)
-    inset = G.vmath('SCALE', RD, G.fmath('MULTIPLY', G.fmath('MULTIPLY', MIT, (g, "Inset"),
+    inset = G.vmath('SCALE', RD, G.fmath('MULTIPLY', G.fmath('MULTIPLY', MIT, (g, "Border Inset"),
                     F_pos), G.fmath('MULTIPLY', BND, -1.0, F_pos), F_pos), F_pos,
                     label="Inset  (border only, mitred)")
     hi_in = G.vmath('ADD', HI, inset, F_pos, label="Outer + Inset")
@@ -672,9 +672,9 @@ def build_shape():
     bulge = G.fmath('MULTIPLY', G.fmath('MULTIPLY', 4.0, u, F_pos),
                     G.fmath('SUBTRACT', 1.0, u, F_pos), F_pos, label="4u(1-u)")
     out_amt = G.fmath('MULTIPLY_ADD', v, thick, F_pos,
-                      c=G.fmath('MULTIPLY', (g, "Push"), bulge, F_pos),
-                      label="Profile + Push")
-    rd_e = G.vmath('SCALE', RD, G.switch('FLOAT', (g, "Even Rim Offset"), 1.0, MIT, F_pos),
+                      c=G.fmath('MULTIPLY', (g, "Rim Bulge"), bulge, F_pos),
+                      label="Profile + Rim Bulge")
+    rd_e = G.vmath('SCALE', RD, G.switch('FLOAT', (g, "Mitre Rim Corners"), 1.0, MIT, F_pos),
                    F_pos, label="Rim Direction  (even?)")
     shape = G.vmath('SCALE', rd_e, G.fmath('MULTIPLY', out_amt, BND, F_pos), F_pos,
                     label="Rim Shape Offset")
@@ -689,12 +689,12 @@ def build_shape():
 
 # ============================================================================= HELPER: SOURCE EXTRAS
 def build_source_extras():
-    """Per-source data the later passes read: corner normals (Fix Normals), each face's
-    UV centre (Expand UVs: which side of a border edge the island lies on) and, per
-    border vertex, its arc length along its border loop (Strip UVs). Copies made later
+    """Per-source data the later passes read: corner normals (Separate Rim Shading), each face's
+    UV centre (Extend UVs: which side of a border edge the island lies on) and, per
+    border vertex, its arc length along its border loop (Unroll UVs). Copies made later
     -- shells and rim -- inherit all three."""
     ng = fresh_group(X_NAME)
-    ng.description = ("GN_SolidifyPlus: store corner normals, face UV centres and border "
+    ng.description = ("GN_SolidifyExtended: store corner normals, face UV centres and border "
                       "arc lengths on the source faces")
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry',
@@ -743,21 +743,21 @@ def build_rim_uv():
     """Write the rim faces' UVs, per corner. A rim corner's own UV is the island's UV
     at its source vertex (rim faces inherit it from the face they grow from); the
     corner of the same layer at the other source vertex gives the border edge in UV
-    space. Expand pushes the corner out across that edge, Strip lays every border
+    space. Extend pushes the corner out across that edge, Unroll lays every border
     loop out as a straight strip."""
     ng = fresh_group(U_NAME)
-    ng.description = "GN_SolidifyPlus: write the rim's UVs (Expand / Strip)"
+    ng.description = "GN_SolidifyExtended: write the rim's UVs (Extend / Unroll)"
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry', desc="Placed shells and rim")
     iface_sock(it, "Mode", 'INPUT', 'NodeSocketInt', default=0, mn=0, mx=2, single=True,
-               desc="0 Off, 1 Expand, 2 Strip")
+               desc="0 Off, 1 Extend, 2 Unroll")
     iface_sock(it, "UV Map", 'INPUT', 'NodeSocketString', default="UVMap", desc="UV map")
     iface_sock(it, "Rim UV Scale", 'INPUT', 'NodeSocketFloat', default=1.0, single=True,
-               desc="UV width scale (Expand) / UV per metre (Strip)")
-    iface_sock(it, "Expand Offset", 'INPUT', 'NodeSocketFloat', default=0.0, single=True,
-               desc="UV gap between island and rim (Expand)")
-    iface_sock(it, "Strip Position", 'INPUT', 'NodeSocketVector', single=True,
-               desc="UV origin of the strips (Strip)")
+               desc="UV width scale (Extend) / UV per metre (Unroll)")
+    iface_sock(it, "Extend Gap", 'INPUT', 'NodeSocketFloat', default=0.0, single=True,
+               desc="UV gap between island and rim (Extend)")
+    iface_sock(it, "Unroll Origin", 'INPUT', 'NodeSocketVector', single=True,
+               desc="UV origin of the strips (Unroll)")
     iface_sock(it, "Offset", 'INPUT', 'NodeSocketFloat', default=1.0, single=True,
                desc="Solidify Offset: picks the shell on the original surface")
     iface_sock(it, "Segments", 'INPUT', 'NodeSocketInt', default=1, mn=1, single=True,
@@ -766,8 +766,8 @@ def build_rim_uv():
     G = Graph(ng)
     link, feed, mk, gi = G.link, G.feed, G.mk, G.gi
     F_e = G.frame("Border Edge In UV  (this corner, other end of the same layer)")
-    F_x = G.frame("Expand  (out across the border, texel density kept)")
-    F_s = G.frame("Strip  (U along the border loop, V across the rim)")
+    F_x = G.frame("Extend  (out across the border, texel density kept)")
+    F_s = G.frame("Unroll  (U along the border loop, V across the rim)")
     F_w = G.frame("Write Rim UVs")
 
     # ---- border edge in UV space
@@ -801,7 +801,7 @@ def build_rim_uv():
     w_t = G.fmath('MULTIPLY', wthick, t, F_e, label="Width So Far  (m)")
 
     # ---- expand
-    g = gi(F_x, "Rim UV Scale", "Expand Offset")
+    g = gi(F_x, "Rim UV Scale", "Extend Gap")
     dx, dy, _ = G.sep(d, F_x)
     perp = mk("ShaderNodeCombineXYZ", F_x, label="Perpendicular  (UV)")
     feed(perp, "X", G.fmath('MULTIPLY', dy, -1.0, F_x)); feed(perp, "Y", dx)
@@ -816,11 +816,11 @@ def build_rim_uv():
                     G.fmath('MAXIMUM', G.vmath('DISTANCE', p_o, Pf, F_x), 1e-9, F_x), F_x,
                     label="Texel Density  (UV / m)")
     ex_amt = G.fmath('MULTIPLY_ADD', G.fmath('MULTIPLY', w_t, texel, F_x),
-                     (g, "Rim UV Scale"), F_x, c=(g, "Expand Offset"), label="Expand  (UV)")
-    uv_ex = G.vmath('ADD', uv, G.vmath('SCALE', outd, ex_amt, F_x), F_x, label="Expand UV")
+                     (g, "Rim UV Scale"), F_x, c=(g, "Extend Gap"), label="Extend  (UV)")
+    uv_ex = G.vmath('ADD', uv, G.vmath('SCALE', outd, ex_amt, F_x), F_x, label="Extend UV")
 
     # ---- strip
-    g = gi(F_s, "Geometry", "Rim UV Scale", "Strip Position")
+    g = gi(F_s, "Geometry", "Rim UV Scale", "Unroll Origin")
     arc = G.named('FLOAT', A_ARC, F_s)
     arc_o = G.at_index('CORNER', 'FLOAT', arc, other, F_s, label="Arc Other End")
     loop = G.named('FLOAT', A_LOOP, F_s)
@@ -835,19 +835,19 @@ def build_rim_uv():
     stat = mk("GeometryNodeAttributeStatistic", F_s, data_type='FLOAT', domain='POINT',
               label="Widest Rim")
     link(g, "Geometry", stat, "Geometry"); feed(stat, "Attribute", wthick)
-    row = G.fmath('MULTIPLY', (stat, "Max"), 1.25, F_s, label="Strip Row Height")
+    row = G.fmath('MULTIPLY', (stat, "Max"), 1.25, F_s, label="Unroll Row Height")
     sv = G.fmath('MULTIPLY_ADD', G.named('INT', A_CI, F_s), row, F_s, c=w_t,
                  label="V  (row + width so far)")
-    st_uv = mk("ShaderNodeCombineXYZ", F_s, label="Strip UV")
+    st_uv = mk("ShaderNodeCombineXYZ", F_s, label="Unroll UV")
     feed(st_uv, "X", arc_w); feed(st_uv, "Y", sv)
-    uv_st = G.vmath('ADD', (g, "Strip Position"),
+    uv_st = G.vmath('ADD', (g, "Unroll Origin"),
                     G.vmath('SCALE', (st_uv, "Vector"), (g, "Rim UV Scale"), F_s), F_s,
-                    label="Strip UV  (scaled, placed)")
+                    label="Unroll UV  (scaled, placed)")
 
     # ---- write
     g = gi(F_w, "Geometry", "Mode", "UV Map")
-    uv_new = G.switch('VECTOR', G.cmp('INT', 'EQUAL', (g, "Mode"), 2, F_w, label="Strip?"),
-                      uv_ex, uv_st, F_w, label="Expand / Strip")
+    uv_new = G.switch('VECTOR', G.cmp('INT', 'EQUAL', (g, "Mode"), 2, F_w, label="Unroll?"),
+                      uv_ex, uv_st, F_w, label="Extend / Unroll")
     is_rim_c = G.cmp('INT', 'EQUAL', G.named('INT', A_PART, F_w), PART_RIM, F_w,
                      label="Rim Face")
     st = mk("GeometryNodeStoreNamedAttribute", F_w, data_type='FLOAT2', domain='CORNER',
@@ -856,7 +856,7 @@ def build_rim_uv():
     feed(st, "Selection", is_rim_c); feed(st, "Value", uv_new)
     # Off writes nothing (no UV map is created on a mesh without one)
     out = G.switch('GEOMETRY', G.cmp('INT', 'GREATER_THAN', (g, "Mode"), 0, F_w, label="UVs On?"),
-                   (g, "Geometry"), (st, "Geometry"), F_w, label="Rim UVs?")
+                   (g, "Geometry"), (st, "Geometry"), F_w, label="Rim UV Layout?")
     go = mk("NodeGroupOutput", F_w)
     feed(go, "Geometry", out)
     return ng
@@ -867,11 +867,11 @@ def build_fix_normals():
     """Custom normals: shell corners keep the input surface's corner normal (negated
     on the flipped shell), rim corners get a normal averaged over rim faces only."""
     ng = fresh_group(N_NAME)
-    ng.description = ("GN_SolidifyPlus: custom normals -- shells keep the input's, the rim "
+    ng.description = ("GN_SolidifyExtended: custom normals -- shells keep the input's, the rim "
                       "is shaded on its own")
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry', desc="Placed shells and rim")
-    iface_sock(it, "Fix Normals", 'INPUT', 'NodeSocketBool', default=False,
+    iface_sock(it, "Separate Rim Shading", 'INPUT', 'NodeSocketBool', default=False,
                desc="Off passes the mesh through")
     iface_sock(it, "Geometry", 'OUTPUT', 'NodeSocketGeometry', desc="Mesh")
     G = Graph(ng)
@@ -893,13 +893,13 @@ def build_fix_normals():
     rim_n = G.vmath('NORMALIZE', G.on_domain('POINT', 'FLOAT_VECTOR', rim_face_n, F_r,
                                              label="Mean Over Rim Faces"), None, F_r,
                     label="Rim Vertex Normal")
-    g = gi(F_set, "Geometry", "Fix Normals")
+    g = gi(F_set, "Geometry", "Separate Rim Shading")
     cust = G.switch('VECTOR', is_rim, shell_n, rim_n, F_set, label="Custom Normal")
     smn = mk("GeometryNodeSetMeshNormal", F_set, mode='FREE', domain='CORNER',
              label="Set Custom Normals")
     link(g, "Geometry", smn, "Mesh")
     G.links.new(osock(*cust), next(s_ for s_ in smn.inputs if s_.enabled and s_.type == 'VECTOR'))
-    out = G.switch('GEOMETRY', (g, "Fix Normals"), (g, "Geometry"), (smn, "Mesh"), F_set,
+    out = G.switch('GEOMETRY', (g, "Separate Rim Shading"), (g, "Geometry"), (smn, "Mesh"), F_set,
                    label="Fix?")
     go = mk("NodeGroupOutput", F_set)
     feed(go, "Geometry", out)
@@ -914,7 +914,7 @@ def build_trim_surface():
     object), stripped to the attributes the sweep reads, plus the per-vertex depth
     between the shells (A_TDEPTH) for its Offset."""
     ng = fresh_group(S_NAME)
-    ng.description = ("GN_SolidifyPlus: the welded, cleaned selected surface the trim is "
+    ng.description = ("GN_SolidifyExtended: the welded, cleaned selected surface the trim is "
                       "swept from, with its depth between the shells")
     it = ng.interface
     iface_sock(it, "Geometry", 'INPUT', 'NodeSocketGeometry', desc="The modifier's input")
@@ -1028,7 +1028,7 @@ TRIM_MAP = [("Trim Offset", "Offset"), ("Trim Inset", "Inset"),
 
 
 def load_trim():
-    """Append GN_CurveFromSurface as the local helper GNG_SolidifyPlus_Trim (the folder
+    """Append GN_CurveFromSurface as the local helper GNG_SolidifyExtended_Trim (the folder
     convention: a tool file holds its own copy of what it uses). Rebuilding picks up
     the current GN_CurveFromSurface."""
     with bpy.data.libraries.load(CFS_PATH, link=False) as (src, dst):
@@ -1043,7 +1043,7 @@ def load_trim():
     ng.name = T_NAME
     ng.asset_clear()
     ng.is_modifier = False
-    ng.description = ("GN_SolidifyPlus: local copy of GN_CurveFromSurface -- sweeps the "
+    ng.description = ("GN_SolidifyExtended: local copy of GN_CurveFromSurface -- sweeps the "
                       "trim along the border of the placed surface")
     return ng
 
@@ -1108,9 +1108,9 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     S("Even Thickness", 'INPUT', 'NodeSocketBool', p_sol, default=False,
       desc="Keep the shell evenly thick at sharp corners by pushing corner vertices "
            "further out.")
-    S("Rim Loops", 'INPUT', 'NodeSocketInt', p_sol, default=0, mn=0, mx=64, single=True,
+    S("Rim Segments", 'INPUT', 'NodeSocketInt', p_sol, default=0, mn=0, mx=64, single=True,
       desc="Extra edge loops around the rim. Give the rim support loops for subdivision, "
-           "or room for Push and the Profile Curve.")
+           "or room for Rim Bulge and the Rim Profile.")
     S("Fill Rim", 'INPUT', 'NodeSocketBool', p_sol, default=True,
       desc="Close the gap between the two shells with a rim. Off leaves two separate "
            "shells.")
@@ -1118,7 +1118,7 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
       desc="Drop the inner shell (the flipped one, at Offset -1) and keep the outer shell "
            "plus the rim. With Offset -1 that is the original surface with a rim grown "
            "behind it. Needs Fill Rim.")
-    S("Inset", 'INPUT', 'NodeSocketFloat', p_sol, default=0.0, subtype='DISTANCE',
+    S("Border Inset", 'INPUT', 'NodeSocketFloat', p_sol, default=0.0, subtype='DISTANCE',
       single=True,
       desc="Pull the outer shell's border inward along the surface, so the rim leans in. "
            "Corners are mitred, so the border stays parallel.")
@@ -1145,14 +1145,14 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
         S(f"Outer {word}", 'INPUT', 'NodeSocketFloat', p, default=0.0, mn=0.0, mx=1.0,
           subtype='FACTOR', single=True,
           desc=f"{word} on the border edges of the outer shell (the one at Offset 1).")
-        S(f"Rim Loop {word}", 'INPUT', 'NodeSocketFloat', p, default=0.0, mn=0.0, mx=1.0,
+        S(f"Rim Segment {word}", 'INPUT', 'NodeSocketFloat', p, default=0.0, mn=0.0, mx=1.0,
           subtype='FACTOR', single=True,
-          desc=f"{word} on the loops running around the rim (see Rim Loops).")
+          desc=f"{word} on the loops running around the rim (see Rim Segments).")
         S(f"Rim {word}", 'INPUT', 'NodeSocketFloat', p, default=0.0, mn=0.0, mx=1.0,
           subtype='FACTOR', single=True,
           desc=f"{word} on the edges running across the rim, from shell to shell. Which "
-               f"ones is picked by Rim {word} By.")
-        m = S(f"Rim {word} By", 'INPUT', 'NodeSocketMenu', p,
+               f"ones is picked by Rim {word} Mode.")
+        m = S(f"Rim {word} Mode", 'INPUT', 'NodeSocketMenu', p,
               desc="Which rim edges get the weight. Convex / Concave go by topology: a "
                    "border vertex with 2 edges is a convex corner, with 4 or more a "
                    "concave one. Angle Threshold picks corners sharper than the angle "
@@ -1164,32 +1164,31 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
         return p, m
 
     p_cr, m_cr = weight_panel("Crease", "Crease")
-    S("Keep Vertex Crease", 'INPUT', 'NodeSocketBool', p_cr, default=False,
-      desc="A Rim ... By set to Vertex Crease consumes the input's vertex creases (they "
+    S("Preserve Vertex Crease", 'INPUT', 'NodeSocketBool', p_cr, default=False,
+      desc="A Rim ... Mode set to Vertex Crease consumes the input's vertex creases (they "
            "become rim edge creases, and are removed so they don't pinch the subdivided "
            "result). Enable to keep them.")
     p_bw, m_bw = weight_panel("Bevel Weight", "Bevel Weight")
 
-    p_shape = iface.new_panel("Rim Shape", default_closed=True)
-    S("Push", 'INPUT', 'NodeSocketFloat', p_shape, default=0.0, subtype='DISTANCE',
+    p_shape = iface.new_panel("Rim Contour", default_closed=True)
+    S("Rim Bulge", 'INPUT', 'NodeSocketFloat', p_shape, default=0.0, subtype='DISTANCE',
       single=True,
       desc="Bulge the rim outward (negative: inward) at its middle, falling off "
-           "smoothly to both shells. Needs Rim Loops.")
-    S("Profile Curve", 'INPUT', 'NodeSocketObject', p_shape,
+           "smoothly to both shells. Needs Rim Segments.")
+    S("Rim Profile", 'INPUT', 'NodeSocketObject', p_shape,
       desc="Curve object giving the rim's cross-section. Draw it in the curve's local XY "
            "from the inner shell (first point) to the outer shell (last point); +X is "
            "outward. Its size does not matter -- it is scaled to the thickness.")
-    S("Profile Sets Rim Loops", 'INPUT', 'NodeSocketBool', p_shape, default=False,
+    S("Segments From Profile", 'INPUT', 'NodeSocketBool', p_shape, default=False,
       desc="Put one rim loop on every (evaluated) point of the profile curve, so the rim "
-           "follows it exactly. Overrides Rim Loops.")
-    S("Even Rim Offset", 'INPUT', 'NodeSocketBool', p_shape, default=True,
-      desc="Mitre Push and the profile at border corners so the rim stays evenly wide.")
+           "follows it exactly. Overrides Rim Segments.")
+    S("Mitre Rim Corners", 'INPUT', 'NodeSocketBool', p_shape, default=True,
+      desc="Mitre Rim Bulge and the profile at border corners so the rim stays evenly wide.")
 
     p_mat = iface.new_panel("Materials", default_closed=True)
     S("Set Material Index", 'INPUT', 'NodeSocketBool', p_mat, default=False,
       desc="Give the inner shell and the rim the two values below as their material "
-           "index, instead of adding them to the index they start with (the original "
-           "Solidify Plus behaviour).")
+           "index, instead of adding them to the index they start with.")
     S("Shell Material Offset", 'INPUT', 'NodeSocketInt', p_mat, default=0, single=True,
       desc="Added to the material index of the inner shell (the flipped one, at "
            "Offset -1). With Set Material Index: the inner shell's material index.")
@@ -1229,40 +1228,40 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
 
     # ---- added later: shading, rim UVs, trim ----------------------------------------
     p_shade = iface.new_panel("Shading", default_closed=True)
-    S("Fix Normals", 'INPUT', 'NodeSocketBool', p_shade, default=False,
+    S("Separate Rim Shading", 'INPUT', 'NodeSocketBool', p_shade, default=False,
       desc="Custom normals: the shells keep the input surface's shading and the rim is "
            "shaded on its own, so the rim no longer bends the shading of the shells' "
            "borders. A Subdivision modifier after it drops them.")
     for nm, d in (("Inner Sharp", "Mark the inner shell's border edges sharp."),
                   ("Outer Sharp", "Mark the outer shell's border edges sharp."),
-                  ("Rim Loop Sharp", "Mark the loops running around the rim sharp."),
+                  ("Rim Segment Sharp", "Mark the loops running around the rim sharp."),
                   ("Rim Sharp", "Mark the edges running across the rim sharp. Which ones "
-                                "is picked by Rim Sharp By.")):
+                                "is picked by Rim Sharp Mode.")):
         S(nm, 'INPUT', 'NodeSocketBool', p_shade, default=False, desc=d)
-    m_sh = S("Rim Sharp By", 'INPUT', 'NodeSocketMenu', p_shade,
-             desc="Which rim edges are marked sharp -- the same modes as Rim Crease By.")
+    m_sh = S("Rim Sharp Mode", 'INPUT', 'NodeSocketMenu', p_shade,
+             desc="Which rim edges are marked sharp -- the same modes as Rim Crease Mode.")
     S("Rim Sharp Angle", 'INPUT', 'NodeSocketFloat', p_shade, default=math.radians(95),
       mn=0.0, mx=math.pi, subtype='ANGLE', single=True,
       desc="Angle Threshold mode: rim edges at border corners sharper than this angle.")
     _place_after(iface, p_shade, "Bevel Weight")
 
-    p_uv = iface.new_panel("Rim UVs", default_closed=True)
-    m_uv = S("Rim UVs", 'INPUT', 'NodeSocketMenu', p_uv,
-             desc="Off: the rim keeps the UVs it inherits (stretched across it). Expand: "
+    p_uv = iface.new_panel("Rim UV Layout", default_closed=True)
+    m_uv = S("Rim UV Layout", 'INPUT', 'NodeSocketMenu', p_uv,
+             desc="Off: the rim keeps the UVs it inherits (stretched across it). Extend: "
                   "the rim continues each UV island outward across its border, at the "
-                  "island's texel density. Strip: every rim loop is laid out as a straight "
+                  "island's texel density. Unroll: every rim loop is laid out as a straight "
                   "strip -- U along the border, V across the rim -- stacked upward from "
-                  "Strip Position.")
+                  "Unroll Origin.")
     S("UV Map", 'INPUT', 'NodeSocketString', p_uv, default="UVMap",
       desc="UV map the rim UVs are written into.")
     S("Rim UV Scale", 'INPUT', 'NodeSocketFloat', p_uv, default=1.0, single=True,
-      desc="Expand: scales the rim's UV width (1 = the island's texel density). Strip: "
+      desc="Extend: scales the rim's UV width (1 = the island's texel density). Unroll: "
            "UV units per metre.")
-    S("Expand Offset", 'INPUT', 'NodeSocketFloat', p_uv, default=0.0, single=True,
-      desc="Expand: UV distance between an island's border and the start of its rim. "
+    S("Extend Gap", 'INPUT', 'NodeSocketFloat', p_uv, default=0.0, single=True,
+      desc="Extend: UV distance between an island's border and the start of its rim. "
            "0 keeps the rim attached to the island.")
-    S("Strip Position", 'INPUT', 'NodeSocketVector', p_uv, default=(0.0, 0.0, 0.0),
-      single=True, desc="Strip: UV position of the first strip's lower-left corner.")
+    S("Unroll Origin", 'INPUT', 'NodeSocketVector', p_uv, default=(0.0, 0.0, 0.0),
+      single=True, desc="Unroll: UV position of the first strip's lower-left corner.")
     _place_after(iface, p_uv, "Materials")
 
     p_trim = iface.new_panel("Trim", default_closed=True)
@@ -1315,7 +1314,7 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
       desc="Multiplier on the vertex crease the trim carries over from the surface.")
     S("Trim Material", 'INPUT', 'NodeSocketMaterial', p_trim,
       desc="Material of the trim.")
-    _place_after(iface, p_trim, "Rim UVs")
+    _place_after(iface, p_trim, "Rim UV Layout")
 
     o = S("Trim", 'OUTPUT', 'NodeSocketBool',
           desc="True on the trim faces. Name it in the modifier's Output Attributes to "
@@ -1335,7 +1334,7 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     F_sel = G.frame("Selection Gate  (GNG_SelectionGate)")
     F_split = G.frame("Split Selected Faces  (unselected pass through)")
     F_data = G.frame("Source Data  (direction, offsets, rim direction)")
-    F_seg = G.frame("Rim Segments  (Rim Loops + 1, or profile points - 1)")
+    F_seg = G.frame("Rim Segments  (Rim Segments + 1, or profile points - 1)")
     F_inner = G.frame("Inner Shell + Rim")
     F_outer = G.frame("Outer Shell")
     F_weld = G.frame("Weld Rim To Outer Shell  (by source vertex)")
@@ -1346,8 +1345,8 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     F_mat = G.frame("Material Offsets")
     F_sx = G.frame("Source Extras  (corner normals, UV island centres, border length)")
     F_sh = G.frame("Sharp Edges")
-    F_uv = G.frame("Rim UVs  (Expand / Strip)")
-    F_nrm = G.frame("Fix Normals  (shells keep the input's, rim on its own)")
+    F_uv = G.frame("Rim UV Layout  (Extend / Unroll)")
+    F_nrm = G.frame("Separate Rim Shading  (shells keep the input's, rim on its own)")
     F_trim = G.frame("Trim  (GN_CurveFromSurface on the placed surface)")
     F_vc = G.frame("Vertex Crease Consumed  (unless kept)")
     F_out = G.frame("Output  (face parts, cleanup, join unselected)")
@@ -1399,19 +1398,19 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     srcx = (sx, "Geometry")
 
     # ============================================================ 4. RIM SEGMENTS
-    g = gi(F_seg, "Rim Loops", "Profile Curve", "Profile Sets Rim Loops", "Fill Rim")
+    g = gi(F_seg, "Rim Segments", "Rim Profile", "Segments From Profile", "Fill Rim")
     oinfo = mk("GeometryNodeObjectInfo", F_seg, transform_space='ORIGINAL',
-               label="Profile Curve")
-    link(g, "Profile Curve", oinfo, "Object")
+               label="Rim Profile")
+    link(g, "Rim Profile", oinfo, "Object")
     c2p = mk("GeometryNodeCurveToPoints", F_seg, mode='EVALUATED', label="Profile Points")
     link(oinfo, "Geometry", c2p, "Curve")
     psize = mk("GeometryNodeAttributeDomainSize", F_seg, component='POINTCLOUD')
     link(c2p, "Points", psize, "Geometry")
     pcount = (psize, "Point Count")
-    use_pts = G.bmath('AND', (g, "Profile Sets Rim Loops"),
+    use_pts = G.bmath('AND', (g, "Segments From Profile"),
                       G.cmp('INT', 'GREATER_EQUAL', pcount, 2, F_seg, label="Has Profile"),
                       F_seg, label="Loops From Profile")
-    nseg = G.switch('INT', use_pts, G.imath('ADD', (g, "Rim Loops"), 1, F_seg),
+    nseg = G.switch('INT', use_pts, G.imath('ADD', (g, "Rim Segments"), 1, F_seg),
                     G.imath('SUBTRACT', pcount, 1, F_seg), F_seg, label="Rim Segments")
     iters = G.switch('INT', (g, "Fill Rim"), 0, nseg, F_seg, label="Extrusions")
 
@@ -1467,12 +1466,12 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     link(weld, "Geometry", dele, "Geometry"); feed(dele, "Selection", is_drop)
 
     # ============================================================ 9. PLACE VERTICES
-    g = gi(F_pos, "Profile Sets Rim Loops", "Inset", "Push", "Even Rim Offset")
+    g = gi(F_pos, "Segments From Profile", "Border Inset", "Rim Bulge", "Mitre Rim Corners")
     shp = group(shape_ng, F_pos, "Place Vertices")
     link(dele, "Geometry", shp, "Geometry")
     link(oinfo, "Geometry", shp, "Profile")
     feed(shp, "Segments", nseg)
-    for nm in ("Profile Sets Rim Loops", "Inset", "Push", "Even Rim Offset"):
+    for nm in ("Segments From Profile", "Border Inset", "Rim Bulge", "Mitre Rim Corners"):
         link(g, nm, shp, nm)
 
     # ============================================================ 10. RIM EDGES
@@ -1500,12 +1499,12 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
         link(gm, menu_name, ms, "Menu")
         return (ms, "Output")
 
-    cr_idx = mode_index("Rim Crease By", F_wt)
-    bw_idx = mode_index("Rim Bevel Weight By", F_wt)
+    cr_idx = mode_index("Rim Crease Mode", F_wt)
+    bw_idx = mode_index("Rim Bevel Weight Mode", F_wt)
     x = kinds
     for word, attr, midx in (("Crease", "crease_edge", cr_idx),
                              ("Bevel Weight", "bevel_weight_edge", bw_idx)):
-        gw = gi(F_wt, f"Inner {word}", f"Outer {word}", f"Rim Loop {word}", f"Rim {word}",
+        gw = gi(F_wt, f"Inner {word}", f"Outer {word}", f"Rim Segment {word}", f"Rim {word}",
                 f"Rim {word} Angle")
         wn = mk("GeometryNodeGroup", F_wt, label=f"Write {word}")
         wn.node_tree = weight_ng
@@ -1513,21 +1512,21 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
         isock(wn, "Attribute Name").default_value = attr
         link(gw, f"Inner {word}", wn, "Inner Border")
         link(gw, f"Outer {word}", wn, "Outer Border")
-        link(gw, f"Rim Loop {word}", wn, "Rim Loops")
+        link(gw, f"Rim Segment {word}", wn, "Rim Segments")
         link(gw, f"Rim {word}", wn, "Rim Edges")
         link(gw, f"Rim {word} Angle", wn, "Rim Angle")
         feed(wn, "Rim Mode", midx)
         x = (wn, "Geometry")
 
     # ---- sharp edges: same edge kinds, written as a temporary weight, OR-ed in
-    sh_idx = mode_index("Rim Sharp By", F_sh)
-    gs = gi(F_sh, "Inner Sharp", "Outer Sharp", "Rim Loop Sharp", "Rim Sharp", "Rim Sharp Angle")
+    sh_idx = mode_index("Rim Sharp Mode", F_sh)
+    gs = gi(F_sh, "Inner Sharp", "Outer Sharp", "Rim Segment Sharp", "Rim Sharp", "Rim Sharp Angle")
     ws = mk("GeometryNodeGroup", F_sh, label="Write Sharp")
     ws.node_tree = weight_ng
     feed(ws, "Geometry", x)
     isock(ws, "Attribute Name").default_value = A_SHARP
     for a, b in (("Inner Sharp", "Inner Border"), ("Outer Sharp", "Outer Border"),
-                 ("Rim Loop Sharp", "Rim Loops"), ("Rim Sharp", "Rim Edges"),
+                 ("Rim Segment Sharp", "Rim Segments"), ("Rim Sharp", "Rim Edges"),
                  ("Rim Sharp Angle", "Rim Angle")):
         link(gs, a, ws, b)
     feed(ws, "Rim Mode", sh_idx)
@@ -1537,7 +1536,7 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     st_sh = G.store((ws, "Geometry"), 'BOOLEAN', 'EDGE', "sharp_edge", sharp, F_sh,
                     label="Store sharp_edge")
     any_sh = G.bmath('OR', G.bmath('OR', (gs, "Inner Sharp"), (gs, "Outer Sharp"), F_sh),
-                     G.bmath('OR', (gs, "Rim Loop Sharp"), (gs, "Rim Sharp"), F_sh), F_sh,
+                     G.bmath('OR', (gs, "Rim Segment Sharp"), (gs, "Rim Sharp"), F_sh), F_sh,
                      label="Any Sharp?")
     # untouched when nothing is marked, so no empty sharp_edge attribute is added
     x = G.switch('GEOMETRY', any_sh, x, st_sh, F_sh, label="Mark Sharp?")
@@ -1563,36 +1562,36 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
     x = (smi, "Geometry")
 
     # ============================================================ 12b. RIM UVs
-    gu = gi(F_uv, "Rim UVs", "UV Map", "Rim UV Scale", "Expand Offset", "Strip Position",
+    gu = gi(F_uv, "Rim UV Layout", "UV Map", "Rim UV Scale", "Extend Gap", "Unroll Origin",
             "Offset")
-    msw = mk("GeometryNodeMenuSwitch", F_uv, data_type='INT', label="Rim UVs  (menu -> index)")
+    msw = mk("GeometryNodeMenuSwitch", F_uv, data_type='INT', label="Rim UV Layout  (menu -> index)")
     msw.enum_items[0].name, msw.enum_items[1].name = UV_MODES[0], UV_MODES[1]
     for it in UV_MODES[2:]:
         msw.enum_items.new(it)
     for i, it in enumerate(UV_MODES):
         isock(msw, it).default_value = i
-    link(gu, "Rim UVs", msw, "Menu")
+    link(gu, "Rim UV Layout", msw, "Menu")
     uv_idx = (msw, "Output")
-    ruv = group(uv_ng, F_uv, "Rim UVs")
+    ruv = group(uv_ng, F_uv, "Rim UV Layout")
     feed(ruv, "Geometry", x); feed(ruv, "Mode", uv_idx); feed(ruv, "Segments", nseg)
-    for nm in ("UV Map", "Rim UV Scale", "Expand Offset", "Strip Position", "Offset"):
+    for nm in ("UV Map", "Rim UV Scale", "Extend Gap", "Unroll Origin", "Offset"):
         link(gu, nm, ruv, nm)
     x = (ruv, "Geometry")
 
     # ============================================================ 12c. FIX NORMALS
-    gn = gi(F_nrm, "Fix Normals")
-    fxn = group(nrm_ng, F_nrm, "Fix Normals")
-    feed(fxn, "Geometry", x); link(gn, "Fix Normals", fxn, "Fix Normals")
+    gn = gi(F_nrm, "Separate Rim Shading")
+    fxn = group(nrm_ng, F_nrm, "Separate Rim Shading")
+    feed(fxn, "Geometry", x); link(gn, "Separate Rim Shading", fxn, "Separate Rim Shading")
     x = (fxn, "Geometry")
 
     # ============================================================ 13. VERTEX CREASE
-    g = gi(F_vc, "Keep Vertex Crease")
+    g = gi(F_vc, "Preserve Vertex Crease")
     # Vertex Crease is the highest mode id, so "any mode is it" == "the max mode is it"
     top = G.imath('MAXIMUM', G.imath('MAXIMUM', cr_idx, bw_idx, F_vc), sh_idx, F_vc,
                   label="Highest Rim Mode")
     uses_vc = G.cmp('INT', 'EQUAL', top, MODE_VERTEX_CREASE, F_vc,
                     label="A Rim Mode Is Vertex Crease")
-    consume = G.bmath('NIMPLY', uses_vc, (g, "Keep Vertex Crease"), F_vc,
+    consume = G.bmath('NIMPLY', uses_vc, (g, "Preserve Vertex Crease"), F_vc,
                       label="Consume  (and not kept)")
     # removing the name "" removes nothing, so the name switch replaces a geometry switch
     rmvc = mk("GeometryNodeRemoveAttribute", F_vc, label="Remove crease_vert?")
@@ -1603,7 +1602,7 @@ def build_main(weld_ng, weight_ng, data_ng, rim_ng, shape_ng, trim_ng, extras_ng
 
     # ============================================================ 13b. TRIM
     # GN_CurveFromSurface on the selected part of the whole input, prepared like a
-    # separate CurveFromSurface object would see it (GNG_SolidifyPlus_TrimSurface)
+    # separate CurveFromSurface object would see it (GNG_SolidifyExtended_TrimSurface)
     gt = gi(F_trim, "Geometry", "Add Trim", "Thickness", "Offset", "Trim Position",
             "Trim Offset", "Thickness Weight", "Zero Weight Factor", "Invert Weight")
     tsf = group(tsurf_ng, F_trim, "Trim Surface")
@@ -1709,8 +1708,8 @@ def main():
     md = obj.modifiers.new(NAME, "NODES"); md.node_group = ng
     ids = {it.name: it.identifier for it in ng.interface.items_tree
            if it.item_type == 'SOCKET' and it.in_out == 'INPUT'}
-    md[ids["Rim Loops"]] = 2
-    md[ids["Push"]] = 0.03
+    md[ids["Rim Segments"]] = 2
+    md[ids["Rim Bulge"]] = 0.03
     md[ids["Outer Crease"]] = 1.0
     md[ids["Inner Crease"]] = 1.0
     md[ids["Rim Crease"]] = 1.0

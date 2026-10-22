@@ -851,13 +851,13 @@ RECIPES = {
         expect="topology",
     ),
 
-    # Same open crown as GN_Solidify2; the rim carries loops and a Push bulge and is
+    # Same open crown as GN_Solidify2; the rim carries segments and a Rim Bulge and is
     # tinted through the Rim output, so the rim shaping is what reads.
-    "GN_SolidifyPlus": dict(
-        short="Solidify+",
+    "GN_SolidifyExtended": dict(
+        short="Solidify Ext",
         catalog="Generate",
         prep=["shade_smooth", ("mark_open_boundary", "z", 0.3)],
-        params={"Thickness": 0.12, "Offset": 0.0, "Rim Loops": 2, "Push": 0.02},
+        params={"Thickness": 0.12, "Offset": 0.0, "Rim Segments": 2, "Rim Bulge": 0.02},
         outputs={"Rim": "rim"},
         promote={"rim": "rim_f"},
         material=("mask", "rim_f"),

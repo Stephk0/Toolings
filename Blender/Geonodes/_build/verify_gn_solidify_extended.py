@@ -1,22 +1,22 @@
-"""Verify GN_SolidifyPlus.blend headless.
+"""Verify GN_SolidifyExtended.blend headless.
 
   1. Parity: element counts, crease / bevel edge counts and vertex-crease handling
      against reference numbers recorded from the third-party "Solidify Plus (Vert
-     Crease Fix)" group GN_SolidifyPlus replaces (it matched them case for case, and
+     Crease Fix)" group GN_SolidifyExtended replaces (it matched them case for case, and
      the example character's jacket, backpack, pants and zipper buckle to <= 0.2 mm,
      when it was built -- the original is not in the repo, so its numbers are baked in).
   2. Profile curve: rim layer placement for both profile modes.
   3. Selection gate truth table, Grow 0 passthrough, no NaN anywhere.
 
   "C:\\Program Files\\Blender Foundation\\Blender 5.0\\blender.exe" --background \
-      --factory-startup --python verify_gn_solidify_plus.py
+      --factory-startup --python verify_gn_solidify_extended.py
 Exit code 1 on any failure.
 """
 from collections import Counter
 import bpy, bmesh, os, sys, math
 
 GEO = r"D:\Stephko_Tooling\Toolings\Blender\Geonodes"
-NAME = "GN_SolidifyPlus"
+NAME = "GN_SolidifyExtended"
 
 with bpy.data.libraries.load(os.path.join(GEO, NAME + ".blend"), link=False) as (src, dst):
     dst.node_groups = [NAME]
@@ -29,22 +29,22 @@ PARITY = {
     "default":       ('grid', {}, {}, (50, 96, 48), 0, 0, True),
     "offset_-1":     ('grid', {"Thickness": 0.2, "Offset": -1.0}, {}, (50, 96, 48), 0, 0, True),
     "negative_T":    ('grid', {"Thickness": -0.2}, {}, (50, 96, 48), 0, 0, True),
-    "rim_loops_2":   ('grid', {"Rim Loops": 2}, {}, (82, 160, 80), 0, 0, True),
+    "rim_loops_2":   ('grid', {"Rim Segments": 2}, {}, (82, 160, 80), 0, 0, True),
     "no_fill":       ('grid', {"Fill Rim": False}, {}, (50, 80, 32), 0, 0, True),
     "only_rim":      ('grid', {"Only Rim": True}, {}, (41, 72, 32), 0, 0, True),
-    "crease_all":    ('grid', {"Inner Crease": 0.5, "Outer Crease": 0.6, "Rim Loop Crease": 0.7,
-                               "Rim Crease": 0.8, "Rim Loops": 1}, {}, (66, 128, 64), 56, 0, True),
+    "crease_all":    ('grid', {"Inner Crease": 0.5, "Outer Crease": 0.6, "Rim Segment Crease": 0.7,
+                               "Rim Crease": 0.8, "Rim Segments": 1}, {}, (66, 128, 64), 56, 0, True),
     "bevel_all":     ('grid', {"Inner Bevel Weight": 0.5, "Outer Bevel Weight": 0.6,
-                               "Rim Loop Bevel Weight": 0.7, "Rim Bevel Weight": 0.8,
-                               "Rim Loops": 1}, {}, (66, 128, 64), 0, 56, True),
-    "rim_convex":    ('L', {"Rim Crease": 1.0, "Rim Crease By": 2}, {}, (30, 56, 28), 5, 0, True),
-    "rim_concave":   ('L', {"Rim Crease": 1.0, "Rim Crease By": 3}, {}, (30, 56, 28), 1, 0, True),
-    "rim_vcrease":   ('L', {"Rim Crease": 1.0, "Rim Crease By": 5}, {}, (30, 56, 28), 3, 0, False),
-    "rim_vc_keep":   ('L', {"Rim Crease": 1.0, "Rim Crease By": 5, "Keep Vertex Crease": True},
+                               "Rim Segment Bevel Weight": 0.7, "Rim Bevel Weight": 0.8,
+                               "Rim Segments": 1}, {}, (66, 128, 64), 0, 56, True),
+    "rim_convex":    ('L', {"Rim Crease": 1.0, "Rim Crease Mode": 2}, {}, (30, 56, 28), 5, 0, True),
+    "rim_concave":   ('L', {"Rim Crease": 1.0, "Rim Crease Mode": 3}, {}, (30, 56, 28), 1, 0, True),
+    "rim_vcrease":   ('L', {"Rim Crease": 1.0, "Rim Crease Mode": 5}, {}, (30, 56, 28), 3, 0, False),
+    "rim_vc_keep":   ('L', {"Rim Crease": 1.0, "Rim Crease Mode": 5, "Preserve Vertex Crease": True},
                       {}, (30, 56, 28), 3, 0, True),
-    "rim_all_loops": ('L', {"Rim Crease": 1.0, "Rim Crease By": 0, "Rim Loops": 1}, {},
+    "rim_all_loops": ('L', {"Rim Crease": 1.0, "Rim Crease Mode": 0, "Rim Segments": 1}, {},
                       (42, 80, 40), 24, 0, True),
-    "tube_loops":    ('tube', {"Rim Loops": 3, "Rim Loop Crease": 0.5}, {}, (80, 160, 80), 48, 0, True),
+    "tube_loops":    ('tube', {"Rim Segments": 3, "Rim Segment Crease": 0.5}, {}, (80, 160, 80), 48, 0, True),
     "closed_cube":   ('cube', {}, {}, (16, 24, 12), 0, 0, True),
     "selection":     ('gridsel', {}, {"Selection": "sel"}, (45, 78, 36), 0, 0, True),
     "sel_invert":    ('gridsel', {"Invert Selection": True}, {"Selection": "sel"}, (45, 78, 36), 0, 0, True),
@@ -133,18 +133,18 @@ def profile(points):
 # a tent: half the thickness out at mid-height. Flat 2x2 sheet, T 0.1: the middle rim
 # loop sits 0.05 outside the border, the others 0.025.
 tent = profile([(0, 0), (0.5, 0.5), (0, 1)])
-me = run('flat', {"Rim Loops": 3},
-         extra=lambda md: md.__setitem__(IDS["Profile Curve"], tent))
+me = run('flat', {"Rim Segments": 3},
+         extra=lambda md: md.__setitem__(IDS["Rim Profile"], tent))
 xmax = max(v.co.x for v in me.vertices)
 check(abs(xmax - 1.05) < 1e-4, f"tent profile pushes the middle loop out by T/2 (max x {xmax:.4f})")
 mid = [v for v in me.vertices if abs(v.co.z - 0.05) < 1e-4 and abs(v.co.y) < 0.4]
 check(mid and all(abs(abs(v.co.x) - 1.05) < 1e-4 for v in mid),
       "middle loop at half thickness, offset straight out")
 
-# Profile Sets Rim Loops: 5 points -> 3 rim loops, layer k on point k
+# Segments From Profile: 5 points -> 3 rim loops, layer k on point k
 steps = profile([(0, 0), (0.2, 0.1), (0.2, 0.5), (0.2, 0.9), (0, 1)])
-me = run('flat', {"Profile Sets Rim Loops": True, "Rim Loops": 7},
-         extra=lambda md: md.__setitem__(IDS["Profile Curve"], steps))
+me = run('flat', {"Segments From Profile": True, "Rim Segments": 7},
+         extra=lambda md: md.__setitem__(IDS["Rim Profile"], steps))
 check(len(me.vertices) == 25 * 2 + 16 * 3,
       f"5-point profile sets 3 rim loops (verts {len(me.vertices)} / {25 * 2 + 16 * 3})")
 zs = sorted({round(v.co.z, 4) for v in me.vertices})
@@ -162,7 +162,7 @@ check(sig(c) == sig(d), "(Sel, Inv 1) == (not Sel, Inv 0)")
 e = run('grid', {"Grow / Shrink Selection": 0})
 f = run('grid', {})
 check(sig(e) == sig(f), "Grow / Shrink 0 is a passthrough")
-z = run('grid', {"Thickness": 0.0, "Rim Loops": 2, "Push": 0.1, "Even Thickness": True})
+z = run('grid', {"Thickness": 0.0, "Rim Segments": 2, "Rim Bulge": 0.1, "Even Thickness": True})
 check(no_nan(z), "zero thickness: no NaN")
 
 print("== material index")
@@ -183,7 +183,7 @@ def n_sharp(me):
     return sum(1 for d in at.data if d.value) if at else None
 check(n_sharp(run('flat', {})) is None, "defaults add no sharp_edge attribute")
 check(n_sharp(run('flat', {"Outer Sharp": True})) == 16, "Outer Sharp marks the 16 border edges")
-check(n_sharp(run('flat', {"Rim Sharp": True, "Rim Sharp By": 0})) == 16,
+check(n_sharp(run('flat', {"Rim Sharp": True, "Rim Sharp Mode": 0})) == 16,
       "Rim Sharp (All) marks the 16 rim edges")
 
 # flat 2 x 2 m grid, UV = xy / 2 + 0.5 (0.5 UV per metre), shell 0.1 behind the surface
@@ -205,15 +205,15 @@ def rim_corners(me):
     return out
 
 print("== rim UVs")
-me = run('flat', dict(SHELL, **{"Rim UVs": 1}), extra=with_uv)
+me = run('flat', dict(SHELL, **{"Rim UV Layout": 1}), extra=with_uv)
 rc = rim_corners(me)
 outside = lambda u: max(u.x - 1, -u.x, u.y - 1, -u.y, 0.0)
 check(len(rc) == 64 and all(abs(outside(u) - (-co.z) * 0.5) < 1e-4 for co, u, _ in rc),
-      "Expand: rim continues the island outward at its texel density (0.05 UV for 0.1 m)")
-me = run('flat', dict(SHELL, **{"Rim UVs": 1, "Expand Offset": 0.02}), extra=with_uv)
+      "Extend: rim continues the island outward at its texel density (0.05 UV for 0.1 m)")
+me = run('flat', dict(SHELL, **{"Rim UV Layout": 1, "Extend Gap": 0.02}), extra=with_uv)
 check(all(abs(outside(u) - ((-co.z) * 0.5 + 0.02)) < 1e-4 for co, u, _ in rim_corners(me)),
-      "Expand Offset leaves a 0.02 UV gap")
-me = run('flat', dict(SHELL, **{"Rim UVs": 2}), extra=with_uv)
+      "Extend Gap leaves a 0.02 UV gap")
+me = run('flat', dict(SHELL, **{"Rim UV Layout": 2}), extra=with_uv)
 rc = rim_corners(me)
 spans = {}
 for co, u, p in rc:
@@ -221,7 +221,7 @@ for co, u, p in rc:
 check(all(abs(u.y - (-co.z)) < 1e-4 for co, u, _ in rc)
       and min(u.x for _, u, _ in rc) > -1e-4 and max(u.x for _, u, _ in rc) < 8 + 1e-4
       and all(abs(max(s) - min(s) - 0.5) < 1e-4 for s in spans.values()),
-      "Strip: U = border length (0..8 m, 0.5 per face, closing face wrapped), V = depth")
+      "Unroll: U = border length (0..8 m, 0.5 per face, closing face wrapped), V = depth")
 
 print("== fix normals")
 def shell_dev(me):
@@ -234,11 +234,11 @@ def shell_dev(me):
 def smooth(md):
     for p in md.id_data.data.polygons: p.use_smooth = True
 check(shell_dev(run('flat', SHELL, extra=smooth)) > 1e-3,
-      "smooth shaded, without Fix Normals the rim bends the shell border")
-me = run('flat', dict(SHELL, **{"Fix Normals": True}), extra=smooth)
+      "smooth shaded, without Separate Rim Shading the rim bends the shell border")
+me = run('flat', dict(SHELL, **{"Separate Rim Shading": True}), extra=smooth)
 rim_ok = all(abs(me.corner_normals[li].vector.z) < 1e-4
              for p in me.polygons if abs(p.normal.z) < 0.5 for li in p.loop_indices)
-check(shell_dev(me) < 1e-5 and rim_ok, "Fix Normals: flat shells, rim shaded on its own")
+check(shell_dev(me) < 1e-5 and rim_ok, "Separate Rim Shading: flat shells, rim shaded on its own")
 
 print("== trim")
 me = run('flat', {"Add Trim": True, "Trim Radius": 0.05})
