@@ -69,7 +69,7 @@ from menus or panels.
 | Tool | Key | What it does | Get it |
 |------|-----|--------------|--------|
 | **Modifier List (Stephko fork)** | — | Enhanced modifier-stack UI: list view, popup, sidebar | [docs](Blender/Addons/ModifierList_Stephko/README.md) · [zip](Blender/Addons/ModifierList_Stephko/distribution/) |
-| **Modifier Stack Actions** | right-click | Show or extract the stack up to a modifier, add or paste a modifier before / after it, move it up / down / to first / last | [docs](Blender/Addons/ModifierStackActions/README.md) · [tutorial](Blender/Addons/ModifierStackActions/TUTORIAL.md) · [zip](Blender/Addons/ModifierStackActions/distribution/) |
+| **Modifier Stack Actions** | right-click | Show or extract the stack up to a modifier, apply everything above it, add, paste or duplicate a modifier before / after it, move it up / down / to first / last, before / after pinned modifiers | [docs](Blender/Addons/ModifierStackActions/README.md) · [tutorial](Blender/Addons/ModifierStackActions/TUTORIAL.md) · [zip](Blender/Addons/ModifierStackActions/distribution/) |
 | **Synced Modifiers** | — | Keep modifiers in sync across objects, including Geometry Nodes inputs | [docs](Blender/Addons/SyncedModifiers/README.md) · [zip](Blender/Addons/SyncedModifiers/distribution/) |
 | **Toggle Modifier Display** | D / Shift+D | Toggle modifier visibility in edit mode, 3ds Max "show end result" style | [docs](Blender/Addons/Toggle%20Modifier%20Display/README.md) · [zip](Blender/Addons/Toggle%20Modifier%20Display/distribution/) |
 

@@ -13,8 +13,8 @@ source/
 ├── blender/
 │   ├── properties.py      # Object.modifier_stack_actions_state (JSON string, saved in .blend)
 │   ├── insert.py          # Add Modifier Before/After: native menu wrapper + depsgraph move
-│   ├── clipboard.py       # object.modifier_stack_copy / _paste (Before/After)
-│   ├── operators.py       # object.modifier_up_to_here / _restore / modifier_extract_up_to_here / modifier_stack_move
+│   ├── clipboard.py       # object.modifier_stack_copy / _paste (Before/After) / _duplicate
+│   ├── operators.py       # object.modifier_up_to_here / _restore / modifier_extract_up_to_here / modifier_apply_above / modifier_stack_move
 │   └── ui.py              # UI_MT_button_context_menu entries + DATA_PT_modifiers banner
 └── tests/
     ├── pytest.ini         # rootdir = tests/, never imports the bpy addon package
@@ -81,5 +81,19 @@ images in `assets/`.
 - **Extract As dialog** opens with the name field in edit mode via `row.activate_init`. It
   only works on a row and stops working under `layout.use_property_split` (Blender 5.0), so the
   dialog draws without property split.
+- **Apply Modifiers Above** runs `bpy.ops.object.modifier_apply` once per modifier, top
+  first, so each one is first in the stack when applied. Blender applies viewport-disabled
+  modifiers too, so `core.stack.apply_plan` skips them. Shared data fails with "multi-user
+  data"; `invoke` asks (`invoke_confirm`, needs 4.2+) and sets `single_user`, which the menu
+  reaches through `operator_context = 'INVOKE_DEFAULT'`. It stops at the first failure and
+  keeps what was applied (one undo step for the whole run).
+- **Pin to Last.** Blender keeps `use_pin_to_last` modifiers as a block at the end of the
+  stack. `ObjectModifiers.move` across that block does nothing and raises nothing, so every
+  move goes through `operators.move_to`, which checks the result. `core.stack.move_plan`
+  keeps plain moves inside the modifier's block and returns a pin change for the moves that
+  cross it (FIRST on a pinned modifier, BEFORE_PINNED, AFTER_PINNED). Setting the flag
+  re-slots the modifier at the block boundary (pinning puts it at the top of the pinned block),
+  so the explicit move always follows. Add Before/After, Paste and Duplicate copy the anchor's
+  pin flag to the new modifier before moving it.
 - Operators take `object_name` / `modifier_name` (the menu always fills both). Empty names fall
   back to `context.object` + `modifiers.active`.

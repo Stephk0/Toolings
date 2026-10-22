@@ -262,6 +262,109 @@ try:
     clipboard._on_load(None)
     check("load clears the clipboard", clipboard._clipboard["object"] == "")
 
+    # -- Pinned modifiers ----------------------------------------------
+    def pins():
+        return [m.name for m in obj.modifiers if m.use_pin_to_last]
+
+    def move(name, position):
+        return bpy.ops.object.modifier_stack_move(object_name="Cube", modifier_name=name,
+                                                  position=position)
+
+    obj = scene_with_stack()  # Mirror, Subdivision, Bevel, Array
+    obj.modifiers["Mirror"].use_pin_to_last = True
+    check("pinned setup", names() == ["Subdivision", "Bevel", "Array", "Mirror"])
+    res = move("Subdivision", 'LAST')
+    check("move to last stops above pinned",
+          res == {'FINISHED'} and names() == ["Bevel", "Array", "Subdivision", "Mirror"])
+    res = move("Subdivision", 'DOWN')
+    check("down into pinned block is a no-op", res == {'CANCELLED'} and pins() == ["Mirror"])
+    move("Bevel", 'AFTER_PINNED')
+    check("move after pinned pins it",
+          names() == ["Array", "Subdivision", "Mirror", "Bevel"] and pins() == ["Mirror", "Bevel"])
+    move("Bevel", 'UP')
+    check("up inside pinned block", names() == ["Array", "Subdivision", "Bevel", "Mirror"])
+    move("Mirror", 'BEFORE_PINNED')
+    check("move before pinned unpins it",
+          names() == ["Array", "Subdivision", "Mirror", "Bevel"] and pins() == ["Bevel"])
+    move("Bevel", 'FIRST')
+    check("pinned to first unpins it",
+          names() == ["Bevel", "Array", "Subdivision", "Mirror"] and pins() == [])
+
+    obj.modifiers["Mirror"].use_pin_to_last = True
+    bpy.ops.object.modifier_stack_copy(object_name="Cube", modifier_name="Bevel")
+    bpy.ops.object.modifier_stack_paste(object_name="Cube", modifier_name="Mirror",
+                                        position='AFTER')
+    check("paste after pinned pins the copy",
+          names()[-1] == "Bevel.001" and pins() == ["Mirror", "Bevel.001"])
+    bpy.ops.object.modifier_stack_copy(object_name="Cube", modifier_name="Mirror")
+    bpy.ops.object.modifier_stack_paste(object_name="Cube", modifier_name="Array",
+                                        position='AFTER')
+    check("paste of a pinned modifier next to an unpinned one unpins the copy",
+          names()[names().index("Array") + 1] == "Mirror.001" and "Mirror.001" not in pins())
+
+    insert.arm(obj, "Mirror", 'BEFORE')
+    bpy.ops.object.modifier_add(type='WELD')
+    bpy.context.view_layer.update()
+    weld = obj.modifiers.active.name
+    check("add before pinned pins the new modifier",
+          names().index(weld) == names().index("Mirror") - 1 and weld in pins())
+
+    # -- Apply Modifiers Above -----------------------------------------
+    properties = sys.modules[addon.__name__ + ".blender.properties"]
+    obj = scene_with_stack()  # Mirror, Subdivision, Bevel (off), Array
+    obj.modifiers["Array"].show_viewport = False
+    expected = eval_verts(obj)  # Mirror + Subdivision evaluated
+    obj.modifiers["Array"].show_viewport = True
+    res = bpy.ops.object.modifier_apply_above(object_name="Cube", modifier_name="Bevel")
+    check("apply above applies everything above, keeps the rest",
+          res == {'FINISHED'} and names() == ["Bevel", "Array"])
+    check("applied mesh matches the stack at that point", len(obj.data.vertices) == expected)
+    check("clicked modifier is active", obj.modifiers.active.name == "Bevel")
+    res = bpy.ops.object.modifier_apply_above(object_name="Cube", modifier_name="Bevel")
+    check("apply above on the first modifier is a no-op", res == {'CANCELLED'})
+
+    obj = scene_with_stack()
+    obj.modifiers["Subdivision"].show_viewport = False
+    verts = len(obj.data.vertices)
+    bpy.ops.object.modifier_apply_above(object_name="Cube", modifier_name="Array")
+    check("switched-off modifiers are skipped and kept",
+          names() == ["Subdivision", "Bevel", "Array"] and len(obj.data.vertices) > verts)
+
+    obj = scene_with_stack()
+    bpy.ops.object.modifier_up_to_here(object_name="Cube", modifier_name="Mirror")
+    bpy.ops.object.modifier_apply_above(object_name="Cube", modifier_name="Array")
+    check("apply above restores a preview that hid modifiers above",
+          names() == ["Bevel", "Array"] and obj.modifiers["Array"].show_viewport
+          and properties.get_state(obj) is None)
+
+    obj = scene_with_stack()
+    twin = obj.copy()
+    bpy.context.scene.collection.objects.link(twin)
+    res = bpy.ops.object.modifier_apply_above(object_name="Cube", modifier_name="Bevel")
+    check("shared data without single user is refused",
+          res == {'CANCELLED'} and names()[0] == "Mirror")
+    bpy.ops.object.modifier_apply_above(object_name="Cube", modifier_name="Bevel",
+                                        single_user=True)
+    check("single user applies and leaves the twin's data alone",
+          names() == ["Bevel", "Array"] and obj.data != twin.data
+          and len(twin.data.vertices) == 8)
+    bpy.data.objects.remove(twin)
+
+    # -- Duplicate -----------------------------------------------------
+    obj = scene_with_stack()  # Mirror, Subdivision, Bevel, Array
+    obj.modifiers["Subdivision"].levels = 3
+    res = bpy.ops.object.modifier_stack_duplicate(object_name="Cube", modifier_name="Subdivision")
+    check("duplicate lands below the source",
+          res == {'FINISHED'}
+          and names() == ["Mirror", "Subdivision", "Subdivision.001", "Bevel", "Array"])
+    check("duplicate keeps settings and is active",
+          obj.modifiers["Subdivision.001"].levels == 3
+          and obj.modifiers.active.name == "Subdivision.001")
+    obj.modifiers["Array"].use_pin_to_last = True
+    bpy.ops.object.modifier_stack_duplicate(object_name="Cube", modifier_name="Array")
+    check("duplicate of pinned stays pinned",
+          names()[-2:] == ["Array", "Array.001"] and pins() == ["Array", "Array.001"])
+
     addon.unregister()
     check("unregister clean", not hasattr(bpy.types.Object, "modifier_stack_actions_state"))
 except Exception:

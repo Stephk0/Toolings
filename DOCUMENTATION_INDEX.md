@@ -65,7 +65,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 | **Synced Modifiers** | 2.5.0 | Add & keep modifiers synchronized across objects via drivers; Geometry Nodes input sync | [README](Blender/Addons/SyncedModifiers/README.md) |
 | **Modifier List (Stephko fork)** | 1.9.89 | Enhanced modifier-stack UI (list view, popup, sidebar) with GN input-attribute toggle fix | [README](Blender/Addons/ModifierList_Stephko/README.md) |
 | **Toggle Modifier Display** | 1.3.0 | Quick modifier visibility toggle in edit mode (D / Shift+D), 3ds Max "show end result" style | [README](Blender/Addons/Toggle%20Modifier%20Display/README.md) |
-| **Modifier Stack Actions** | 1.1.0 | Right-click a modifier: preview the stack up to it, extract the mesh at that point, add or paste a modifier before / after it, move it | [README](Blender/Addons/ModifierStackActions/README.md) |
+| **Modifier Stack Actions** | 1.2.0 | Right-click a modifier: preview the stack up to it, extract the mesh at that point, apply the modifiers above it, add, paste or duplicate a modifier next to it, move it (pinned-aware) | [README](Blender/Addons/ModifierStackActions/README.md) |
 
 ### UV, Naming & Rigging
 
