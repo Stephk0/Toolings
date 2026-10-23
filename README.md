@@ -28,6 +28,14 @@ rest of the tools.
 on the mesh. [Docs](Blender/Addons/GeometryConstraint/README.md) ·
 [zip](Blender/Addons/GeometryConstraint/distribution/)
 
+## ✨ New: Flow Element
+
+3ds Max **Edge Flow** and **Vertex Flow** for Blender, with faces too. Select a flattened ring
+on a cylinder, a dented vertex or a squashed face patch, and Flow Element rebuilds its
+curvature from the geometry around it. It restores the curve instead of averaging like
+Relax does. [Docs](Blender/Addons/FlowElement/README.md) ·
+[zip](Blender/Addons/FlowElement/distribution/)
+
 ## ✨ New: Modifier Stack Actions
 
 ![Modifier Stack Actions: Show Up To Here, Extract As, Add Modifier After and Apply Modifiers Above, all on the middle modifier of five](Blender/Addons/ModifierStackActions/assets/demo/modifier_stack_actions_demo.gif)
@@ -60,6 +68,7 @@ from menus or panels.
 
 | Tool | Key | What it does | Get it |
 |------|-----|--------------|--------|
+| **Flow Element** | right-click | 3ds Max Edge / Vertex Flow (+ faces): rebuilds lost curvature of loops, vertices and face patches from the surrounding geometry | [docs](Blender/Addons/FlowElement/README.md) · [zip](Blender/Addons/FlowElement/distribution/) |
 | **Center Edges / Loops** | Ctrl+Shift+C | Center edge loops or selections along their average position | [docs](Blender/Addons/Center%20Edges/README.md) · [zip](Blender/Addons/Center%20Edges/distribution/) |
 | **Smart Collapse** | Ctrl+Alt+X | 3ds Max-style collapse — merge at center | [docs](Blender/Addons/Smart%20Collapse/README.md) · [zip](Blender/Addons/Smart%20Collapse/distribution/) |
 | **Smart Crease** | Shift+E | Context-sensitive edge/vertex crease with preset keys and modal mouse control | [docs](Blender/Addons/Smart%20Crease/README.md) · [zip](Blender/Addons/Smart%20Crease/distribution/) |
@@ -105,6 +114,8 @@ from menus or panels.
 
 **53 modifiers** straight from **Add Modifier → ST3E**: deformers, generators, topology and
 attribute tools. Every one has an Asset Browser icon and ships with a demo object.
+
+**▶ [Timelapse: a jacket built from one low-poly cage with a stack of ST3E modifiers](Blender/Geonodes/assets/demo/jacket_modifier_stack_timelapse.mp4)**
 
 → **[Library reference](Blender/Geonodes/README.md)** —
 [Deformers](Blender/Geonodes/README.md#deformers) ·

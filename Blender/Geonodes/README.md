@@ -7,6 +7,12 @@
 **Author:** Stephan Viranyi (Stephko)
 **Target:** Blender 5.0+ (most also work on 4.5)
 
+**▶ [Timelapse: building the jacket from one low-poly cage](assets/demo/jacket_modifier_stack_timelapse.mp4)**
+(MP4, 1:37). Each ST3E modifier in the stack of `SM_Char_Jacket` from
+[`ST3E_Examples_Character.blend`](../Examples/README.md) is switched on in turn: mirror, cut the
+zipper line, split seams, inset, `GN_SolidifyExtended` thickness and piping, padding, then
+Subdivision. The cage stays the only thing that is ever edited.
+
 ---
 
 ## 📥 Installation
