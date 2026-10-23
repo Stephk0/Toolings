@@ -552,6 +552,7 @@ def steps():
     yield 0.2
     yield from more_objects(s)
     yield from hotkeys(s)
+    yield from actions(s)
 
 
 def hotkeys(s):
@@ -620,6 +621,152 @@ def hotkeys(s):
     for kmi in km.keymap_items:
         if kmi.idname.startswith("view3d.geometry_constraint_"):
             kmi.type, kmi.shift = 'NONE', False
+
+
+def actions(s):
+    """Constraint Actions: a hotkey starts a native Move with the type forced
+    on; R / S inside it stay constrained; the header setting is untouched."""
+    from GeometryConstraint.blender import live
+    wm = bpy.context.window_manager
+    km = wm.keyconfigs.user.keymaps["3D View"]
+    binds = {"EDGE": ('F7', True, False), "FACE": ('F8', True, False),
+             "NORMAL": ('F7', False, True)}           # mode -> (key, shift, ctrl)
+    for mode, (k, shift, ctrl) in binds.items():
+        idname = f"view3d.geometry_constraint_action_{mode.lower()}"
+        kmi = next((i for i in km.keymap_items if i.idname == idname), None)
+        check(kmi is not None and kmi.type == 'NONE', f"action hotkey entry '{mode}' exists, unassigned")
+        if kmi is not None:
+            kmi.type, kmi.shift, kmi.ctrl = k, shift, ctrl
+
+    def press(mode):
+        k, shift, ctrl = binds[mode]
+        key(k, shift=shift, ctrl=ctrl)
+
+    def fresh():
+        bpy.ops.object.mode_set(mode='OBJECT')
+        obj = make_loop_cube()
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.ed.undo_push(message="test setup")
+        frame_view()
+        return obj
+
+    s.enabled, s.mode = False, 'FACE'
+    obj = fresh()
+    yield 0.8
+    c = screen_of(Vector((0, 0, 0)))
+
+    # Edge action: move up, then R inside the same transform, confirm.
+    mouse(*to_win(c + Vector((180, 0))))
+    yield 0.4
+    press("EDGE")
+    yield 0.4
+    for k in range(1, 9):
+        mouse(*to_win(c + Vector((180 + 4 * k, 8 * k))))
+        yield 0.12
+    yield 0.5
+    zs = [p.z for p in sel_world(obj).values()]
+    check(on_cube_edges(obj, None) and min(zs) > 0.05,
+          f"Edge action, move: loop slid up the vertical edges (z {min(zs):.3f}..{max(zs):.3f})")
+    capture("gui_30_action_edge_move")
+    key('R')
+    yield 0.4
+    for a in range(3, 31, 3):
+        r = math.radians(a)
+        mouse(*to_win(c + Vector((180 * math.cos(r), 180 * math.sin(r)))))
+        yield 0.12
+    yield 0.5
+    zs = [p.z for p in sel_world(obj).values()]
+    check(on_cube_edges(obj, None) and max(zs) - min(zs) > 0.2,
+          f"Edge action, R pressed mid-move: rotate is edge-constrained (z span {max(zs) - min(zs):.3f})")
+    capture("gui_31_action_edge_rotate")
+    key('S')
+    yield 0.4
+    for k in range(1, 7):
+        mouse(*to_win(c + Vector((180 + 15 * k, 0))))
+        yield 0.12
+    yield 0.5
+    check(on_cube_edges(obj, None), "Edge action, S pressed: scale is edge-constrained")
+    confirm()
+    yield 0.8
+    check(on_cube_edges(obj, None), "Edge action confirmed: cube is still a cube")
+    check(not s.enabled and s.mode == 'FACE', "Edge action left the header setting alone (off, Face)")
+    check(live._action is None or live._action["phase"] == 'redo', "Edge action finished")
+
+    # A plain G right after is Blender's own, unconstrained move.
+    mouse(*to_win(c + Vector((60, 0))))
+    yield 0.3
+    key('G')
+    yield 0.3
+    for k in range(1, 7):
+        mouse(*to_win(c + Vector((60 + 15 * k, 0))))
+        yield 0.12
+    yield 0.4
+    check(not on_cube_edges(obj, None), "plain G after an action is unconstrained again")
+    ev('RIGHTMOUSE', 'PRESS', x=_cursor[0], y=_cursor[1])
+    ev('RIGHTMOUSE', 'RELEASE', x=_cursor[0], y=_cursor[1])
+    yield 0.6
+    check(live._action is None, "a plain transform clears the action override")
+
+    # Cancel restores the selection and drops the override.
+    before = {i: p.copy() for i, p in sel_world(obj).items()}
+    mouse(*to_win(c + Vector((180, 0))))
+    yield 0.3
+    press("EDGE")
+    yield 0.3
+    for k in range(1, 7):
+        mouse(*to_win(c + Vector((180, 10 * k))))
+        yield 0.12
+    ev('RIGHTMOUSE', 'PRESS', x=_cursor[0], y=_cursor[1])
+    ev('RIGHTMOUSE', 'RELEASE', x=_cursor[0], y=_cursor[1])
+    yield 0.6
+    after = sel_world(obj)
+    check(all((after[i] - before[i]).length < 1e-5 for i in before) and live._action is None,
+          "Edge action cancelled: selection back, override gone")
+
+    # Face action: scale up keeps the loop on the cube's surface.
+    obj = fresh()
+    yield 0.6
+    mouse(*to_win(c + Vector((120, 0))))
+    yield 0.3
+    press("FACE")
+    yield 0.3
+    key('S')
+    yield 0.3
+    for k in range(1, 8):
+        mouse(*to_win(c + Vector((120 + 15 * k, 0))))
+        yield 0.12
+    yield 0.5
+    on_surface = all(max(abs(p.x), abs(p.y), abs(p.z)) < 1 + 1e-4 and
+                     (abs(abs(p.x) - 1) < 1e-4 or abs(abs(p.y) - 1) < 1e-4)
+                     for p in sel_world(obj).values())
+    check(on_surface, "Face action, S: loop stays on the cube's side faces")
+    capture("gui_32_action_face_scale")
+    confirm()
+    yield 0.8
+
+    # Normal action: move keeps each corner on its normal (z stays 0).
+    obj = fresh()
+    yield 0.6
+    before = {i: p.copy() for i, p in sel_world(obj).items()}
+    mouse(*to_win(c + Vector((120, 0))))
+    yield 0.3
+    press("NORMAL")
+    yield 0.3
+    for k in range(1, 8):
+        mouse(*to_win(c + Vector((120 + 12 * k, 6 * k))))
+        yield 0.12
+    yield 0.5
+    after = sel_world(obj)
+    check(all(abs(p.z) < 1e-4 for p in after.values()) and
+          any((after[i] - before[i]).length > 0.02 for i in before),
+          "Normal action, move: verts moved along their normals only")
+    capture("gui_33_action_normal_move")
+    confirm()
+    yield 0.8
+    check(not s.enabled, "header constraint still off after the actions")
+    for kmi in km.keymap_items:
+        if kmi.idname.startswith("view3d.geometry_constraint_"):
+            kmi.type, kmi.shift, kmi.ctrl = 'NONE', False, False
 
 
 _gen = None

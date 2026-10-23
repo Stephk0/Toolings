@@ -1,4 +1,4 @@
-"""Hotkeys: unassigned keymap entries for the toggle / type / cycle operators.
+"""Hotkeys: unassigned keymap entries for the toggle / type / cycle / action operators.
 
 They live in the add-on keyconfig's 3D View keymap, the same keymap Blender's
 right-click > Assign Shortcut picks for VIEW3D_OT_* buttons, so a key set
@@ -22,6 +22,9 @@ HOTKEYS = (
     "view3d.geometry_constraint_normal",
     "view3d.geometry_constraint_cycle_full",
     "view3d.geometry_constraint_cycle_surface",
+    "view3d.geometry_constraint_action_edge",
+    "view3d.geometry_constraint_action_face",
+    "view3d.geometry_constraint_action_normal",
 )
 
 _items = []     # (keymap, keymap item) added to the add-on keyconfig
