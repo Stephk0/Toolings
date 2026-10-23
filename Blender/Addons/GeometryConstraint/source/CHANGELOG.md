@@ -3,6 +3,15 @@
 Called **Edge Constraint Mode** up to 2.2.0. Releases before 2.2.0 did not
 work reliably and are kept in `distribution/archive/` for reference only.
 
+## 3.3.0 — 2026-10-23
+
+- **New: Constraint Actions.** Edge / Face / Normal Constraint Action start
+  Blender's own Move right away with that constraint, like Edge Slide.
+  G / R / S inside it switch to Move / Rotate / Scale and all of them stay
+  constrained until you confirm or cancel. The header toggle is left as it
+  is; F9 on the result keeps the constraint. Three new unassigned hotkeys,
+  also in the right-click Geometry Constraint submenu.
+
 ## 3.2.0 — 2026-10-21
 
 - **New: hotkeys.** Toggle Edge / Face / Normal Constraint (switch to that

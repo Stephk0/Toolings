@@ -30,12 +30,95 @@ TRANSFORM_OPS = {
 _trackers = {}          # object name -> LiveTracker
 _busy = False           # re-entrancy guard: our own update_edit_mesh re-fires the handler
 
+# Constraint Action: one native transform run with a constraint type forced
+# on, whatever the header says. Phases: 'running' while the transform is
+# modal; 'redo' after it was confirmed, so F9 / redo of that one operator is
+# still projected; cleared by anything else.
+_action = None          # {"mode", "phase", "start_op", "op"}
+
+
+class _Forced:
+    """Scene settings with the action's type, switched on, constraining live."""
+
+    def __init__(self, settings, mode):
+        self._s = settings
+        self.mode = mode
+        self.enabled = True
+        self.live = True
+
+    def __getattr__(self, name):
+        return getattr(self._s, name)
+
+
+def _action_active(wm):
+    global _action
+    a = _action
+    if a is None:
+        return False
+    if a["phase"] == 'running':
+        return True
+    # 'redo': only the action's own operator, re-run without a modal drag.
+    if _last_op(wm)[0] != a["op"] or transform_running(wm):
+        _action = None
+        return False
+    return True
+
 
 def _settings(scene):
     s = getattr(scene, "geometry_constraint", None)
-    if s is None or not s.enabled or not s.live:
+    if s is None:
+        return None
+    if _action is not None and _action_active(bpy.context.window_manager):
+        return _Forced(s, _action["mode"])
+    if not s.enabled or not s.live:
         return None
     return s
+
+
+def _action_poll():
+    """Timer: once the action's transform ends, keep it for redo or drop it."""
+    global _action
+    a = _action
+    if a is None or a["phase"] != 'running':
+        return None
+    wm = bpy.context.window_manager
+    if transform_running(wm):
+        return 0.05
+    op_id, op_name = _last_op(wm)
+    if op_id != a["start_op"] and op_name in TRANSFORM_OPS:
+        a["phase"], a["op"] = 'redo', op_id        # confirmed
+    else:
+        _action = None                             # cancelled
+        overlay.hide()
+    return None
+
+
+def start_action(context, mode):
+    """Snapshot the selection, then let the next native transform run with
+    `mode` forced on. The caller invokes the transform right after."""
+    global _action
+    wm = context.window_manager
+    _action = {"mode": mode, "phase": 'running', "start_op": _last_op(wm)[0], "op": None}
+    _prime(context)
+    if not bpy.app.timers.is_registered(_action_poll):
+        bpy.app.timers.register(_action_poll, first_interval=0.05)
+
+
+def cancel_action():
+    global _action
+    _action = None
+
+
+def _prime(context):
+    """Fresh trackers whose idle snapshot is the selection right now, so the
+    first update of the coming drag already has its start positions."""
+    op_id = _last_op(context.window_manager)[0]
+    for obj in _edit_objects(context):
+        bm = bmesh.from_edit_mesh(obj.data)
+        bm.verts.index_update()
+        key, positions = _read(obj, bm)
+        tr = _trackers[obj.name] = LiveTracker()
+        tr.settle(key, positions, op_id)
 
 
 def _edit_objects(context):
@@ -185,6 +268,7 @@ def on_depsgraph_update(scene, _depsgraph=None):
 def on_undo_redo(scene, *_args):
     if _settings(scene) is None or bpy.context.mode != 'EDIT_MESH':
         _trackers.clear()
+        cancel_action()
         return
     for obj in _edit_objects(bpy.context):
         try:
@@ -197,11 +281,13 @@ def on_undo_redo(scene, *_args):
 
 @persistent
 def on_load(*_args):
+    cancel_action()
     _trackers.clear()
 
 
 def reset():
     """Forget snapshots (mode toggled, settings changed)."""
+    cancel_action()
     _trackers.clear()
     overlay.hide()
 
@@ -224,4 +310,7 @@ def unregister():
     for lst, fn in _HANDLERS:
         if fn in lst:
             lst.remove(fn)
+    if bpy.app.timers.is_registered(_action_poll):
+        bpy.app.timers.unregister(_action_poll)
+    cancel_action()
     _trackers.clear()

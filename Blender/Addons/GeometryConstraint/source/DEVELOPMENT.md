@@ -177,8 +177,8 @@ blender -b --factory-startup --python source/tests/headless/demo_media.py -- enc
 ```
 
 On Windows, `gui_drive.py` runs as is apart from `capture()`, which shells
-out to `xwd`; stub it to skip screenshots (last run 2026-10-21, Blender 5.0,
-all 27 checks pass).
+out to `xwd`; stub it to skip screenshots (last run 2026-10-23, Blender 5.0,
+all 42 checks pass).
 
 What each layer covers:
 
@@ -235,3 +235,24 @@ covered by unit tests plus the 5.0 headless run, not by a live 5.0 drag.
   cycle, steps to off).
 - Tests: `test_hotkey_cycles` (pytest), and `hotkeys()` in `gui_drive.py`
   binds F5-F8 / Shift+F5-F6 to the entries and presses them in the real UI.
+
+## Constraint Actions (3.3)
+
+- `view3d.geometry_constraint_action_{edge,face,normal}` (invoke only) call
+  `live.start_action(context, mode)` and then
+  `transform.translate('INVOKE_DEFAULT')`. Mode switching (G / R / S) is the
+  native transform modal map, so the operator id stays `TRANSFORM_OT_translate`
+  whatever the user switches to and `transform_running()` keeps seeing it.
+- `live._action` forces the type for the live handler without touching the
+  scene settings (`_settings()` returns a `_Forced` wrapper). Phases:
+  `running` until the transform leaves `Window.modal_operators` (polled by the
+  `_action_poll` timer), then `redo` if a new transform operator was
+  registered (confirm) or cleared (cancel). In `redo` it stays forced only
+  while that operator is still the last one and nothing is modal, so F9 /
+  undo-redo of it are projected and the next plain transform is not.
+- `start_action` primes fresh trackers with the current selection
+  (`_prime`): `reset()` / a new tracker has no idle snapshot, and the first
+  update of the drag would otherwise be taken as the start positions.
+- Test: `actions()` in `gui_drive.py` (Shift+F7 / Shift+F8 / Ctrl+F7): move,
+  R and S inside one Edge action, cancel, a plain G afterwards, Face scale,
+  Normal move. Last run 42/42 checks.

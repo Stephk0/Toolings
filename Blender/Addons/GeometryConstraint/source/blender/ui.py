@@ -67,6 +67,10 @@ class VIEW3D_MT_geometry_constraint(Menu):
                         text="Cycle: Off > Edge > Face > Normal")
         layout.operator("view3d.geometry_constraint_cycle_surface",
                         text="Cycle: Off > Edge > Face")
+        layout.separator()
+        for mode, label, _desc, icon, _n in TYPE_ITEMS:
+            layout.operator(f"view3d.geometry_constraint_action_{mode.lower()}",
+                            text=f"{label} Constraint Action", icon=icon)
 
 
 def draw_context_menu(self, context):

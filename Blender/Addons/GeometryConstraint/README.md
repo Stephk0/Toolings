@@ -7,7 +7,7 @@ with the constraint off, and yellow marks the edges the selection can slide
 along (the Show Constraint overlay). Full-quality video:
 [geometry_constraint_demo.mp4](assets/demo/geometry_constraint_demo.mp4).*
 
-**Version:** 3.2.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
+**Version:** 3.3.0 · **Blender:** 4.5+ (built for 5.0) · **Category:** Mesh
 
 > Formerly **Edge Constraint Mode**. It was renamed in 3.0 because it constrains to
 > edges, faces and normals. If you have Edge Constraint Mode installed, uninstall it
@@ -54,7 +54,7 @@ the drag (left: before, right: during).
 
 ## Install
 
-1. Download `distribution/GeometryConstraint_v3.2.0.zip`.
+1. Download `distribution/GeometryConstraint_v3.3.0.zip`.
 2. **Edit → Preferences → Add-ons → Install from Disk**, pick the zip, enable it.
 
 ## Use
@@ -73,11 +73,27 @@ the drag (left: before, right: during).
 
 You can also switch it from the **right-click menu** in Edit mode:
 **Geometry Constraint** turns it on or off, and the **Geometry Constraint ▸**
-submenu picks Edge, Face or Normal or steps through them.
+submenu picks Edge, Face or Normal, steps through them, or starts a
+Constraint Action.
+
+### Constraint Actions
+
+A **Constraint Action** works like Blender's Edge Slide: press its hotkey
+and the selection starts moving right away, constrained. Inside it,
+**G / R / S** (W / E / R in the Industry Compatible keymap) switch between
+Move, Rotate and Scale exactly as in any Blender transform, and every one of
+them stays constrained. Click or Enter to confirm, right-click or Esc to
+cancel. Axis locks, typed values and snapping work as usual.
+
+There's one action per type: **Edge Constraint Action**, **Face Constraint
+Action** and **Normal Constraint Action**. They don't touch the header
+toggle: with the constraint off, an action constrains just that one
+transform, and with it on, the action uses its own type instead of the
+header's. Adjust Last Operation (F9) keeps the action's constraint.
 
 ### Hotkeys
 
-Six hotkeys, all unassigned out of the box so they never clash with your
+Nine hotkeys, all unassigned out of the box so they never clash with your
 keymap:
 
 | Hotkey | What it does |
@@ -86,6 +102,7 @@ keymap:
 | Toggle Edge / Face / Normal Constraint | Switches to that type, or off if it's already on |
 | Cycle Constraint: Off > Edge > Face > Normal | Each press steps to the next type, then off |
 | Cycle Constraint: Off > Edge > Face | The same for the two that keep the selection on the surface |
+| Edge / Face / Normal Constraint Action | Starts a constrained Move right away; G / R / S switch to Rotate / Scale, still constrained |
 
 To give one a key, do either of these:
 

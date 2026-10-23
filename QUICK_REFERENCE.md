@@ -56,7 +56,7 @@ Restart 3DS Max
 | Modifier List (Stephko fork) | 1.9.89 | Properties → Modifiers / popup |
 | Tile UV Projector | 1.8.0 | `N` Panel (UV) |
 | Add Bounds To Name | 1.1.3 | `N` Panel → Bounds Name |
-| Geometry Constraint | 3.2.0 | Header toggle, right-click menu, assignable hotkeys (Preferences → Add-ons); any transform |
+| Geometry Constraint | 3.3.0 | Header toggle, right-click menu, assignable hotkeys (Preferences → Add-ons) incl. Edge / Face / Normal Constraint Action (constrained G with R / S switching); any transform |
 | Skin Transfer Setup | 1.3.0 | `N` Panel |
 | Quick Animation Export | 1.0.9 | `N` Panel |
 | Library Relink | 1.0.0 | `N` Panel → Relink |

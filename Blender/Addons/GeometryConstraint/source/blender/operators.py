@@ -17,6 +17,7 @@ from mathutils import Matrix, Vector
 
 from ..core import constraint as C
 from ..core import transform as T
+from . import live
 from .live import update_normals
 from .properties import CONSTRAINT_ITEMS, TYPE_ITEMS, active_mode
 
@@ -518,6 +519,48 @@ CYCLES = (
 )
 
 
+def _action(mode, label):
+    """Constraint Action: start Blender's own Move right away with this
+    constraint forced on, like Edge Slide. G / R / S (W / E / R in the
+    Industry Compatible keymap) switch to Move / Rotate / Scale as in any
+    transform, and every one of them stays constrained until you confirm or
+    cancel. The header setting is left as it was."""
+
+    def invoke(self, context, _event):
+        if not _has_selection(context):
+            self.report({'WARNING'}, "Nothing selected")
+            return {'CANCELLED'}
+        live.start_action(context, mode)
+        try:
+            bpy.ops.transform.translate('INVOKE_DEFAULT')
+        except RuntimeError:
+            live.cancel_action()
+            raise
+        return {'FINISHED'}
+
+    return type(f"VIEW3D_OT_geometry_constraint_action_{mode.lower()}", (Operator,), {
+        "__doc__": (f"Move the selection with the {label} constraint right away, like Edge "
+                    "Slide; G / R / S switch to Move / Rotate / Scale and all of them stay "
+                    f"{label}-constrained (right-click > Assign Shortcut to bind a key)"),
+        "bl_idname": f"view3d.geometry_constraint_action_{mode.lower()}",
+        "bl_label": f"{label} Constraint Action",
+        "bl_options": set(),
+        "poll": _EDIT_MESH_POLL,
+        "invoke": invoke,
+    })
+
+
+def _has_selection(context):
+    for obj in live._edit_objects(context):
+        bm = bmesh.from_edit_mesh(obj.data)
+        if any(v.select and not v.hide for v in bm.verts):
+            return True
+    return False
+
+
+ACTIONS = tuple(_action(i[0], i[1]) for i in TYPE_ITEMS)
+
+
 class VIEW3D_OT_geometry_constraint_set(Operator):
     """Pick the constraint type and turn the constraint on"""
     bl_idname = "view3d.geometry_constraint_set"
@@ -538,6 +581,7 @@ classes = (
     VIEW3D_OT_geometry_constraint_toggle,
     *TYPE_TOGGLES,
     *CYCLES,
+    *ACTIONS,
     VIEW3D_OT_geometry_constraint_set,
 )
 
