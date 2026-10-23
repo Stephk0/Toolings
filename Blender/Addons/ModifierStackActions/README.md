@@ -6,7 +6,7 @@ Right-click any modifier in the Modifier Properties to see or grab the stack as 
 that modifier without touching the modifiers yourself, to apply everything above it, to add, paste or duplicate a modifier
 right before or after it, or to move it up, down, to the top or to the bottom of the stack.
 
-![Demo: Show Up To Here, Extract As, Add Modifier After, Move to Last](assets/demo/modifier_stack_actions_demo.gif)
+![Demo: Show Up To Here, Extract As, Add Modifier After and Apply Modifiers Above, all on the middle modifier of five](assets/demo/modifier_stack_actions_demo.gif)
 
 Full-resolution video: [assets/demo/modifier_stack_actions_demo.mp4](assets/demo/modifier_stack_actions_demo.mp4)
 · Step-by-step walkthrough: [TUTORIAL.md](TUTORIAL.md)
@@ -30,7 +30,7 @@ Hides every modifier **after** the one you clicked in the viewport, so you see t
 the stack up to and including that modifier. A red banner at the top of the Modifiers panel
 shows which modifier the preview stops at.
 
-![Show Up To Here on Mirror: Subdivision and Array are hidden, the banner shows Restore](assets/show_up_to_here.png)
+![Full stack (left); Show Up To Here on Cast hides Array and Simple Deform, the banner shows Restore (right)](assets/show_up_to_here.png)
 
 - Right-click the same modifier again (**Restore Modifier Stack**) or press **Restore** on the
   banner to bring the hidden modifiers back.
@@ -75,6 +75,8 @@ into the mesh and leaves Bevel → Array.
 - If Blender can't apply one (shape keys, Edit Mode), it stops there and tells you which one;
   the ones above it are already applied.
 - Greyed out on the first modifier.
+
+![Six modifiers (left); Apply Modifiers Above on Cast leaves four, the mesh looks the same (right)](assets/apply_above.png)
 
 ### Add Modifier Before / After
 
@@ -122,7 +124,7 @@ entries change to say where the modifier ends up:
 Add, Paste and Duplicate next to a pinned modifier give the new modifier the same pin setting,
 so it can sit right where you asked.
 
-![Simple Deform added after Subdivision bends each copy; moved to last it bends the whole tower](assets/move_to_last.png)
+![Move entries with a pinned modifier in the stack: on a normal modifier (left) and on the pinned one (right)](assets/pinned_menu.png)
 
 ### F3 search
 
