@@ -55,6 +55,7 @@ All Blender addons live in `Blender/Addons/`. Each folder contains its own
 | **Smart Crease** | 1.5.1 | Context-sensitive edge/vertex crease with preset keys + modal mouse control | [README](Blender/Addons/Smart%20Crease/README.md) |
 | **Smart Collapse** | 1.0.0 | 3ds Max-style collapse (collapse + merge at center) | [README](Blender/Addons/Smart%20Collapse/README.md) |
 | **Smart Set Orientation** | 1.5.0 | Set transform orientation from selection (Maya "D" working-pivot style) | [README](Blender/Addons/Smart%20Set%20Orientation/README.md) |
+| **Flow Element** | 1.0.0 | 3ds Max Edge / Vertex Flow (+ faces): rebuild lost curvature of loops, vertices and face patches from the surrounding geometry | [README](Blender/Addons/FlowElement/README.md) |
 | **Center Edges/Loops** | 1.5.1 | Center edge loops / selections along their average position | [README](Blender/Addons/Center%20Edges/README.md) |
 | **Geometry Constraint** | 3.2.0 | 3ds Max-style constraint toggle (Edge / Face / Normal): every Move, Rotate, Scale stays on the mesh | [README](Blender/Addons/GeometryConstraint/README.md) |
 

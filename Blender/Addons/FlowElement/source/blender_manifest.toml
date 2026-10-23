@@ -1,0 +1,11 @@
+schema_version = "1.0.0"
+
+id = "flow_element"
+version = "1.0.0"
+name = "Flow Element"
+tagline = "Rebuild curvature of vertices, edge loops and faces from surrounding geometry"
+maintainer = "Stephan Viranyi"
+type = "add-on"
+blender_version_min = "4.5.0"
+license = ["SPDX:GPL-3.0-or-later"]
+tags = ["Mesh", "Modeling"]

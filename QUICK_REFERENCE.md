@@ -65,6 +65,7 @@ Restart 3DS Max
 | Smart Collapse | 1.0.0 | `F3` → Smart Collapse |
 | Smart Set Orientation | 1.5.0 | `F3` → Smart Orientation |
 | Center Edges/Loops | 1.5.1 | `F3` → Center Loops |
+| Flow Element | 1.0.0 | Edit Mode right-click menu, Vertex / Edge / Face menu |
 | Edit Mode Overlay | 1.1.0 | `N` Panel → Overlay |
 | Toggle Modifier Display | 1.3.0 | `D` / `Shift+D` in Edit Mode |
 | Modifier Stack Actions | 1.2.0 | Right-click a modifier (Properties → Modifiers) |
@@ -173,6 +174,18 @@ Color Settings      → Customize appearance
 ```
 Toggle All          → Show/hide all modifiers in edit mode
 Toggle Selected     → Toggle only selected object's modifiers
+```
+
+### Flow Element
+
+**Access:** Edit Mode → right-click menu (follows select mode), or Vertex / Edge / Face menu
+
+**Quick Commands:**
+```
+Edge   → Selected loops regain the curvature of the edges crossing them
+Vertex → Selected vertices regain the curvature of every edge line through them
+Face   → All verts of the selected faces rebuilt from the surrounding surface
+F9     → Tension (1 = match, 0 = straight), Mix, Refine Passes
 ```
 
 ### Modifier Stack Actions
