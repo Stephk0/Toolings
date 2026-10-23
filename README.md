@@ -30,11 +30,11 @@ on the mesh. [Docs](Blender/Addons/GeometryConstraint/README.md) ·
 
 ## ✨ New: Modifier Stack Actions
 
-![Modifier Stack Actions: Show Up To Here, Extract As, Add Modifier After, Move to Last](Blender/Addons/ModifierStackActions/assets/demo/modifier_stack_actions_demo.gif)
+![Modifier Stack Actions: Show Up To Here, Extract As, Add Modifier After and Apply Modifiers Above, all on the middle modifier of five](Blender/Addons/ModifierStackActions/assets/demo/modifier_stack_actions_demo.gif)
 
 Right-click any modifier: see the stack up to that modifier, extract the mesh at that point as
-a new object, add or paste a modifier right before or after it, or move it up, down, to the
-top or bottom.
+a new object, apply everything above it, add, paste or duplicate a modifier right before or
+after it, or move it up, down, to the top or bottom.
 [Docs](Blender/Addons/ModifierStackActions/README.md) ·
 [tutorial](Blender/Addons/ModifierStackActions/TUTORIAL.md) ·
 [zip](Blender/Addons/ModifierStackActions/distribution/)

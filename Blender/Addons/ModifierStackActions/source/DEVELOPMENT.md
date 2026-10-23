@@ -46,10 +46,17 @@ blender -b --factory-startup --python source/tests/headless/demo_media.py -- enc
 Step 1 opens a Blender window for about two minutes and drives it with simulated input. Real
 mouse and keyboard input to that window is ignored while it runs. It doubles as the end-to-end
 UI test: every menu entry is clicked for real, Add After goes through the submenu's own
-search, and the log prints the resulting stack. Last run 2026-10-21, Blender 5.0, Windows,
-ui_scale 1.25. `MENU_OFFSETS` are measured at that scale; re-measure on another one.
+search, and the log prints the resulting stack. The scene has five modifiers and every
+action targets the middle one (Cast), to show the actions are relative to the clicked
+modifier. Each action left-clicks Cast's icon first (Blender outlines the active
+modifier), then right-clicks 380 px from the editor's right edge so the menu opens beside
+the names and the Add submenu still fits on the right. Last run 2026-10-22, Blender 5.0,
+Windows, ui_scale 1.25. `MENU_OFFSETS` are measured at that scale; re-measure on another one.
 Outputs: `assets/demo/` (MP4, GIF, full-window stills with cursor) and the cropped README
-images in `assets/`.
+images in `assets/` (cropped from the stills by hand).
+
+`demo_media.py -- stills <dir>` (same window flags) captures only the pinned-modifier menus
+and Apply Modifiers Above as full-window PNGs; `assets/pinned_menu.png` comes from it.
 
 ## Implementation notes
 
