@@ -1,7 +1,11 @@
 # Procedural Tree Generator - Documentation
 
 **Version:** 1.0 - Phase 1 MVP
-**Status:** ✅ Functional (Core features implemented)
+**Status:** ⚠️ Highly experimental — work in progress
+
+> **Work in progress.** The tree generator is an experiment, not a finished tool. Expect
+> missing features, broken setups and changes without notice. It is not linked from the main
+> README and is not part of the supported ST3E modifier set.
 **Blender Version:** 4.5+ Required
 **Author:** Stephan Viranyi (Stephko)
 **Date:** 2025-12-03
