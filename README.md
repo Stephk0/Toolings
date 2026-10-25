@@ -19,6 +19,24 @@ rest of the tools.
 
 ---
 
+## 🧱 Geometry Nodes library
+
+**53 modifiers** straight from **Add Modifier → ST3E**: deformers, generators, topology and
+attribute tools. Every one has an Asset Browser icon and ships with a demo object.
+
+**▶ [Timelapse: a jacket built from one low-poly cage with a stack of ST3E modifiers](Blender/Geonodes/assets/demo/jacket_modifier_stack_timelapse.mp4)**
+
+→ **[Library reference](Blender/Geonodes/README.md)** —
+[Deformers](Blender/Geonodes/README.md#deformers) ·
+[Generators & Topology](Blender/Geonodes/README.md#generators--topology) ·
+[Mesh & Attribute Utilities](Blender/Geonodes/README.md#mesh--attribute-utilities) ·
+[Procedural Tree Generator](Blender/Geonodes/TreeGenDocu/README.md)
+
+**Install:** *Preferences → File Paths → Asset Libraries* → add the **`Blender/`** folder
+(not `Blender/Geonodes/`), set Import Method to **Link**, then use *Add Modifier → ST3E*.
+
+---
+
 ## ✨ New: Geometry Constraint
 
 ![Geometry Constraint: Edge, Face and Normal constraints keep Blender's Move, Rotate and Scale on the mesh](Blender/Addons/GeometryConstraint/assets/demo/geometry_constraint_demo.gif)
@@ -107,24 +125,6 @@ from menus or panels.
 
 **Install:** drag the zip from the tool's `distribution/` folder onto Blender, or
 *Edit → Preferences → Add-ons → Install from Disk…*, then enable it.
-
----
-
-## 🧱 Geometry Nodes library
-
-**53 modifiers** straight from **Add Modifier → ST3E**: deformers, generators, topology and
-attribute tools. Every one has an Asset Browser icon and ships with a demo object.
-
-**▶ [Timelapse: a jacket built from one low-poly cage with a stack of ST3E modifiers](Blender/Geonodes/assets/demo/jacket_modifier_stack_timelapse.mp4)**
-
-→ **[Library reference](Blender/Geonodes/README.md)** —
-[Deformers](Blender/Geonodes/README.md#deformers) ·
-[Generators & Topology](Blender/Geonodes/README.md#generators--topology) ·
-[Mesh & Attribute Utilities](Blender/Geonodes/README.md#mesh--attribute-utilities) ·
-[Procedural Tree Generator](Blender/Geonodes/TreeGenDocu/README.md)
-
-**Install:** *Preferences → File Paths → Asset Libraries* → add the **`Blender/`** folder
-(not `Blender/Geonodes/`), set Import Method to **Link**, then use *Add Modifier → ST3E*.
 
 ---
 
