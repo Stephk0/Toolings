@@ -24,13 +24,15 @@ rest of the tools.
 **53 modifiers** straight from **Add Modifier → ST3E**: deformers, generators, topology and
 attribute tools. Every one has an Asset Browser icon and ships with a demo object.
 
-**▶ [Timelapse: a jacket built from one low-poly cage with a stack of ST3E modifiers](Blender/Geonodes/assets/demo/jacket_modifier_stack_timelapse.mp4)**
+![Timelapse: a jacket built from one low-poly cage with a stack of ST3E modifiers](Blender/Geonodes/assets/demo/jacket_modifier_stack_timelapse.gif)
+
+*A jacket built from one low-poly cage with a stack of ST3E modifiers (4× speed) —
+[full-length video](Blender/Geonodes/assets/demo/jacket_modifier_stack_timelapse.mp4).*
 
 → **[Library reference](Blender/Geonodes/README.md)** —
 [Deformers](Blender/Geonodes/README.md#deformers) ·
 [Generators & Topology](Blender/Geonodes/README.md#generators--topology) ·
-[Mesh & Attribute Utilities](Blender/Geonodes/README.md#mesh--attribute-utilities) ·
-[Procedural Tree Generator](Blender/Geonodes/TreeGenDocu/README.md)
+[Mesh & Attribute Utilities](Blender/Geonodes/README.md#mesh--attribute-utilities)
 
 **Install:** *Preferences → File Paths → Asset Libraries* → add the **`Blender/`** folder
 (not `Blender/Geonodes/`), set Import Method to **Link**, then use *Add Modifier → ST3E*.

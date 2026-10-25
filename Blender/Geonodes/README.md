@@ -7,7 +7,10 @@
 **Author:** Stephan Viranyi (Stephko)
 **Target:** Blender 5.0+ (most also work on 4.5)
 
-**▶ [Timelapse: building the jacket from one low-poly cage](assets/demo/jacket_modifier_stack_timelapse.mp4)**
+![Timelapse: building the jacket from one low-poly cage](assets/demo/jacket_modifier_stack_timelapse.gif)
+
+*Building the jacket from one low-poly cage (4× speed) —
+[full-length video](assets/demo/jacket_modifier_stack_timelapse.mp4).*
 (MP4, 1:37). Each ST3E modifier in the stack of `SM_Char_Jacket` from
 [`ST3E_Examples_Character.blend`](../Examples/README.md) is switched on in turn: mirror, cut the
 zipper line, split seams, inset, `GN_SolidifyExtended` thickness and piping, padding, then
@@ -218,6 +221,7 @@ groups.
 - **Node-group utilities** (Asset Browser only, not modifiers): `GN_FillBorder`,
   `GN_MeshFromImage`, `GN_DisplaceByImage`, and the helper groups on the `ST3E/Group` catalog
   shown in the gallery above.
-- **Procedural Tree Generator** — see [`TreeGenDocu/`](TreeGenDocu/README.md).
+- **Procedural Tree Generator** — ⚠️ highly experimental, work in progress; expect it to
+  break or change. See [`TreeGenDocu/`](TreeGenDocu/README.md).
 
 Building or changing a modifier? See [AUTHORING.md](AUTHORING.md).
